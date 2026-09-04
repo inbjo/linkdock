@@ -9,6 +9,7 @@ const BASE = '/api/app/v1'
 class ApiClient {
   private async request<T>(path: string, opts?: RequestInit): Promise<T> {
     const resp = await fetch(`${BASE}${path}`, {
+      credentials: 'same-origin',
       ...opts,
       headers: {
         'Content-Type': 'application/json',

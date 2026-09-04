@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 
 export function RegisterPage() {
   const { t } = useTranslation()
   const nav = useNavigate()
-  const { showError } = useToast()
+  const { showError, showSuccess } = useToast()
+  const { refresh } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -22,6 +24,8 @@ export function RegisterPage() {
     setLoading(true)
     try {
       await api.register(username, password, displayName)
+      await refresh()
+      showSuccess('Registration successful')
       nav('/bookmarks')
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Registration failed')

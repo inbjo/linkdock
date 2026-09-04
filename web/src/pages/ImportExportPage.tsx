@@ -38,6 +38,7 @@ export function ImportExportPage() {
       formData.append('file', file)
       formData.append('format', format)
       const resp = await fetch('/api/app/v1/import/upload', {
+        credentials: 'same-origin',
         method: 'POST',
         body: formData,
       })
@@ -60,6 +61,7 @@ export function ImportExportPage() {
     setLoading(true)
     try {
       const resp = await fetch('/api/app/v1/import/execute', {
+        credentials: 'same-origin',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

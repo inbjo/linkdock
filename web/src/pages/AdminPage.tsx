@@ -70,7 +70,7 @@ function StatsSection() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ['admin', 'stats'],
     queryFn: async () => {
-      const resp = await fetch('/api/app/v1/admin/stats')
+      const resp = await fetch('/api/app/v1/admin/stats', { credentials: 'same-origin' })
       if (!resp.ok) throw new Error('Failed')
       return resp.json()
     },
@@ -106,7 +106,7 @@ function UsersSection() {
   const { data: users, isLoading } = useQuery<AdminUser[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => {
-      const resp = await fetch('/api/app/v1/admin/users')
+      const resp = await fetch('/api/app/v1/admin/users', { credentials: 'same-origin' })
       if (!resp.ok) throw new Error('Failed')
       return resp.json()
     },
@@ -153,7 +153,7 @@ function TenantsSection() {
   const { data: tenants, isLoading } = useQuery<AdminTenant[]>({
     queryKey: ['admin', 'tenants'],
     queryFn: async () => {
-      const resp = await fetch('/api/app/v1/admin/tenants')
+      const resp = await fetch('/api/app/v1/admin/tenants', { credentials: 'same-origin' })
       if (!resp.ok) throw new Error('Failed')
       return resp.json()
     },
@@ -198,7 +198,7 @@ function AuditSection() {
   const { data: entries, isLoading } = useQuery<AuditEntry[]>({
     queryKey: ['admin', 'audit'],
     queryFn: async () => {
-      const resp = await fetch('/api/app/v1/admin/audit?limit=50')
+      const resp = await fetch('/api/app/v1/admin/audit?limit=50', { credentials: 'same-origin' })
       if (!resp.ok) throw new Error('Failed')
       return resp.json()
     },

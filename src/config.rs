@@ -52,7 +52,16 @@ impl Config {
             });
         let cookie_secure = std::env::var("DOCK_COOKIE_SECURE")
             .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
-            .unwrap_or(true);
+            .unwrap_or_else(|_| {
+                // Auto-detect: disable Secure for localhost / 127.0.0.1 / 0.0.0.0
+                // (no HTTPS in local dev). Enable for everything else.
+                let listen = std::env::var("DOCK_LISTEN").unwrap_or_default();
+                !(listen.is_empty()
+                    || listen.starts_with("0.0.0.0")
+                    || listen.starts_with("127.")
+                    || listen.starts_with("localhost")
+                    || listen.starts_with("::1"))
+            });
         let cors_origins = std::env::var("DOCK_CORS_ORIGINS")
             .unwrap_or_default()
             .split(',')

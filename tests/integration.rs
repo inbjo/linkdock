@@ -1,9 +1,9 @@
-//! Integration tests for the Floccus/Linkwarden compatibility API and core flows.
+//! Integration tests for the Floccus (Linkwarden protocol) compatibility API and core flows.
 //!
 //! Each test gets a fresh in-memory SQLite database and a running axum app.
 
 use axum::http::StatusCode;
-use linkwarden::test_support::TestApp;
+use linkdock::test_support::TestApp;
 use serde_json::Value;
 
 async fn setup() -> TestApp {
@@ -605,5 +605,5 @@ async fn test_spa_served_for_non_api() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let body = resp.text().await.unwrap();
-    assert!(body.contains("Linkwarden"));
+    assert!(body.contains("Linkdock"));
 }

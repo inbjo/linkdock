@@ -101,7 +101,7 @@ export function ImportExportPage() {
             <label className="label">Format</label>
             <select className="input" value={format} onChange={(e) => setFormat(e.target.value)}>
               <option value="html">Netscape Bookmark HTML</option>
-              <option value="json">Linkwarden JSON</option>
+              <option value="json">Linkdock JSON</option>
               <option value="csv">CSV</option>
               <option value="xbel">XBEL</option>
             </select>

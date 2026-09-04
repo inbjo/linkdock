@@ -1,13 +1,13 @@
-# Rust Linkwarden 兼容书签服务实施计划
+# Rust Linkdock 兼容书签服务实施计划
 
 ## 1. 项目目标
 
 构建一个面向个人和小团队的多租户书签管理服务：
 
 - 后端使用 Rust、Axum 和 SQLite。
-- 管理前端复用 Linkwarden 的视觉设计、React 组件和多语言资源，并改造成 Vite SPA。
+- 管理前端复用 Linkdock 的视觉设计、React 组件和多语言资源，并改造成 Vite SPA。
 - 前端静态资源在编译时嵌入 Rust 二进制。
-- 实现 Floccus 所需的 Linkwarden 兼容 API，直接使用官方 Floccus 扩展完成 Chrome、Firefox、Edge 等浏览器之间的书签同步。
+- 实现 Floccus 所需的 Linkdock 兼容 API，直接使用官方 Floccus 扩展完成 Chrome、Firefox、Edge 等浏览器之间的书签同步。
 - 支持用户注册登录、工作区、成员权限、书签和目录管理、导入、导出、搜索、回收站及 Access Token 管理。
 - 默认以单个 Rust 进程运行，持久化内容存放在独立的数据目录中。
 
@@ -15,15 +15,15 @@
 
 以下能力不属于首版范围：
 
-- 兼容已有 Linkwarden 用户、Cookie、NextAuth JWT/JWE 或数据库。
+- 兼容已有 Linkdock 用户、Cookie、NextAuth JWT/JWE 或数据库。
 - Playwright、Chromium、网页截图、PDF、Readability 和 Monolith 网页归档。
 - AI 自动标签。
 - RSS 订阅。
 - Stripe、App Store、Google Play 等支付能力。
 - OAuth、OIDC、SSO 和邮件找回密码。
-- Linkwarden 移动客户端完整 API 兼容。
+- Linkdock 移动客户端完整 API 兼容。
 - 自研浏览器扩展或修改 Floccus 扩展。
-- 浏览器书签的同目录手工排序同步。Floccus 的 Linkwarden 适配器目前声明不保留顺序。
+- 浏览器书签的同目录手工排序同步。Floccus 的 Linkdock 适配器目前声明不保留顺序。
 
 ## 3. 总体架构
 
@@ -36,7 +36,7 @@
 |                        Rust / Axum                           |
 |                                                              |
 |  /api/app/v1/*              /api/v1/*                        |
-|  管理界面 API                Linkwarden 兼容 API               |
+|  管理界面 API                Linkdock 兼容 API               |
 |            \                 /                                |
 |             +-------- 业务服务层 --------+                    |
 |                       |                                      |
@@ -72,7 +72,7 @@
 │   ├── services/
 │   ├── routes/
 │   │   ├── app/
-│   │   └── linkwarden/
+│   │   └── linkdock/
 │   └── web_assets.rs
 ├── web/
 │   ├── package.json
@@ -222,7 +222,7 @@
 
 - Tag 在 `(tenant_id, normalized_name)` 上唯一。
 - Link 与 Tag 的关联使用复合主键。
-- 标签首版供 Web 管理界面使用；Floccus Linkwarden 适配器不依赖标签接口。
+- 标签首版供 Web 管理界面使用；Floccus Linkdock 适配器不依赖标签接口。
 
 #### `import_jobs`
 
@@ -266,11 +266,11 @@
 - 返回完整 Token 一次，之后只显示名称、前缀、创建时间、上次使用时间和状态。
 - 首版 scopes 至少提供 `bookmarks:read` 和 `bookmarks:write`。
 - Floccus 请求通过 `Authorization: Bearer <token>` 认证。
-- 浏览器端无效 Token 返回 `403`，以匹配 Floccus Linkwarden 适配器的认证错误判断。
+- 浏览器端无效 Token 返回 `403`，以匹配 Floccus Linkdock 适配器的认证错误判断。
 
-## 8. Floccus / Linkwarden 兼容 API
+## 8. Floccus / Linkdock 兼容 API
 
-兼容目标以 Floccus 正式版中 `LinkwardenAdapter` 的契约测试固定，不追求整个 Linkwarden API 兼容。
+兼容目标以 Floccus 正式版中 `LinkdockAdapter` 的契约测试固定，不追求整个 Linkdock API 兼容。
 
 ### 8.1 必需路由
 
@@ -372,7 +372,7 @@ Link 创建/更新：
 
 ## 9. Web 管理 API
 
-管理界面使用 `/api/app/v1/*`。核心单项 CRUD 可以复用 Linkwarden service，但管理 API 提供更适合批量操作的接口。
+管理界面使用 `/api/app/v1/*`。核心单项 CRUD 可以复用 Linkdock service，但管理 API 提供更适合批量操作的接口。
 
 ### 9.1 用户和工作区
 
@@ -448,7 +448,7 @@ GET    /api/admin/v1/health
 - TanStack Query。
 - Tailwind CSS。
 - i18next。
-- 复用 Linkwarden 的布局、主题、Sidebar、Modal、Drawer、LinkCard、Collection、Tag 和搜索组件。
+- 复用 Linkdock 的布局、主题、Sidebar、Modal、Drawer、LinkCard、Collection、Tag 和搜索组件。
 - 移除 `next-auth`、`getServerSideProps`、Prisma、Next API Routes、`next/router` 和其他 Node 服务端依赖。
 
 原则上逐个迁移并简化组件，不直接复制整个 Next.js 应用后再尝试静态导出。
@@ -488,7 +488,7 @@ GET    /api/admin/v1/health
 
 - 创建专用 Access Token。
 - 一键复制服务器地址和 Token。
-- Floccus 中选择 Linkwarden 账户类型的配置说明。
+- Floccus 中选择 Linkdock 账户类型的配置说明。
 - 建议将服务端目录设置为 `Floccus`。
 - Token 权限、过期时间和最后使用时间。
 - 常见错误说明：403、URL 重定向、反向代理、证书和同步根目录。
@@ -500,7 +500,7 @@ GET    /api/admin/v1/health
 首版优先级：
 
 1. Netscape Bookmark HTML，保留浏览器目录层级。
-2. Linkwarden JSON。
+2. Linkdock JSON。
 3. CSV。
 4. XBEL。
 
@@ -555,7 +555,7 @@ web/dist
 cargo build --release
       |
       v
-linkwarden 单二进制（包含 SPA）
+linkdock 单二进制（包含 SPA）
 ```
 
 - `build.rs` 检查前端产物是否存在，避免悄悄构建出不含前端的二进制。
@@ -577,7 +577,7 @@ linkwarden 单二进制（包含 SPA）
 
 ```text
 data/
-├── linkwarden.sqlite3
+├── linkdock.sqlite3
 ├── imports/
 ├── exports/
 └── backups/
@@ -592,7 +592,7 @@ data/
 任务：
 
 - 初始化 Cargo workspace 和 Web 工程。
-- 固定目标 Floccus 正式版本并保存 `LinkwardenAdapter` 的行为清单。
+- 固定目标 Floccus 正式版本并保存 `LinkdockAdapter` 的行为清单。
 - 建立 CI：Rust fmt、clippy、test，前端 lint、typecheck、test、build。
 - 建立统一错误 JSON、日志和配置加载。
 - 添加 SQLite migration runner。
@@ -643,7 +643,7 @@ data/
 
 任务：
 
-- 实现全部 9 个 Linkwarden 兼容路由。
+- 实现全部 9 个 Linkdock 兼容路由。
 - 为请求体容忍 Floccus 携带的兼容字段。
 - 固定 JSON 外形和认证状态码。
 - 编写 API 契约测试。
@@ -663,7 +663,7 @@ data/
 
 任务：
 
-- 迁移 Linkwarden 主题、基础布局和通用组件。
+- 迁移 Linkdock 主题、基础布局和通用组件。
 - 实现登录、注册和工作区切换。
 - 实现 Collection 树、书签列表/卡片和详情编辑。
 - 实现搜索、标签、批量选择、移动、删除和回收站。
@@ -792,14 +792,14 @@ data/
 
 | 风险 | 处理方式 |
 | --- | --- |
-| Floccus 上游改变 LinkwardenAdapter | 固定目标版本、保存契约测试、升级前对比适配器源码 |
+| Floccus 上游改变 LinkdockAdapter | 固定目标版本、保存契约测试、升级前对比适配器源码 |
 | 错误同步导致大量删除 | 使用 Floccus failsafe、软删除、备份，并用独立浏览器 profile 做测试 |
 | 跨租户数据泄露 | tenant-aware repository、复合条件更新、越权集成测试 |
 | Collection 循环或孤儿 | 事务、父节点租户校验、循环检测和外键 |
 | SQLite 写锁 | WAL、busy timeout、短事务、限制后台并发写入 |
 | Next.js 前端难以直接静态化 | 迁移可复用组件到 Vite SPA，不保留 SSR/NextAuth/Prisma 依赖 |
-| Linkwarden API 兼容漂移 | 只承诺 Floccus 所需子集，并在文档中注明目标 Floccus 版本 |
-| 排列顺序无法同步 | Web 内部保留 position，但明确 Floccus Linkwarden 模式不保证顺序 |
+| Linkdock API 兼容漂移 | 只承诺 Floccus 所需子集，并在文档中注明目标 Floccus 版本 |
+| 排列顺序无法同步 | Web 内部保留 position，但明确 Floccus Linkdock 模式不保证顺序 |
 
 ## 18. 完成定义
 

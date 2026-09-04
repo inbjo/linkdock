@@ -1,0 +1,21 @@
+[Unit]
+Description=Linkdock Bookmark Service
+After=network.target
+
+[Service]
+Type=simple
+User=linkdock
+Group=linkdock
+WorkingDirectory=/opt/linkdock
+ExecStart=/opt/linkdock/bin/linkdock
+Environment=DOCK_LISTEN=127.0.0.1:3000
+Environment=DOCK_DATA_DIR=/opt/linkdock/data
+Environment=DOCK_LOG_FORMAT=json
+Environment=DOCK_SESSION_SECRET=__SET_ME__
+Environment=RUST_LOG=info,linkdock=debug
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

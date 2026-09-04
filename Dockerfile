@@ -1,5 +1,5 @@
 # =============================================================================
-# Linkwarden Dockerfile — multi-stage build
+# Linkdock Dockerfile — multi-stage build
 # =============================================================================
 
 # --- Stage 1: Build frontend ---
@@ -44,12 +44,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=backend /app/target/release/linkwarden /usr/local/bin/linkwarden
+COPY --from=backend /app/target/release/linkdock /usr/local/bin/linkdock
 
-ENV LW_LISTEN=0.0.0.0:3000
-ENV LW_DATA_DIR=/data
-ENV LW_LOG_FORMAT=json
-ENV RUST_LOG=info,linkwarden=debug
+ENV DOCK_LISTEN=0.0.0.0:3000
+ENV DOCK_DATA_DIR=/data
+ENV DOCK_LOG_FORMAT=json
+ENV RUST_LOG=info,linkdock=debug
 
 VOLUME ["/data"]
 EXPOSE 3000
@@ -57,4 +57,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -qO- http://localhost:3000/health/live || exit 1
 
-CMD ["linkwarden"]
+CMD ["linkdock"]

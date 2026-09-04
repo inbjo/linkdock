@@ -20,12 +20,12 @@ case "${1:-}" in
     *)          echo "Unknown option: $1"; exit 1 ;;
 esac
 
-export LW_DATA_DIR="${LW_DATA_DIR:-$ROOT_DIR/data}"
-export LW_LISTEN="${LW_LISTEN:-127.0.0.1:3000}"
-export LW_COOKIE_SECURE="${LW_COOKIE_SECURE:-false}"
-export RUST_LOG="${RUST_LOG:-info,linkwarden=debug}"
+export DOCK_DATA_DIR="${DOCK_DATA_DIR:-$ROOT_DIR/data}"
+export DOCK_LISTEN="${DOCK_LISTEN:-127.0.0.1:3000}"
+export DOCK_COOKIE_SECURE="${DOCK_COOKIE_SECURE:-false}"
+export RUST_LOG="${RUST_LOG:-info,linkdock=debug}"
 
-mkdir -p "$LW_DATA_DIR"
+mkdir -p "$DOCK_DATA_DIR"
 
 cleanup() {
     if [ -n "${BACKEND_PID:-}" ]; then kill "$BACKEND_PID" 2>/dev/null || true; fi
@@ -34,7 +34,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 if [ "$MODE" = "both" ] || [ "$MODE" = "backend" ]; then
-    echo "Starting backend on $LW_LISTEN ..."
+    echo "Starting backend on $DOCK_LISTEN ..."
     cargo run &
     BACKEND_PID=$!
 fi

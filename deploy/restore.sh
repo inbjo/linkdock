@@ -1,18 +1,18 @@
 #!/bin/bash
-# Linkwarden restore script
+# Linkdock restore script
 #
 # Restores a backup file to the data directory.
 # The server must be stopped before running this.
 #
 # Usage: ./restore.sh <backup_file> [data_dir]
 #   backup_file: path to .sqlite3 or .sqlite3.gz backup
-#   data_dir:    default: /opt/linkwarden/data
+#   data_dir:    default: /opt/linkdock/data
 
 set -euo pipefail
 
 BACKUP_FILE="${1:?Usage: restore.sh <backup_file> [data_dir]}"
-DATA_DIR="${2:-${LW_DATA_DIR:-/opt/linkwarden/data}}"
-DB_PATH="${DATA_DIR}/linkwarden.sqlite3"
+DATA_DIR="${2:-${DOCK_DATA_DIR:-/opt/linkdock/data}}"
+DB_PATH="${DATA_DIR}/linkdock.sqlite3"
 
 if [ ! -f "${BACKUP_FILE}" ]; then
     echo "Error: backup file not found: ${BACKUP_FILE}" >&2

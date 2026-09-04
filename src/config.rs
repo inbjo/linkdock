@@ -16,19 +16,19 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Self {
-        let data_dir = std::env::var("LW_DATA_DIR")
+        let data_dir = std::env::var("DOCK_DATA_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("data"));
-        let db_path = data_dir.join("linkwarden.sqlite3");
-        let database_url = std::env::var("LW_DATABASE_URL").unwrap_or_else(|_| {
+        let db_path = data_dir.join("linkdock.sqlite3");
+        let database_url = std::env::var("DOCK_DATABASE_URL").unwrap_or_else(|_| {
             format!("sqlite://{}?mode=rwc", db_path.display())
         });
         let listen_addr =
-            std::env::var("LW_LISTEN").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
+            std::env::var("DOCK_LISTEN").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
         let session_secret_hex =
-            std::env::var("LW_SESSION_SECRET").unwrap_or_else(|_| {
+            std::env::var("DOCK_SESSION_SECRET").unwrap_or_else(|_| {
                 // Generate a random secret at startup if not provided.
-                // For production, set LW_SESSION_SECRET explicitly.
+                // For production, set DOCK_SESSION_SECRET explicitly.
                 let mut bytes = [0u8; 32];
                 use rand::RngCore;
                 rand::thread_rng().fill_bytes(&mut bytes);
@@ -46,16 +46,16 @@ impl Config {
                 }
             })
             .unwrap_or_else(|| {
-                tracing::warn!("LW_SESSION_SECRET invalid, generating ephemeral secret");
+                tracing::warn!("DOCK_SESSION_SECRET invalid, generating ephemeral secret");
                 let mut bytes = [0u8; 32];
                 use rand::RngCore;
                 rand::thread_rng().fill_bytes(&mut bytes);
                 bytes
             });
-        let cookie_secure = std::env::var("LW_COOKIE_SECURE")
+        let cookie_secure = std::env::var("DOCK_COOKIE_SECURE")
             .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
             .unwrap_or(true);
-        let cors_origins = std::env::var("LW_CORS_ORIGINS")
+        let cors_origins = std::env::var("DOCK_CORS_ORIGINS")
             .unwrap_or_default()
             .split(',')
             .filter(|s| !s.is_empty())

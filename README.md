@@ -1,15 +1,15 @@
-# Linkwarden
+# Linkdock
 
 A self-hosted, **Floccus-compatible** bookmark management service built with Rust, Axum, and SQLite. Sync your browser bookmarks across Chrome, Firefox, and Brave using the [Floccus](https://floccus.org) browser extension.
 
 ## Features
 
-- **Floccus Compatibility** — Works with Floccus v5.9+ via the Linkwarden adapter (9 API endpoints)
+- **Floccus Compatibility** — Works with Floccus v5.9+ via the Linkdock adapter (9 API endpoints)
 - **Multi-Tenant** — Multiple workspaces with role-based access (owner/admin/member/viewer)
 - **Collection Tree** — Nested folders with cycle detection
 - **Full-Text Search** — SQLite FTS5 with cursor pagination
 - **Soft Delete & Trash** — Restore accidentally deleted bookmarks
-- **Import / Export** — Netscape HTML, Linkwarden JSON, CSV, XBEL
+- **Import / Export** — Netscape HTML, Linkdock JSON, CSV, XBEL
 - **Access Tokens** — SHA-256 hashed, scoped, revocable (for Floccus sync)
 - **Tag System** — Per-tenant tags with normalized names
 - **Batch Operations** — Move, delete, restore, tag multiple bookmarks at once
@@ -24,13 +24,13 @@ A self-hosted, **Floccus-compatible** bookmark management service built with Rus
 
 ```bash
 # 1. Clone
-git clone <repo-url> linkwarden
-cd linkwarden
+git clone <repo-url> linkdock
+cd linkdock
 
 # 2. Configure
 cp .env.example .env
 # Generate a session secret
-echo "LW_SESSION_SECRET=$(openssl rand -hex 32)" >> .env
+echo "DOCK_SESSION_SECRET=$(openssl rand -hex 32)" >> .env
 
 # 3. Build and run
 docker compose up -d
@@ -46,7 +46,7 @@ Open `http://localhost:3000` in your browser, register an account, and start boo
 
 ```bash
 # Set your domain in .env
-echo "LW_DOMAIN=bookmarks.yourdomain.com" >> .env
+echo "DOCK_DOMAIN=bookmarks.yourdomain.com" >> .env
 
 # Start with Caddy profile
 docker compose --profile with-proxy up -d
@@ -76,8 +76,8 @@ Caddy will automatically provision Let's Encrypt certificates.
 ./scripts/build.sh --release
 
 # Run
-LW_DATA_DIR=./data LW_SESSION_SECRET=$(openssl rand -hex 32) \
-    ./target/release/linkwarden
+DOCK_DATA_DIR=./data DOCK_SESSION_SECRET=$(openssl rand -hex 32) \
+    ./target/release/linkdock
 ```
 
 ### Development
@@ -98,7 +98,7 @@ The Vite dev server proxies `/api` and `/health` to `localhost:3000`.
 1. **Create an access token**: Log in → Settings → Access Tokens → Create Token → Copy
 2. **Install Floccus**: Get the [Floccus browser extension](https://floccus.org)
 3. **Configure Floccus**:
-   - Sync method: **Linkwarden**
+   - Sync method: **Linkdock**
    - Server URL: `https://your-domain.com`
    - Access token: paste the token from step 1
    - Server folder: `Floccus` (recommended, auto-created on first sync)
@@ -179,16 +179,16 @@ Authentication: Bearer token (`Authorization: Bearer lw_...`). Invalid tokens re
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LW_DATA_DIR` | `data` | Data directory (SQLite DB, imports, exports, backups) |
-| `LW_DATABASE_URL` | derived | SQLite connection string |
-| `LW_LISTEN` | `0.0.0.0:3000` | Bind address |
-| `LW_SESSION_SECRET` | random | 32-byte hex secret for session signing |
-| `LW_COOKIE_SECURE` | `true` | Set `false` if no HTTPS |
-| `LW_CORS_ORIGINS` | empty | Comma-separated allowed origins |
-| `LW_LOG_FORMAT` | `text` | `json` for structured logging |
+| `DOCK_DATA_DIR` | `data` | Data directory (SQLite DB, imports, exports, backups) |
+| `DOCK_DATABASE_URL` | derived | SQLite connection string |
+| `DOCK_LISTEN` | `0.0.0.0:3000` | Bind address |
+| `DOCK_SESSION_SECRET` | random | 32-byte hex secret for session signing |
+| `DOCK_COOKIE_SECURE` | `true` | Set `false` if no HTTPS |
+| `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
+| `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
-| `LW_PORT` | `3000` | Docker compose host port |
-| `LW_DOMAIN` | — | Domain for Caddy reverse proxy |
+| `DOCK_PORT` | `3000` | Docker compose host port |
+| `DOCK_DOMAIN` | — | Domain for Caddy reverse proxy |
 
 ## Deployment
 
@@ -196,7 +196,7 @@ Authentication: Bearer token (`Authorization: Bearer lw_...`). Invalid tokens re
 
 ```bash
 cp .env.example .env
-# Edit .env: set LW_SESSION_SECRET
+# Edit .env: set DOCK_SESSION_SECRET
 docker compose up -d
 ```
 
@@ -213,14 +213,14 @@ docker compose --profile with-proxy up -d
 ./scripts/build.sh --release
 
 # Install
-sudo useradd -r -s /sbin/nologin linkwarden
-sudo mkdir -p /opt/linkwarden/{bin,data}
-sudo cp target/release/linkwarden /opt/linkwarden/bin/
-sudo cp deploy/linkwarden.service /etc/systemd/system/
+sudo useradd -r -s /sbin/nologin linkdock
+sudo mkdir -p /opt/linkdock/{bin,data}
+sudo cp target/release/linkdock /opt/linkdock/bin/
+sudo cp deploy/linkdock.service /etc/systemd/system/
 
-# Edit service file to set LW_SESSION_SECRET
+# Edit service file to set DOCK_SESSION_SECRET
 sudo systemctl daemon-reload
-sudo systemctl enable --now linkwarden
+sudo systemctl enable --now linkdock
 ```
 
 ### Reverse Proxy
@@ -235,17 +235,17 @@ See `deploy/README.md` for detailed instructions.
 
 ```bash
 # Backup (safe to run while server is up)
-./deploy/backup.sh /opt/linkwarden/data /opt/linkwarden/data/backups
+./deploy/backup.sh /opt/linkdock/data /opt/linkdock/data/backups
 
 # Restore (stop server first!)
-sudo systemctl stop linkwarden
-./deploy/restore.sh /opt/linkwarden/data/backups/linkwarden_20260904_030000.sqlite3.gz /opt/linkwarden/data
-sudo systemctl start linkwarden
+sudo systemctl stop linkdock
+./deploy/restore.sh /opt/linkdock/data/backups/linkdock_20260904_030000.sqlite3.gz /opt/linkdock/data
+sudo systemctl start linkdock
 ```
 
 For automated backups, add to crontab:
 ```cron
-0 3 * * * /opt/linkwarden/deploy/backup.sh >> /var/log/linkwarden-backup.log 2>&1
+0 3 * * * /opt/linkdock/deploy/backup.sh >> /var/log/linkdock-backup.log 2>&1
 ```
 
 Backups use SQLite's online backup API (safe during operation). Retention: last 30 backups.
@@ -260,17 +260,17 @@ Backups use SQLite's online backup API (safe during operation). Retention: last 
 ```
 GET /metrics
 
-linkwarden_users_total 42
-linkwarden_tenants_total 7
-linkwarden_links_total 15234
-linkwarden_collections_total 156
-linkwarden_active_sessions 23
+linkdock_users_total 42
+linkdock_tenants_total 7
+linkdock_links_total 15234
+linkdock_collections_total 156
+linkdock_active_sessions 23
 ```
 
 ### Structured Logging
-Set `LW_LOG_FORMAT=json` for JSON logs with request IDs:
+Set `DOCK_LOG_FORMAT=json` for JSON logs with request IDs:
 ```json
-{"timestamp":"2026-09-04T03:00:00Z","level":"INFO","target":"linkwarden","fields":{"msg":"listening","addr":"0.0.0.0:3000"}}
+{"timestamp":"2026-09-04T03:00:00Z","level":"INFO","target":"linkdock","fields":{"msg":"listening","addr":"0.0.0.0:3000"}}
 ```
 
 Every response includes an `x-request-id` header (auto-generated or propagated from request).
@@ -278,7 +278,7 @@ Every response includes an `x-request-id` header (auto-generated or propagated f
 ## Project Structure
 
 ```
-linkwarden/
+linkdock/
 ├── Cargo.toml              # Rust dependencies
 ├── Dockerfile              # Multi-stage Docker build
 ├── docker-compose.yml      # Docker Compose with optional Caddy
@@ -310,7 +310,7 @@ linkwarden/
 │   │   └── audit.rs        #   Audit logging
 │   ├── routes/
 │   │   ├── app/            # Management API (/api/app/v1/)
-│   │   └── linkwarden/     # Floccus API (/api/v1/)
+│   │   └── linkdock/     # Floccus API (/api/v1/)
 │   └── web_assets.rs       # rust-embed frontend
 ├── web/                    # Frontend (Vite + React + TypeScript)
 │   ├── src/
@@ -331,7 +331,7 @@ linkwarden/
 │   └── release.sh          # Create release package
 ├── deploy/                 # Deployment configurations
 │   ├── README.md           # Detailed deployment guide
-│   ├── linkwarden.service  # systemd service file
+│   ├── linkdock.service  # systemd service file
 │   ├── nginx.conf          # Nginx reverse proxy config
 │   ├── Caddyfile           # Caddy reverse proxy config
 │   ├── backup.sh           # Database backup script
@@ -395,10 +395,10 @@ cd web && npx tsc --noEmit  # Typecheck frontend
 
 ### Security Checklist for Production
 
-- [ ] Set `LW_SESSION_SECRET` to a strong random value
+- [ ] Set `DOCK_SESSION_SECRET` to a strong random value
 - [ ] Use HTTPS (reverse proxy with TLS)
-- [ ] Keep `LW_COOKIE_SECURE=true`
-- [ ] Restrict `LW_CORS_ORIGINS` to your domain
+- [ ] Keep `DOCK_COOKIE_SECURE=true`
+- [ ] Restrict `DOCK_CORS_ORIGINS` to your domain
 - [ ] Set up regular backups
 - [ ] Firewall the direct port (3000)
 - [ ] Monitor `/metrics` and logs
@@ -410,6 +410,6 @@ AGPL-3.0
 ## Acknowledgments
 
 - [Floccus](https://floccus.org) — Browser bookmark sync extension
-- [Linkwarden](https://linkwarden.app) — Original project (API compatibility reference)
+- [Linkdock](https://linkdock.app) — Original project (API compatibility reference)
 - [Axum](https://github.com/tokio-rs/axum) — Web framework
 - [sqlx](https://github.com/launchbadge/sqlx) — Async SQL toolkit

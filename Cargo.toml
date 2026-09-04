@@ -1,5 +1,5 @@
 [package]
-name = "linkwarden"
+name = "linkdock"
 version = "0.1.0"
 edition = "2021"
 description = "A self-hosted, Floccus-compatible bookmark service"
@@ -9,11 +9,11 @@ license = "AGPL-3.0"
 test-support = ["dep:reqwest", "dep:tempfile"]
 
 [lib]
-name = "linkwarden"
+name = "linkdock"
 path = "src/lib.rs"
 
 [[bin]]
-name = "linkwarden"
+name = "linkdock"
 path = "src/main.rs"
 
 [dependencies]
@@ -47,7 +47,7 @@ tempfile = { version = "3", optional = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 
-[dev-dependencies.linkwarden]
+[dev-dependencies.linkdock]
 path = "."
 features = ["test-support"]
 

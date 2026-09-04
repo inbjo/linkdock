@@ -49,7 +49,7 @@ pub fn build_router(state: state::AppState) -> Router {
         .route("/health/ready", get(health_ready))
         .route("/metrics", get(metrics))
         .nest("/api/app/v1", routes::app::router())
-        .nest("/api/v1", routes::linkwarden::router())
+        .nest("/api/v1", routes::floccus::router())
         .fallback(spa_fallback)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -94,21 +94,21 @@ async fn metrics(State(state): State<state::AppState>) -> String {
         .unwrap_or(0);
 
     format!(
-        "# HELP linkwarden_users_total Total number of registered users.\n\
-         # TYPE linkwarden_users_total gauge\n\
-         linkwarden_users_total {users}\n\
-         # HELP linkwarden_tenants_total Total number of workspaces.\n\
-         # TYPE linkwarden_tenants_total gauge\n\
-         linkwarden_tenants_total {tenants}\n\
-         # HELP linkwarden_links_total Total number of active bookmarks.\n\
-         # TYPE linkwarden_links_total gauge\n\
-         linkwarden_links_total {links}\n\
-         # HELP linkwarden_collections_total Total number of active collections.\n\
-         # TYPE linkwarden_collections_total gauge\n\
-         linkwarden_collections_total {collections}\n\
-         # HELP linkwarden_active_sessions Total number of active sessions.\n\
-         # TYPE linkwarden_active_sessions gauge\n\
-         linkwarden_active_sessions {sessions}\n"
+        "# HELP linkdock_users_total Total number of registered users.\n\
+         # TYPE linkdock_users_total gauge\n\
+         linkdock_users_total {users}\n\
+         # HELP linkdock_tenants_total Total number of workspaces.\n\
+         # TYPE linkdock_tenants_total gauge\n\
+         linkdock_tenants_total {tenants}\n\
+         # HELP linkdock_links_total Total number of active bookmarks.\n\
+         # TYPE linkdock_links_total gauge\n\
+         linkdock_links_total {links}\n\
+         # HELP linkdock_collections_total Total number of active collections.\n\
+         # TYPE linkdock_collections_total gauge\n\
+         linkdock_collections_total {collections}\n\
+         # HELP linkdock_active_sessions Total number of active sessions.\n\
+         # TYPE linkdock_active_sessions gauge\n\
+         linkdock_active_sessions {sessions}\n"
     )
 }
 

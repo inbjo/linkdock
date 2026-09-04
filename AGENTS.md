@@ -1,4 +1,4 @@
-# Linkwarden — Rust
+# Linkdock — Rust
 
 A self-hosted, Floccus-compatible bookmark service built with Rust, Axum, and SQLite.
 
@@ -15,18 +15,18 @@ A self-hosted, Floccus-compatible bookmark service built with Rust, Axum, and SQ
 ## Running
 
 ```bash
-LW_DATA_DIR=./data LW_LISTEN=0.0.0.0:3000 cargo run --release
+DOCK_DATA_DIR=./data DOCK_LISTEN=0.0.0.0:3000 cargo run --release
 ```
 
 Environment variables:
-- `LW_DATA_DIR` — data directory (default: `data`)
-- `LW_DATABASE_URL` — SQLite connection string (default: derived from `LW_DATA_DIR`)
-- `LW_LISTEN` — bind address (default: `0.0.0.0:3000`)
-- `LW_SESSION_SECRET` — 32-byte hex secret for sessions (auto-generated if missing)
-- `LW_COOKIE_SECURE` — `0`/`false` to disable Secure flag (default: enabled)
-- `LW_CORS_ORIGINS` — comma-separated allowed origins
-- `LW_LOG_FORMAT` — `json` for structured logging, `text` for default
-- `RUST_LOG` — log level filter (default: `info,linkwarden=debug`)
+- `DOCK_DATA_DIR` — data directory (default: `data`)
+- `DOCK_DATABASE_URL` — SQLite connection string (default: derived from `DOCK_DATA_DIR`)
+- `DOCK_LISTEN` — bind address (default: `0.0.0.0:3000`)
+- `DOCK_SESSION_SECRET` — 32-byte hex secret for sessions (auto-generated if missing)
+- `DOCK_COOKIE_SECURE` — `0`/`false` to disable Secure flag (default: enabled)
+- `DOCK_CORS_ORIGINS` — comma-separated allowed origins
+- `DOCK_LOG_FORMAT` — `json` for structured logging, `text` for default
+- `RUST_LOG` — log level filter (default: `info,linkdock=debug`)
 
 ## Architecture
 
@@ -43,7 +43,7 @@ Environment variables:
 - Soft delete for links and collections; FTS index kept in sync via triggers.
 - Cursor pagination by `id DESC` (stable, no skip on changes).
 - Request ID middleware: auto-generates or propagates `x-request-id` header.
-- JSON structured logging via `LW_LOG_FORMAT=json`.
+- JSON structured logging via `DOCK_LOG_FORMAT=json`.
 - Prometheus metrics at `/metrics`.
 
 ## Project Structure
@@ -62,7 +62,7 @@ src/
 ├── services/       — business logic (auth, tenant, collection, link, search, tag, token, io, audit)
 ├── routes/
 │   ├── app/        — /api/app/v1/* management API (auth, tenant, collection, link, tag, token, io, admin)
-│   └── linkwarden/ — /api/v1/* Floccus-compatible API
+│   └── linkdock/ — /api/v1/* Floccus-compatible API
 └── web_assets.rs   — rust-embed frontend
 
 deploy/             — systemd service, nginx/Caddy configs, backup/restore scripts, deployment docs

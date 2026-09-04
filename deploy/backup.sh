@@ -1,20 +1,20 @@
 #!/bin/bash
-# Linkwarden backup script
+# Linkdock backup script
 #
 # Creates a backup of the SQLite database using the online backup API
 # (safe even while the server is running).
 #
 # Usage: ./backup.sh [data_dir] [backup_dir]
-#   data_dir:   default: /opt/linkwarden/data
-#   backup_dir: default: /opt/linkwarden/data/backups
+#   data_dir:   default: /opt/linkdock/data
+#   backup_dir: default: /opt/linkdock/data/backups
 
 set -euo pipefail
 
-DATA_DIR="${1:-${LW_DATA_DIR:-/opt/linkwarden/data}}"
+DATA_DIR="${1:-${DOCK_DATA_DIR:-/opt/linkdock/data}}"
 BACKUP_DIR="${2:-${DATA_DIR}/backups}"
-DB_PATH="${DATA_DIR}/linkwarden.sqlite3"
+DB_PATH="${DATA_DIR}/linkdock.sqlite3"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/linkwarden_${TIMESTAMP}.sqlite3"
+BACKUP_FILE="${BACKUP_DIR}/linkdock_${TIMESTAMP}.sqlite3"
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -40,7 +40,7 @@ gzip -f "${BACKUP_FILE}"
 echo "Backup created: ${BACKUP_FILE}.gz"
 
 # Retention: keep last 30 backups
-ls -t "${BACKUP_DIR}"/linkwarden_*.sqlite3.gz 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
+ls -t "${BACKUP_DIR}"/linkdock_*.sqlite3.gz 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null || true
 echo "Retention: keeping last 30 backups"
 
 echo "Done."

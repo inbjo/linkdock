@@ -8,7 +8,7 @@
 
 ## 1. 认证
 
-- 请求头: `Authorization: Bearer <token>`，其中 `<token>` 是用户在 Linkwarden 创建的 Access Token（floccus 配置中的 `password` 字段）。
+- 请求头: `Authorization: Bearer <token>`，其中 `<token>` 是用户在 Linkdock 创建的 Access Token（floccus 配置中的 `password` 字段）。
 - 浏览器环境: HTTP `403` → `AuthenticationError`；`>= 400` 或 `503` → `HttpError`。
 - Native 环境: HTTP `401` 或 `403` → `AuthenticationError`；`>= 400` 或 `503` → `HttpError`。
 - **结论**: 无效 Token 必须返回 `403`（浏览器路径），以便 Floccus 抛出认证错误。

@@ -1,15 +1,15 @@
 # Deployment Guide
 
-This guide covers deploying Linkwarden in production environments.
+This guide covers deploying Linkdock in production environments.
 
 ## Quick Start (Docker)
 
 ```bash
 # 1. Clone and configure
-git clone <repo-url> linkwarden
-cd linkwarden
+git clone <repo-url> linkdock
+cd linkdock
 cp .env.example .env
-# Edit .env and set LW_SESSION_SECRET
+# Edit .env and set DOCK_SESSION_SECRET
 openssl rand -hex 32  # generate a secret
 
 # 2. Build and run
@@ -25,7 +25,7 @@ curl http://localhost:3000/health/live
 
 ```bash
 cargo build --release
-# Binary: target/release/linkwarden
+# Binary: target/release/linkdock
 ```
 
 The release build automatically embeds the frontend (from `web/dist/`).
@@ -33,27 +33,27 @@ The release build automatically embeds the frontend (from `web/dist/`).
 ### 2. Install
 
 ```bash
-sudo useradd -r -s /sbin/nologin linkwarden
-sudo mkdir -p /opt/linkwarden/data
-sudo chown linkwarden:linkwarden /opt/linkwarden
+sudo useradd -r -s /sbin/nologin linkdock
+sudo mkdir -p /opt/linkdock/data
+sudo chown linkdock:linkdock /opt/linkdock
 
-sudo cp target/release/linkwarden /opt/linkwarden/bin/
-sudo cp deploy/linkwarden.service /etc/systemd/system/
+sudo cp target/release/linkdock /opt/linkdock/bin/
+sudo cp deploy/linkdock.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
 ### 3. Configure
 
-Edit `/etc/systemd/system/linkwarden.service`:
-- Set `LW_SESSION_SECRET` to a 32-byte hex string (`openssl rand -hex 32`)
-- Adjust `LW_LISTEN` if needed (default: `127.0.0.1:3000`)
+Edit `/etc/systemd/system/linkdock.service`:
+- Set `DOCK_SESSION_SECRET` to a 32-byte hex string (`openssl rand -hex 32`)
+- Adjust `DOCK_LISTEN` if needed (default: `127.0.0.1:3000`)
 
 ### 4. Start
 
 ```bash
-sudo systemctl enable linkwarden
-sudo systemctl start linkwarden
-sudo systemctl status linkwarden
+sudo systemctl enable linkdock
+sudo systemctl start linkdock
+sudo systemctl status linkdock
 ```
 
 ## Reverse Proxy
@@ -61,8 +61,8 @@ sudo systemctl status linkwarden
 ### Nginx
 
 ```bash
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/linkwarden
-sudo ln -s /etc/nginx/sites-available/linkwarden /etc/nginx/sites-enabled/
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/linkdock
+sudo ln -s /etc/nginx/sites-available/linkdock /etc/nginx/sites-enabled/
 # Edit server_name and SSL paths
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -79,13 +79,13 @@ sudo systemctl restart caddy
 
 | Variable | Default | Description |
 |---|---|---|
-| `LW_DATA_DIR` | `data` | Data directory (SQLite DB, imports, exports) |
-| `LW_DATABASE_URL` | derived | SQLite connection string |
-| `LW_LISTEN` | `0.0.0.0:3000` | Bind address |
-| `LW_SESSION_SECRET` | random | 32-byte hex secret for sessions |
-| `LW_COOKIE_SECURE` | `true` | Set to `false` if no HTTPS |
-| `LW_CORS_ORIGINS` | empty | Comma-separated allowed origins |
-| `LW_LOG_FORMAT` | `text` | `json` for structured logging |
+| `DOCK_DATA_DIR` | `data` | Data directory (SQLite DB, imports, exports) |
+| `DOCK_DATABASE_URL` | derived | SQLite connection string |
+| `DOCK_LISTEN` | `0.0.0.0:3000` | Bind address |
+| `DOCK_SESSION_SECRET` | random | 32-byte hex secret for sessions |
+| `DOCK_COOKIE_SECURE` | `true` | Set to `false` if no HTTPS |
+| `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
+| `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
 
 ## Backup and Restore
@@ -94,13 +94,13 @@ sudo systemctl restart caddy
 
 ```bash
 # Add to crontab - run daily at 3 AM
-0 3 * * * /opt/linkwarden/deploy/backup.sh >> /var/log/linkwarden-backup.log 2>&1
+0 3 * * * /opt/linkdock/deploy/backup.sh >> /var/log/linkdock-backup.log 2>&1
 ```
 
 ### Manual Backup
 
 ```bash
-./deploy/backup.sh /opt/linkwarden/data /opt/linkwarden/data/backups
+./deploy/backup.sh /opt/linkdock/data /opt/linkdock/data/backups
 ```
 
 Backups use SQLite's online backup API, safe to run while the server is up.
@@ -110,11 +110,11 @@ Retention: last 30 backups are kept.
 
 ```bash
 # Stop the server first!
-sudo systemctl stop linkwarden
+sudo systemctl stop linkdock
 
-./deploy/restore.sh /opt/linkwarden/data/backups/linkwarden_20260904_030000.sqlite3.gz /opt/linkwarden/data
+./deploy/restore.sh /opt/linkdock/data/backups/linkdock_20260904_030000.sqlite3.gz /opt/linkdock/data
 
-sudo systemctl start linkwarden
+sudo systemctl start linkdock
 ```
 
 ## Monitoring
@@ -129,29 +129,29 @@ sudo systemctl start linkwarden
 `GET /metrics` — Prometheus-compatible metrics:
 
 ```
-linkwarden_users_total 42
-linkwarden_tenants_total 7
-linkwarden_links_total 15234
-linkwarden_collections_total 156
-linkwarden_active_sessions 23
+linkdock_users_total 42
+linkdock_tenants_total 7
+linkdock_links_total 15234
+linkdock_collections_total 156
+linkdock_active_sessions 23
 ```
 
 ### Structured Logging
 
-Set `LW_LOG_FORMAT=json` for JSON-structured logs with request IDs:
+Set `DOCK_LOG_FORMAT=json` for JSON-structured logs with request IDs:
 
 ```json
-{"timestamp":"2026-09-04T03:00:00Z","level":"INFO","target":"linkwarden","fields":{"msg":"listening","addr":"127.0.0.1:3000"}}
+{"timestamp":"2026-09-04T03:00:00Z","level":"INFO","target":"linkdock","fields":{"msg":"listening","addr":"127.0.0.1:3000"}}
 ```
 
 Each request includes an `x-request-id` header (propagated or auto-generated).
 
 ## Security Checklist
 
-- [ ] Set `LW_SESSION_SECRET` to a strong random value
+- [ ] Set `DOCK_SESSION_SECRET` to a strong random value
 - [ ] Use HTTPS (reverse proxy with TLS)
-- [ ] Set `LW_COOKIE_SECURE=true` (default)
-- [ ] Restrict `LW_CORS_ORIGINS` to your domain
+- [ ] Set `DOCK_COOKIE_SECURE=true` (default)
+- [ ] Restrict `DOCK_CORS_ORIGINS` to your domain
 - [ ] Set up regular backups
 - [ ] Keep the system updated
 - [ ] Monitor `/metrics` and logs
@@ -164,14 +164,14 @@ Each request includes an `x-request-id` header (propagated or auto-generated).
 ./deploy/backup.sh
 
 # 2. Stop
-sudo systemctl stop linkwarden
+sudo systemctl stop linkdock
 
 # 3. Build new version
 git pull && cargo build --release
 
 # 4. Replace binary
-sudo cp target/release/linkwarden /opt/linkwarden/bin/
+sudo cp target/release/linkdock /opt/linkdock/bin/
 
 # 5. Start (migrations run automatically)
-sudo systemctl start linkwarden
+sudo systemctl start linkdock
 ```

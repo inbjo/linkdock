@@ -1,7 +1,7 @@
-# Caddy reverse proxy configuration for Linkwarden
+# Caddy reverse proxy configuration for Linkdock
 #
 # Caddy automatically handles HTTPS with Let's Encrypt.
-# The domain is set via the LW_DOMAIN env variable in docker-compose.yml.
+# The domain is set via the DOCK_DOMAIN env variable in docker-compose.yml.
 #
 # For standalone Caddy (not docker-compose), replace {$DOMAIN} with your domain.
 
@@ -11,8 +11,8 @@
 		max_size 50MB
 	}
 
-	# Proxy all requests to Linkwarden backend
-	reverse_proxy linkwarden:3000 {
+	# Proxy all requests to Linkdock backend
+	reverse_proxy linkdock:3000 {
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
 		header_up X-Forwarded-Proto {scheme}
@@ -21,7 +21,7 @@
 	# Health check — no logging
 	@health path /health/live /health/ready
 	handle @health {
-		reverse_proxy linkwarden:3000
+		reverse_proxy linkdock:3000
 		log_skip
 	}
 }

@@ -1,2 +1,2 @@
 pub mod app;
-pub mod linkwarden;
+pub mod floccus;

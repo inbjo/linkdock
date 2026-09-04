@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# build.sh — Build Linkwarden (frontend + backend)
+# build.sh — Build Linkdock (frontend + backend)
 #
 # Usage:
 #   ./scripts/build.sh              # debug build
@@ -24,7 +24,7 @@ for arg in "$@"; do
 done
 
 echo "=========================================="
-echo " Linkwarden Build"
+echo " Linkdock Build"
 echo " Mode: $([ "$RELEASE" = true ] && echo 'release' || echo 'debug')"
 echo " Frontend: $([ "$SKIP_FRONTEND" = true ] && echo 'skip' || echo 'build')"
 echo "=========================================="
@@ -53,11 +53,11 @@ echo ""
 if [ "$RELEASE" = true ]; then
     echo "[2/2] Building backend (release)..."
     cargo build --release
-    BINARY="target/release/linkwarden"
+    BINARY="target/release/linkdock"
 else
     echo "[2/2] Building backend (debug)..."
     cargo build
-    BINARY="target/debug/linkwarden"
+    BINARY="target/debug/linkdock"
 fi
 
 echo ""
@@ -67,4 +67,4 @@ echo " Binary: $BINARY"
 echo "=========================================="
 echo ""
 echo "To run:"
-echo "  LW_DATA_DIR=./data LW_LISTEN=0.0.0.0:3000 $BINARY"
+echo "  DOCK_DATA_DIR=./data DOCK_LISTEN=0.0.0.0:3000 $BINARY"

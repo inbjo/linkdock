@@ -12,8 +12,8 @@ fn main() {
             std::fs::write(
                 &placeholder,
                 r#"<!DOCTYPE html>
-<html><head><title>Linkwarden</title></head>
-<body><h1>Linkwarden</h1><p>Frontend not built. Run <code>cd web && npm run build</code>.</p></body>
+<html><head><title>Linkdock</title></head>
+<body><h1>Linkdock</h1><p>Frontend not built. Run <code>cd web && npm run build</code>.</p></body>
 </html>"#,
             )
             .ok();

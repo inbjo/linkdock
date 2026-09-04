@@ -4,7 +4,7 @@ import { initReactI18next } from 'react-i18next'
 const resources = {
   en: {
     translation: {
-      app: { name: 'Linkwarden' },
+      app: { name: 'Linkdock' },
       nav: {
         bookmarks: 'Bookmarks',
         search: 'Search',

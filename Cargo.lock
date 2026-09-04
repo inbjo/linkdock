@@ -1131,7 +1131,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "linkwarden"
+name = "linkdock"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1142,7 +1142,7 @@ dependencies = [
  "csv",
  "futures",
  "hex",
- "linkwarden",
+ "linkdock",
  "mime_guess",
  "rand",
  "reqwest",

@@ -20,10 +20,10 @@ fi
 # Strip leading 'v' for the version string
 VERSION_NUM="${VERSION#v}"
 RELEASE_DIR="$ROOT_DIR/dist-release"
-PACKAGE_NAME="linkwarden_${VERSION_NUM}_linux_amd64"
+PACKAGE_NAME="linkdock_${VERSION_NUM}_linux_amd64"
 
 echo "=========================================="
-echo " Linkwarden Release: $VERSION"
+echo " Linkdock Release: $VERSION"
 echo "=========================================="
 echo ""
 
@@ -37,7 +37,7 @@ cd "$ROOT_DIR"
 echo ""
 echo "[2/4] Building release binary..."
 cargo build --release
-BINARY="target/release/linkwarden"
+BINARY="target/release/linkdock"
 
 if [ ! -f "$BINARY" ]; then
     echo "ERROR: Binary not found at $BINARY"
@@ -50,7 +50,7 @@ echo "[3/4] Packaging..."
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR/$PACKAGE_NAME"
 
-cp "$BINARY" "$RELEASE_DIR/$PACKAGE_NAME/linkwarden"
+cp "$BINARY" "$RELEASE_DIR/$PACKAGE_NAME/linkdock"
 cp -r "$ROOT_DIR/deploy" "$RELEASE_DIR/$PACKAGE_NAME/deploy"
 cp "$ROOT_DIR/.env.example" "$RELEASE_DIR/$PACKAGE_NAME/.env.example"
 cp "$ROOT_DIR/README.md" "$RELEASE_DIR/$PACKAGE_NAME/README.md" 2>/dev/null || true
@@ -59,15 +59,15 @@ cp "$ROOT_DIR/LICENSE" "$RELEASE_DIR/$PACKAGE_NAME/" 2>/dev/null || true
 cat > "$RELEASE_DIR/$PACKAGE_NAME/INSTALL.sh" << 'INSTALL_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-echo "Installing Linkwarden..."
-INSTALL_DIR="${1:-/opt/linkwarden}"
+echo "Installing Linkdock..."
+INSTALL_DIR="${1:-/opt/linkdock}"
 sudo mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/data"
-sudo cp linkwarden "$INSTALL_DIR/bin/"
-sudo cp deploy/linkwarden.service /etc/systemd/system/ 2>/dev/null || true
-sudo chmod +x "$INSTALL_DIR/bin/linkwarden"
-echo "Installed to $INSTALL_DIR/bin/linkwarden"
-echo "Edit /etc/systemd/system/linkwarden.service to set LW_SESSION_SECRET"
-echo "Then: sudo systemctl daemon-reload && sudo systemctl enable --now linkwarden"
+sudo cp linkdock "$INSTALL_DIR/bin/"
+sudo cp deploy/linkdock.service /etc/systemd/system/ 2>/dev/null || true
+sudo chmod +x "$INSTALL_DIR/bin/linkdock"
+echo "Installed to $INSTALL_DIR/bin/linkdock"
+echo "Edit /etc/systemd/system/linkdock.service to set DOCK_SESSION_SECRET"
+echo "Then: sudo systemctl daemon-reload && sudo systemctl enable --now linkdock"
 INSTALL_EOF
 chmod +x "$RELEASE_DIR/$PACKAGE_NAME/INSTALL.sh"
 

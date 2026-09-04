@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# docker-build.sh — Build and optionally run the Linkwarden Docker image
+# docker-build.sh — Build and optionally run the Linkdock Docker image
 #
 # Usage:
 #   ./scripts/docker-build.sh                    # build image only
@@ -13,7 +13,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT_DIR="$(pwd)"
 
-IMAGE_NAME="linkwarden"
+IMAGE_NAME="linkdock"
 IMAGE_TAG="latest"
 RUN=false
 RUN_PORTS="-p 3000:3000"
@@ -30,7 +30,7 @@ done
 FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "=========================================="
-echo " Linkwarden Docker Build"
+echo " Linkdock Docker Build"
 echo " Image: $FULL_IMAGE"
 echo "=========================================="
 echo ""
@@ -52,23 +52,23 @@ if [ "$RUN" = true ]; then
     echo "=========================================="
 
     # Generate a random session secret if not set
-    SECRET="${LW_SESSION_SECRET:-$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p)}"
+    SECRET="${DOCK_SESSION_SECRET:-$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p)}"
 
     docker run -d \
-        --name linkwarden \
+        --name linkdock \
         $RUN_PORTS \
-        -e LW_SESSION_SECRET="$SECRET" \
-        -e LW_LISTEN=0.0.0.0:3000 \
-        -e LW_DATA_DIR=/data \
-        -e LW_LOG_FORMAT=json \
-        -v linkwarden-data:/data \
+        -e DOCK_SESSION_SECRET="$SECRET" \
+        -e DOCK_LISTEN=0.0.0.0:3000 \
+        -e DOCK_DATA_DIR=/data \
+        -e DOCK_LOG_FORMAT=json \
+        -v linkdock-data:/data \
         --restart unless-stopped \
         "$FULL_IMAGE"
 
     echo ""
-    echo "Container 'linkwarden' started."
+    echo "Container 'linkdock' started."
     echo "  Health: http://localhost:3000/health/live"
     echo "  App:    http://localhost:3000"
-    echo "  Logs:   docker logs -f linkwarden"
-    echo "  Stop:   docker stop linkwarden && docker rm linkwarden"
+    echo "  Logs:   docker logs -f linkdock"
+    echo "  Stop:   docker stop linkdock && docker rm linkdock"
 fi

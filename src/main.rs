@@ -1,12 +1,12 @@
-use linkwarden::{config::Config, db, state::AppState};
+use linkdock::{config::Config, db, state::AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let log_format = std::env::var("LW_LOG_FORMAT").unwrap_or_default();
+    let log_format = std::env::var("DOCK_LOG_FORMAT").unwrap_or_default();
     let use_json = log_format.eq_ignore_ascii_case("json");
 
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| "info,linkwarden=debug".into());
+        .unwrap_or_else(|_| "info,linkdock=debug".into());
 
     if use_json {
         tracing_subscriber::fmt()
@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new(pool.clone(), config.clone());
 
-    let app = linkwarden::build_router(state);
+    let app = linkdock::build_router(state);
 
     let listener = tokio::net::TcpListener::bind(&config.listen_addr).await?;
     tracing::info!(addr = %config.listen_addr, "listening");

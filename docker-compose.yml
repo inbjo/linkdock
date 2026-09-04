@@ -1,10 +1,10 @@
 # =============================================================================
-# docker-compose.yml for Linkwarden
+# docker-compose.yml for Linkdock
 # =============================================================================
 #
 # Quick start:
 #   1. cp .env.example .env
-#   2. Edit .env: set LW_SESSION_SECRET (run: openssl rand -hex 32)
+#   2. Edit .env: set DOCK_SESSION_SECRET (run: openssl rand -hex 32)
 #   3. docker compose up -d
 #   4. curl http://localhost:3000/health/live
 #
@@ -13,24 +13,24 @@
 # =============================================================================
 
 services:
-  linkwarden:
+  linkdock:
     build:
       context: .
       dockerfile: Dockerfile
-    image: linkwarden:latest
-    container_name: linkwarden
+    image: linkdock:latest
+    container_name: linkdock
     ports:
-      - "${LW_PORT:-3000}:3000"
+      - "${DOCK_PORT:-3000}:3000"
     environment:
-      LW_LISTEN: "0.0.0.0:3000"
-      LW_DATA_DIR: "/data"
-      LW_SESSION_SECRET: "${LW_SESSION_SECRET:?Set LW_SESSION_SECRET in .env}"
-      LW_COOKIE_SECURE: "${LW_COOKIE_SECURE:-true}"
-      LW_CORS_ORIGINS: "${LW_CORS_ORIGINS:-}"
-      LW_LOG_FORMAT: "${LW_LOG_FORMAT:-json}"
-      RUST_LOG: "${RUST_LOG:-info,linkwarden=debug}"
+      DOCK_LISTEN: "0.0.0.0:3000"
+      DOCK_DATA_DIR: "/data"
+      DOCK_SESSION_SECRET: "${DOCK_SESSION_SECRET:?Set DOCK_SESSION_SECRET in .env}"
+      DOCK_COOKIE_SECURE: "${DOCK_COOKIE_SECURE:-true}"
+      DOCK_CORS_ORIGINS: "${DOCK_CORS_ORIGINS:-}"
+      DOCK_LOG_FORMAT: "${DOCK_LOG_FORMAT:-json}"
+      RUST_LOG: "${RUST_LOG:-info,linkdock=debug}"
     volumes:
-      - linkwarden-data:/data
+      - linkdock-data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health/live"]
@@ -42,23 +42,23 @@ services:
   # Optional: Caddy reverse proxy for automatic HTTPS
   caddy:
     image: caddy:2
-    container_name: linkwarden-caddy
+    container_name: linkdock-caddy
     ports:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: "${LW_DOMAIN:-bookmarks.example.com}"
+      DOMAIN: "${DOCK_DOMAIN:-bookmarks.example.com}"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
-      linkwarden:
+      linkdock:
         condition: service_healthy
     restart: unless-stopped
     profiles: ["with-proxy"]
 
 volumes:
-  linkwarden-data:
+  linkdock-data:
   caddy-data:
   caddy-config:

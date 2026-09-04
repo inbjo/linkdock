@@ -109,13 +109,21 @@ impl LinkService {
         Ok(link)
     }
 
-    pub async fn get_with_tags(state: &AppState, tenant_id: i64, id: i64) -> AppResult<LinkWithTags> {
+    pub async fn get_with_tags(
+        state: &AppState,
+        tenant_id: i64,
+        id: i64,
+    ) -> AppResult<LinkWithTags> {
         let link = Self::get(state, tenant_id, id).await?;
         let tags = Self::load_tags(state, id).await?;
         Ok(LinkWithTags { link, tags })
     }
 
-    pub async fn create(state: &AppState, user: &AuthUser, req: CreateLinkInput) -> AppResult<Link> {
+    pub async fn create(
+        state: &AppState,
+        user: &AuthUser,
+        req: CreateLinkInput,
+    ) -> AppResult<Link> {
         user.require_write()?;
         let url = req.url.trim().to_string();
         if url.is_empty() || url.len() > 8000 {
@@ -161,12 +169,9 @@ impl LinkService {
         let existing = Self::get(state, user.tenant_id, id).await?;
         if let Some(cid) = req.collection_id {
             if cid != existing.collection_id {
-                let _ = crate::services::collection::CollectionService::get(
-                    state,
-                    user.tenant_id,
-                    cid,
-                )
-                .await?;
+                let _ =
+                    crate::services::collection::CollectionService::get(state, user.tenant_id, cid)
+                        .await?;
             }
         }
         let url = req.url.unwrap_or(existing.url);
@@ -398,13 +403,12 @@ impl LinkService {
                 let tag_id =
                     crate::services::tag::TagService::ensure_tag(&mut tx, user.tenant_id, tag_name)
                         .await?;
-                let _ = sqlx::query(
-                    "INSERT OR IGNORE INTO link_tags (link_id, tag_id) VALUES (?, ?)",
-                )
-                .bind(id)
-                .bind(tag_id)
-                .execute(&mut *tx)
-                .await;
+                let _ =
+                    sqlx::query("INSERT OR IGNORE INTO link_tags (link_id, tag_id) VALUES (?, ?)")
+                        .bind(id)
+                        .bind(tag_id)
+                        .execute(&mut *tx)
+                        .await;
             }
             affected += 1;
         }

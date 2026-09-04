@@ -3,7 +3,7 @@ use crate::error::AppResult;
 use crate::services::token::{CreateTokenRequest, TokenService};
 use crate::state::AppState;
 use axum::extract::{Path, State};
-use axum::routing::{get, delete};
+use axum::routing::{delete, get};
 use axum::{Json, Router};
 
 pub fn router() -> Router<AppState> {

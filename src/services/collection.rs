@@ -61,7 +61,9 @@ impl CollectionService {
         user.require_write()?;
         let name = req.name.trim().to_string();
         if name.is_empty() || name.len() > 200 {
-            return Err(AppError::Validation("collection name length invalid".into()));
+            return Err(AppError::Validation(
+                "collection name length invalid".into(),
+            ));
         }
         if let Some(pid) = req.parent_id {
             Self::verify_same_tenant(state, user.tenant_id, pid).await?;
@@ -92,28 +94,29 @@ impl CollectionService {
     ) -> AppResult<Collection> {
         user.require_write()?;
         let existing = Self::get(state, user.tenant_id, id).await?;
-        if let Some(new_parent) = req.parent_id {
-            if let Some(pid) = new_parent {
-                if pid == id {
-                    return Err(AppError::CircularRef);
-                }
-                Self::verify_same_tenant(state, user.tenant_id, pid).await?;
-                if Self::is_descendant(state, user.tenant_id, pid, id).await? {
-                    return Err(AppError::CircularRef);
-                }
+        if let Some(Some(pid)) = req.parent_id {
+            if pid == id {
+                return Err(AppError::CircularRef);
+            }
+            Self::verify_same_tenant(state, user.tenant_id, pid).await?;
+            if Self::is_descendant(state, user.tenant_id, pid, id).await? {
+                return Err(AppError::CircularRef);
             }
         }
-        let name = req.name.map(|s| s.trim().to_string()).unwrap_or(existing.name);
+        let name = req
+            .name
+            .map(|s| s.trim().to_string())
+            .unwrap_or(existing.name);
         if name.is_empty() || name.len() > 200 {
-            return Err(AppError::Validation("collection name length invalid".into()));
+            return Err(AppError::Validation(
+                "collection name length invalid".into(),
+            ));
         }
         let parent_id = match req.parent_id {
             Some(v) => v,
             None => existing.parent_id,
         };
-        let description = req
-            .description
-            .unwrap_or(existing.description);
+        let description = req.description.unwrap_or(existing.description);
         let color = match req.color {
             Some(v) => v,
             None => existing.color,
@@ -161,7 +164,10 @@ impl CollectionService {
             "UPDATE links SET deleted_at = ?, updated_at = ? WHERE tenant_id = ? AND collection_id IN ({}) AND deleted_at IS NULL",
             placeholders
         );
-        let mut lq = sqlx::query(&link_sql).bind(&now).bind(&now).bind(user.tenant_id);
+        let mut lq = sqlx::query(&link_sql)
+            .bind(&now)
+            .bind(&now)
+            .bind(user.tenant_id);
         for id in &all_ids {
             lq = lq.bind(id);
         }
@@ -182,11 +188,7 @@ impl CollectionService {
         Ok(build_tree(&cols))
     }
 
-    async fn verify_same_tenant(
-        state: &AppState,
-        tenant_id: i64,
-        parent_id: i64,
-    ) -> AppResult<()> {
+    async fn verify_same_tenant(state: &AppState, tenant_id: i64, parent_id: i64) -> AppResult<()> {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM collections WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
         )
@@ -212,10 +214,7 @@ impl CollectionService {
         let mut children_map: std::collections::HashMap<Option<i64>, Vec<i64>> =
             std::collections::HashMap::new();
         for c in &cols {
-            children_map
-                .entry(c.parent_id)
-                .or_default()
-                .push(c.id);
+            children_map.entry(c.parent_id).or_default().push(c.id);
         }
         // BFS from id; if we reach ancestor_id, then ancestor_id is a descendant of id.
         let mut queue = vec![id];
@@ -270,7 +269,10 @@ pub fn build_tree(cols: &[Collection]) -> Vec<CollectionNode> {
     for c in cols {
         children_map.entry(c.parent_id).or_default().push(c);
     }
-    fn build_node(c: &Collection, map: &std::collections::HashMap<Option<i64>, Vec<&Collection>>) -> CollectionNode {
+    fn build_node(
+        c: &Collection,
+        map: &std::collections::HashMap<Option<i64>, Vec<&Collection>>,
+    ) -> CollectionNode {
         let children = map
             .get(&Some(c.id))
             .map(|v| v.iter().map(|ch| build_node(ch, map)).collect())
@@ -287,7 +289,8 @@ pub fn build_tree(cols: &[Collection]) -> Vec<CollectionNode> {
     children_map
         .get(&None)
         .map(|roots| {
-            let mut nodes: Vec<CollectionNode> = roots.iter().map(|c| build_node(c, &children_map)).collect();
+            let mut nodes: Vec<CollectionNode> =
+                roots.iter().map(|c| build_node(c, &children_map)).collect();
             nodes.sort_by(|a, b| a.name.cmp(&b.name));
             nodes
         })

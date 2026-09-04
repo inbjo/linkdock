@@ -18,32 +18,33 @@ pub struct AuditEntry {
 
 pub struct AuditService;
 
+pub struct AuditLogInput<'a> {
+    pub tenant_id: Option<i64>,
+    pub user_id: Option<i64>,
+    pub action: &'a str,
+    pub resource_type: Option<&'a str>,
+    pub resource_id: Option<i64>,
+    pub detail: Option<&'a str>,
+    pub ip_address: Option<&'a str>,
+}
+
 impl AuditService {
-    pub async fn log(
-        state: &AppState,
-        tenant_id: Option<i64>,
-        user_id: Option<i64>,
-        action: &str,
-        resource_type: Option<&str>,
-        resource_id: Option<i64>,
-        detail: Option<&str>,
-        ip_address: Option<&str>,
-    ) {
+    pub async fn log(state: &AppState, entry: AuditLogInput<'_>) {
         let result = sqlx::query(
             "INSERT INTO audit_log (tenant_id, user_id, action, resource_type, resource_id, detail, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
-        .bind(tenant_id)
-        .bind(user_id)
-        .bind(action)
-        .bind(resource_type)
-        .bind(resource_id)
-        .bind(detail)
-        .bind(ip_address)
+        .bind(entry.tenant_id)
+        .bind(entry.user_id)
+        .bind(entry.action)
+        .bind(entry.resource_type)
+        .bind(entry.resource_id)
+        .bind(entry.detail)
+        .bind(entry.ip_address)
         .execute(&state.pool)
         .await;
 
         if let Err(e) = result {
-            tracing::warn!(error = ?e, action = %action, "failed to write audit log");
+            tracing::warn!(error = ?e, action = %entry.action, "failed to write audit log");
         }
     }
 
@@ -79,11 +80,7 @@ impl AuditService {
             .collect())
     }
 
-    pub async fn list_all(
-        state: &AppState,
-        limit: i64,
-        offset: i64,
-    ) -> AppResult<Vec<AuditEntry>> {
+    pub async fn list_all(state: &AppState, limit: i64, offset: i64) -> AppResult<Vec<AuditEntry>> {
         let rows = sqlx::query(
             "SELECT id, tenant_id, user_id, action, resource_type, resource_id, detail, ip_address, created_at
              FROM audit_log ORDER BY id DESC LIMIT ? OFFSET ?",

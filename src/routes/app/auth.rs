@@ -3,7 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::auth::{AuthService, LoginRequest, RegisterRequest};
 use crate::state::AppState;
 use axum::extract::State;
-use axum::routing::{post, get};
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::json;
 
@@ -54,7 +54,10 @@ async fn logout(
     ))
 }
 
-async fn me(State(_state): State<AppState>, auth: AuthContext) -> AppResult<Json<serde_json::Value>> {
+async fn me(
+    State(_state): State<AppState>,
+    auth: AuthContext,
+) -> AppResult<Json<serde_json::Value>> {
     let user = &auth.0;
     Ok(Json(json!({
         "id": user.user_id,

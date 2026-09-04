@@ -1,11 +1,13 @@
 use crate::auth::{AuthContext, AuthWriter};
 use crate::error::{AppError, AppResult};
-use crate::services::io::import::{ImportConfirm, ImportPreview, ImportResult, ImportService, ParsedBookmark};
+use crate::services::io::import::{
+    ImportConfirm, ImportPreview, ImportResult, ImportService, ParsedBookmark,
+};
 use crate::state::AppState;
 use axum::body::Body;
 use axum::extract::{Multipart, Query, State};
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -111,7 +113,8 @@ async fn export_html(
     auth: AuthContext,
     Query(q): Query<ExportQuery>,
 ) -> AppResult<Response> {
-    let html = crate::services::io::export::export_html(&state, auth.0.tenant_id, q.collection_id).await?;
+    let html =
+        crate::services::io::export::export_html(&state, auth.0.tenant_id, q.collection_id).await?;
     Ok(download_response("bookmarks.html", "text/html", html))
 }
 
@@ -121,7 +124,11 @@ async fn export_json(
     _q: Query<ExportQuery>,
 ) -> AppResult<Response> {
     let json = crate::services::io::export::export_json(&state, auth.0.tenant_id).await?;
-    Ok(download_response("bookmarks.json", "application/json", json))
+    Ok(download_response(
+        "bookmarks.json",
+        "application/json",
+        json,
+    ))
 }
 
 async fn export_csv(

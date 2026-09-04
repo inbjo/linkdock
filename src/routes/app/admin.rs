@@ -37,15 +37,44 @@ struct Stats {
 
 async fn stats(State(state): State<AppState>, auth: AuthContext) -> AppResult<Json<Stats>> {
     require_admin(&auth.0)?;
-    let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users").fetch_one(&state.pool).await?;
-    let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants").fetch_one(&state.pool).await?;
-    let collections: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL").fetch_one(&state.pool).await?;
-    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM links WHERE deleted_at IS NULL").fetch_one(&state.pool).await?;
-    let tags: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tags").fetch_one(&state.pool).await?;
-    let tokens: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM access_tokens WHERE revoked_at IS NULL").fetch_one(&state.pool).await?;
-    let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')").fetch_one(&state.pool).await?;
-    let audit_entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_log").fetch_one(&state.pool).await?;
-    Ok(Json(Stats { users, tenants, collections, links, tags, tokens, sessions, audit_entries }))
+    let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&state.pool)
+        .await?;
+    let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants")
+        .fetch_one(&state.pool)
+        .await?;
+    let collections: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
+            .fetch_one(&state.pool)
+            .await?;
+    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM links WHERE deleted_at IS NULL")
+        .fetch_one(&state.pool)
+        .await?;
+    let tags: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tags")
+        .fetch_one(&state.pool)
+        .await?;
+    let tokens: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM access_tokens WHERE revoked_at IS NULL")
+            .fetch_one(&state.pool)
+            .await?;
+    let sessions: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    )
+    .fetch_one(&state.pool)
+    .await?;
+    let audit_entries: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM audit_log")
+        .fetch_one(&state.pool)
+        .await?;
+    Ok(Json(Stats {
+        users,
+        tenants,
+        collections,
+        links,
+        tags,
+        tokens,
+        sessions,
+        audit_entries,
+    }))
 }
 
 #[derive(Serialize)]
@@ -60,7 +89,10 @@ struct AdminUser {
     tenant_count: i64,
 }
 
-async fn list_users(State(state): State<AppState>, auth: AuthContext) -> AppResult<Json<Vec<AdminUser>>> {
+async fn list_users(
+    State(state): State<AppState>,
+    auth: AuthContext,
+) -> AppResult<Json<Vec<AdminUser>>> {
     require_admin(&auth.0)?;
     let rows = sqlx::query(
         "SELECT u.id, u.uuid, u.username, u.display_name, u.is_system_admin, u.disabled, u.created_at,
@@ -98,7 +130,10 @@ struct AdminTenant {
     link_count: i64,
 }
 
-async fn list_tenants(State(state): State<AppState>, auth: AuthContext) -> AppResult<Json<Vec<AdminTenant>>> {
+async fn list_tenants(
+    State(state): State<AppState>,
+    auth: AuthContext,
+) -> AppResult<Json<Vec<AdminTenant>>> {
     require_admin(&auth.0)?;
     let rows = sqlx::query(
         "SELECT t.id, t.uuid, t.name, t.slug, t.created_by, t.created_at,

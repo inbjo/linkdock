@@ -13,7 +13,7 @@ async fn setup() -> TestApp {
 async fn register_and_login(app: &TestApp, username: &str, password: &str) -> (String, Value) {
     let resp = app
         .client
-        .post(&format!("{}/api/app/v1/auth/register", app.base))
+        .post(format!("{}/api/app/v1/auth/register", app.base))
         .json(&serde_json::json!({
             "username": username,
             "password": password,
@@ -31,7 +31,7 @@ async fn register_and_login(app: &TestApp, username: &str, password: &str) -> (S
 async fn create_token(app: &TestApp, session: &str, name: &str) -> String {
     let resp = app
         .client
-        .post(&format!("{}/api/app/v1/tokens", app.base))
+        .post(format!("{}/api/app/v1/tokens", app.base))
         .header("cookie", format!("lw_session={}", session))
         .json(&serde_json::json!({ "name": name }))
         .send()
@@ -47,7 +47,7 @@ async fn test_health() {
     let app = setup().await;
     let resp = app
         .client
-        .get(&format!("{}/health/live", app.base))
+        .get(format!("{}/health/live", app.base))
         .send()
         .await
         .unwrap();
@@ -55,7 +55,7 @@ async fn test_health() {
 
     let resp = app
         .client
-        .get(&format!("{}/health/ready", app.base))
+        .get(format!("{}/health/ready", app.base))
         .send()
         .await
         .unwrap();
@@ -70,7 +70,7 @@ async fn test_register_and_me() {
 
     let resp = app
         .client
-        .get(&format!("{}/api/app/v1/me", app.base))
+        .get(format!("{}/api/app/v1/me", app.base))
         .header("cookie", format!("lw_session={}", session))
         .send()
         .await
@@ -87,7 +87,7 @@ async fn test_invalid_token_returns_403() {
     // Floccus expects 403 for invalid tokens.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", "Bearer lw_invalid_token")
         .send()
         .await
@@ -100,7 +100,7 @@ async fn test_no_auth_returns_401() {
     let app = setup().await;
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .send()
         .await
         .unwrap();
@@ -118,7 +118,7 @@ async fn test_floccus_full_sync_flow() {
     // 1. GET /collections — empty list.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -130,7 +130,7 @@ async fn test_floccus_full_sync_flow() {
     // 2. Create root collection "Floccus".
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth_header)
         .json(&serde_json::json!({ "name": "Floccus" }))
         .send()
@@ -145,7 +145,7 @@ async fn test_floccus_full_sync_flow() {
     // 3. Create a sub-collection.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth_header)
         .json(&serde_json::json!({ "name": "Rust Links", "parentId": root_id }))
         .send()
@@ -159,7 +159,7 @@ async fn test_floccus_full_sync_flow() {
     // 4. Create a link in the sub-collection.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/links", app.base))
+        .post(format!("{}/api/v1/links", app.base))
         .header("Authorization", &auth_header)
         .json(&serde_json::json!({
             "url": "https://www.rust-lang.org/",
@@ -178,7 +178,7 @@ async fn test_floccus_full_sync_flow() {
     // 5. Search returns the link.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/search?searchQueryString=", app.base))
+        .get(format!("{}/api/v1/search?searchQueryString=", app.base))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -195,7 +195,7 @@ async fn test_floccus_full_sync_flow() {
     // 6. GET /collections returns both collections.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -207,7 +207,7 @@ async fn test_floccus_full_sync_flow() {
     // 7. GET single collection.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections/{}", app.base, root_id))
+        .get(format!("{}/api/v1/collections/{}", app.base, root_id))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -220,7 +220,7 @@ async fn test_floccus_full_sync_flow() {
     // 8. Update link (rename + move to root).
     let resp = app
         .client
-        .put(&format!("{}/api/v1/links/{}", app.base, link_id))
+        .put(format!("{}/api/v1/links/{}", app.base, link_id))
         .header("Authorization", &auth_header)
         .json(&serde_json::json!({
             "id": link_id,
@@ -240,7 +240,7 @@ async fn test_floccus_full_sync_flow() {
     // 9. Update collection (rename).
     let resp = app
         .client
-        .put(&format!("{}/api/v1/collections/{}", app.base, sub_id))
+        .put(format!("{}/api/v1/collections/{}", app.base, sub_id))
         .header("Authorization", &auth_header)
         .json(&serde_json::json!({
             "name": "Rust Bookmarks",
@@ -256,7 +256,7 @@ async fn test_floccus_full_sync_flow() {
     // 10. Delete link (idempotent).
     let resp = app
         .client
-        .delete(&format!("{}/api/v1/links/{}", app.base, link_id))
+        .delete(format!("{}/api/v1/links/{}", app.base, link_id))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -266,7 +266,7 @@ async fn test_floccus_full_sync_flow() {
     // Delete again — should still succeed (idempotent).
     let resp = app
         .client
-        .delete(&format!("{}/api/v1/links/{}", app.base, link_id))
+        .delete(format!("{}/api/v1/links/{}", app.base, link_id))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -276,7 +276,7 @@ async fn test_floccus_full_sync_flow() {
     // 11. Delete collection (idempotent).
     let resp = app
         .client
-        .delete(&format!("{}/api/v1/collections/{}", app.base, sub_id))
+        .delete(format!("{}/api/v1/collections/{}", app.base, sub_id))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -286,7 +286,7 @@ async fn test_floccus_full_sync_flow() {
     // Delete again.
     let resp = app
         .client
-        .delete(&format!("{}/api/v1/collections/{}", app.base, sub_id))
+        .delete(format!("{}/api/v1/collections/{}", app.base, sub_id))
         .header("Authorization", &auth_header)
         .send()
         .await
@@ -304,18 +304,20 @@ async fn test_duplicate_urls_not_overwritten() {
     // Create a collection.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Floccus" }))
         .send()
         .await
         .unwrap();
-    let col_id = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let col_id = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Create two links with the same URL.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/links", app.base))
+        .post(format!("{}/api/v1/links", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({
             "url": "https://example.com/",
@@ -325,11 +327,13 @@ async fn test_duplicate_urls_not_overwritten() {
         .send()
         .await
         .unwrap();
-    let id1 = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let id1 = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     let resp = app
         .client
-        .post(&format!("{}/api/v1/links", app.base))
+        .post(format!("{}/api/v1/links", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({
             "url": "https://example.com/",
@@ -339,14 +343,16 @@ async fn test_duplicate_urls_not_overwritten() {
         .send()
         .await
         .unwrap();
-    let id2 = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let id2 = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     assert_ne!(id1, id2);
 
     // Both should be in search results.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/search?searchQueryString=", app.base))
+        .get(format!("{}/api/v1/search?searchQueryString=", app.base))
         .header("Authorization", &auth)
         .send()
         .await
@@ -367,18 +373,20 @@ async fn test_multi_tenant_isolation() {
     // Tenant A creates a collection.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", format!("Bearer {}", token_a))
         .json(&serde_json::json!({ "name": "Floccus" }))
         .send()
         .await
         .unwrap();
-    let col_a = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let col_a = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Tenant B should not see Tenant A's collections.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", format!("Bearer {}", token_b))
         .send()
         .await
@@ -389,7 +397,7 @@ async fn test_multi_tenant_isolation() {
     // Tenant B cannot access Tenant A's collection by ID.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections/{}", app.base, col_a))
+        .get(format!("{}/api/v1/collections/{}", app.base, col_a))
         .header("Authorization", format!("Bearer {}", token_b))
         .send()
         .await
@@ -406,7 +414,7 @@ async fn test_revoked_token_returns_403() {
     // Verify token works.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await
@@ -416,7 +424,7 @@ async fn test_revoked_token_returns_403() {
     // List tokens to get the id.
     let resp = app
         .client
-        .get(&format!("{}/api/app/v1/tokens", app.base))
+        .get(format!("{}/api/app/v1/tokens", app.base))
         .header("cookie", format!("lw_session={}", session))
         .send()
         .await
@@ -427,7 +435,7 @@ async fn test_revoked_token_returns_403() {
     // Revoke.
     let resp = app
         .client
-        .delete(&format!("{}/api/app/v1/tokens/{}", app.base, token_id))
+        .delete(format!("{}/api/app/v1/tokens/{}", app.base, token_id))
         .header("cookie", format!("lw_session={}", session))
         .send()
         .await
@@ -437,7 +445,7 @@ async fn test_revoked_token_returns_403() {
     // Token should now return 403.
     let resp = app
         .client
-        .get(&format!("{}/api/v1/collections", app.base))
+        .get(format!("{}/api/v1/collections", app.base))
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await
@@ -455,19 +463,21 @@ async fn test_cursor_pagination() {
     // Create a collection.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Floccus" }))
         .send()
         .await
         .unwrap();
-    let col_id = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let col_id = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Create 55 links.
     for i in 0..55 {
         let resp = app
             .client
-            .post(&format!("{}/api/v1/links", app.base))
+            .post(format!("{}/api/v1/links", app.base))
             .header("Authorization", &auth)
             .json(&serde_json::json!({
                 "url": format!("https://example.com/{}", i),
@@ -502,9 +512,7 @@ async fn test_cursor_pagination() {
         for l in links {
             all_ids.push(l["id"].as_i64().unwrap());
         }
-        cursor = body["data"]["nextCursor"]
-            .as_str()
-            .map(|s| s.to_string());
+        cursor = body["data"]["nextCursor"].as_str().map(|s| s.to_string());
         if cursor.is_none() {
             break;
         }
@@ -526,40 +534,46 @@ async fn test_nested_collection_creation_and_move() {
     // Create root.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Floccus" }))
         .send()
         .await
         .unwrap();
-    let root = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let root = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Create child.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Child", "parentId": root }))
         .send()
         .await
         .unwrap();
-    let child = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let child = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Create grandchild.
     let resp = app
         .client
-        .post(&format!("{}/api/v1/collections", app.base))
+        .post(format!("{}/api/v1/collections", app.base))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Grandchild", "parentId": child }))
         .send()
         .await
         .unwrap();
-    let grandchild = resp.json::<Value>().await.unwrap()["response"]["id"].as_i64().unwrap();
+    let grandchild = resp.json::<Value>().await.unwrap()["response"]["id"]
+        .as_i64()
+        .unwrap();
 
     // Try to move root under grandchild — should fail (circular).
     let resp = app
         .client
-        .put(&format!("{}/api/v1/collections/{}", app.base, root))
+        .put(format!("{}/api/v1/collections/{}", app.base, root))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Floccus", "parentId": grandchild }))
         .send()
@@ -570,7 +584,7 @@ async fn test_nested_collection_creation_and_move() {
     // Move child to root (no-op but valid).
     let resp = app
         .client
-        .put(&format!("{}/api/v1/collections/{}", app.base, child))
+        .put(format!("{}/api/v1/collections/{}", app.base, child))
         .header("Authorization", &auth)
         .json(&serde_json::json!({ "name": "Child", "parentId": root }))
         .send()
@@ -584,13 +598,18 @@ async fn test_unknown_api_returns_json_404() {
     let app = setup().await;
     let resp = app
         .client
-        .get(&format!("{}/api/v1/nonexistent", app.base))
+        .get(format!("{}/api/v1/nonexistent", app.base))
         .header("Authorization", "Bearer lw_fake")
         .send()
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(ct.contains("application/json"));
 }
 
@@ -599,7 +618,7 @@ async fn test_spa_served_for_non_api() {
     let app = setup().await;
     let resp = app
         .client
-        .get(&format!("{}/bookmarks", app.base))
+        .get(format!("{}/bookmarks", app.base))
         .send()
         .await
         .unwrap();

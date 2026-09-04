@@ -1,8 +1,8 @@
 use crate::auth::{AuthContext, AuthWriter};
 use crate::error::AppResult;
 use crate::services::link::{
-    BatchDeleteInput, BatchMoveInput, BatchResult, BatchTagInput, CreateLinkInput,
-    LinkService, UpdateLinkInput,
+    BatchDeleteInput, BatchMoveInput, BatchResult, BatchTagInput, CreateLinkInput, LinkService,
+    UpdateLinkInput,
 };
 use crate::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -24,7 +24,10 @@ pub fn router() -> Router<AppState> {
         .route("/links/batch/tag", post(batch_tag))
         .route("/links/batch/delete", post(batch_delete))
         .route("/links/batch/restore", post(batch_restore))
-        .route("/links/{id}", get(get_link).put(update_link).delete(delete_link))
+        .route(
+            "/links/{id}",
+            get(get_link).put(update_link).delete(delete_link),
+        )
         .route("/links/{id}/restore", post(restore_link))
 }
 
@@ -33,7 +36,8 @@ async fn list_links(
     auth: AuthContext,
     Query(q): Query<ListLinksQuery>,
 ) -> AppResult<Json<Vec<crate::domain::link::Link>>> {
-    let links = LinkService::list(&state, auth.0.tenant_id, q.collection_id, q.include_deleted).await?;
+    let links =
+        LinkService::list(&state, auth.0.tenant_id, q.collection_id, q.include_deleted).await?;
     Ok(Json(links))
 }
 

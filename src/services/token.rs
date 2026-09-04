@@ -3,7 +3,6 @@ use crate::domain::token::{AccessToken, AccessTokenCreated};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use serde::Deserialize;
-use sqlx::Row;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTokenRequest {
@@ -57,7 +56,9 @@ impl TokenService {
         }
         let (plaintext, prefix, hash) = crate::auth::token::generate_access_token();
         let uuid_str = uuid::Uuid::new_v4().to_string();
-        let scopes = req.scopes.unwrap_or_else(|| "bookmarks:read bookmarks:write".into());
+        let scopes = req
+            .scopes
+            .unwrap_or_else(|| "bookmarks:read bookmarks:write".into());
         let token = sqlx::query_as::<_, AccessToken>(
             r#"INSERT INTO access_tokens (uuid, tenant_id, user_id, name, token_prefix, token_hash, scopes, expires_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)

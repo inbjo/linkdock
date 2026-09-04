@@ -63,13 +63,11 @@ impl SessionService {
         tenant_id: i64,
     ) -> AppResult<()> {
         let hash = token::hash_session_token(raw_token);
-        let res = sqlx::query(
-            "UPDATE sessions SET active_tenant_id = ? WHERE session_hash = ?",
-        )
-        .bind(tenant_id)
-        .bind(&hash)
-        .execute(&state.pool)
-        .await?;
+        let res = sqlx::query("UPDATE sessions SET active_tenant_id = ? WHERE session_hash = ?")
+            .bind(tenant_id)
+            .bind(&hash)
+            .execute(&state.pool)
+            .await?;
         if res.rows_affected() == 0 {
             return Err(AppError::Unauthorized);
         }

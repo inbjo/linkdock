@@ -85,10 +85,7 @@ impl SearchService {
             None
         };
 
-        Ok(SearchResult {
-            links,
-            next_cursor,
-        })
+        Ok(SearchResult { links, next_cursor })
     }
 }
 
@@ -112,7 +109,17 @@ fn sanitize_fts_query(query: &str) -> String {
     query
         .split_whitespace()
         .map(|tok| {
-            let cleaned: String = tok.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.' || *c == '/' || *c == ':').collect();
+            let cleaned: String = tok
+                .chars()
+                .filter(|c| {
+                    c.is_alphanumeric()
+                        || *c == '_'
+                        || *c == '-'
+                        || *c == '.'
+                        || *c == '/'
+                        || *c == ':'
+                })
+                .collect();
             if cleaned.is_empty() {
                 String::new()
             } else {

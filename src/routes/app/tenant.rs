@@ -15,7 +15,10 @@ pub fn router() -> Router<AppState> {
         .route("/tenants/{id}", put(update_tenant))
         .route("/tenants/{id}/select", post(select_tenant))
         .route("/tenants/{id}/members", get(list_members).post(add_member))
-        .route("/tenants/{id}/members/{user_id}", put(update_member).delete(remove_member))
+        .route(
+            "/tenants/{id}/members/{user_id}",
+            put(update_member).delete(remove_member),
+        )
 }
 
 async fn list_tenants(

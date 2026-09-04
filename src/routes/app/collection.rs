@@ -11,8 +11,14 @@ use axum::{Json, Router};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/collections/tree", get(tree))
-        .route("/collections", get(list_collections).post(create_collection))
-        .route("/collections/{id}", put(update_collection).delete(delete_collection))
+        .route(
+            "/collections",
+            get(list_collections).post(create_collection),
+        )
+        .route(
+            "/collections/{id}",
+            put(update_collection).delete(delete_collection),
+        )
 }
 
 async fn tree(

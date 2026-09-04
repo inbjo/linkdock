@@ -3,7 +3,6 @@ use crate::domain::tag::Tag;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use serde::Deserialize;
-use sqlx::Row;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTagInput {
@@ -107,13 +106,12 @@ impl TagService {
     ) -> AppResult<i64> {
         let normalized = normalize(name);
         // Try to find existing.
-        let existing: Option<i64> = sqlx::query_scalar(
-            "SELECT id FROM tags WHERE tenant_id = ? AND normalized_name = ?",
-        )
-        .bind(tenant_id)
-        .bind(&normalized)
-        .fetch_optional(&mut **tx)
-        .await?;
+        let existing: Option<i64> =
+            sqlx::query_scalar("SELECT id FROM tags WHERE tenant_id = ? AND normalized_name = ?")
+                .bind(tenant_id)
+                .bind(&normalized)
+                .fetch_optional(&mut **tx)
+                .await?;
         if let Some(id) = existing {
             return Ok(id);
         }

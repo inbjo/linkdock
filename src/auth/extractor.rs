@@ -16,7 +16,7 @@ pub enum TenantRole {
 }
 
 impl TenantRole {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "owner" => Some(Self::Owner),
             "admin" => Some(Self::Admin),
@@ -215,7 +215,7 @@ async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser
     let role_str: Option<String> = row.try_get("role").ok().flatten();
     let role = role_str
         .as_deref()
-        .and_then(TenantRole::from_str)
+        .and_then(TenantRole::parse)
         .unwrap_or(TenantRole::Member);
 
     // Update last_used_at (best effort).
@@ -272,7 +272,7 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
     let role_str: Option<String> = row.try_get("role").ok().flatten();
     let role = role_str
         .as_deref()
-        .and_then(TenantRole::from_str)
+        .and_then(TenantRole::parse)
         .unwrap_or(TenantRole::Member);
 
     // Update last_used_at.

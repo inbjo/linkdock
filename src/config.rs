@@ -20,20 +20,18 @@ impl Config {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("data"));
         let db_path = data_dir.join("linkdock.sqlite3");
-        let database_url = std::env::var("DOCK_DATABASE_URL").unwrap_or_else(|_| {
-            format!("sqlite://{}?mode=rwc", db_path.display())
-        });
+        let database_url = std::env::var("DOCK_DATABASE_URL")
+            .unwrap_or_else(|_| format!("sqlite://{}?mode=rwc", db_path.display()));
         let listen_addr =
             std::env::var("DOCK_LISTEN").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
-        let session_secret_hex =
-            std::env::var("DOCK_SESSION_SECRET").unwrap_or_else(|_| {
-                // Generate a random secret at startup if not provided.
-                // For production, set DOCK_SESSION_SECRET explicitly.
-                let mut bytes = [0u8; 32];
-                use rand::RngCore;
-                rand::thread_rng().fill_bytes(&mut bytes);
-                hex::encode(bytes)
-            });
+        let session_secret_hex = std::env::var("DOCK_SESSION_SECRET").unwrap_or_else(|_| {
+            // Generate a random secret at startup if not provided.
+            // For production, set DOCK_SESSION_SECRET explicitly.
+            let mut bytes = [0u8; 32];
+            use rand::RngCore;
+            rand::thread_rng().fill_bytes(&mut bytes);
+            hex::encode(bytes)
+        });
         let session_secret = hex::decode(&session_secret_hex)
             .ok()
             .and_then(|b| {

@@ -1,3 +1,7 @@
+// Floccus protocol uses camelCase JSON keys (searchQueryString, parentId, etc).
+// We allow non_snake_case here to match the wire format exactly.
+#![allow(non_snake_case)]
+
 use crate::auth::AuthContext;
 use crate::error::{AppError, AppResult};
 use crate::services::collection::{
@@ -15,8 +19,16 @@ use serde_json::{json, Value};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/search", get(search))
-        .route("/collections", get(list_collections).post(create_collection))
-        .route("/collections/{id}", get(get_collection).put(update_collection).delete(delete_collection))
+        .route(
+            "/collections",
+            get(list_collections).post(create_collection),
+        )
+        .route(
+            "/collections/{id}",
+            get(get_collection)
+                .put(update_collection)
+                .delete(delete_collection),
+        )
         .route("/links", post(create_link))
         .route("/links/{id}", put(update_link).delete(delete_link))
 }
@@ -44,11 +56,7 @@ async fn search(
         state.config.default_page_size,
     )
     .await?;
-    let links: Vec<LwLink> = result
-        .links
-        .into_iter()
-        .map(LwLink::from_search)
-        .collect();
+    let links: Vec<LwLink> = result.links.into_iter().map(LwLink::from_search).collect();
     let resp = LwSearchResponse {
         data: LwSearchData {
             links,
@@ -217,6 +225,7 @@ struct CreateLinkBody {
 }
 
 #[derive(Deserialize, Default)]
+#[allow(dead_code)]
 struct CollectionRef {
     #[serde(default)]
     id: Option<i64>,
@@ -232,9 +241,10 @@ async fn create_link(
     Json(body): Json<CreateLinkBody>,
 ) -> AppResult<Json<Value>> {
     auth.0.require_write()?;
-    let collection_id = body.collection.id.ok_or_else(|| {
-        AppError::Validation("collection.id is required".into())
-    })?;
+    let collection_id = body
+        .collection
+        .id
+        .ok_or_else(|| AppError::Validation("collection.id is required".into()))?;
     let link = LinkService::create(
         &state,
         &auth.0,
@@ -258,6 +268,7 @@ async fn create_link(
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct UpdateLinkBody {
     #[serde(default)]
     id: Option<i64>,

@@ -43,7 +43,9 @@ impl AuthService {
             return Err(AppError::Validation("username length must be 2..64".into()));
         }
         if req.password.len() < 8 {
-            return Err(AppError::Validation("password must be at least 8 chars".into()));
+            return Err(AppError::Validation(
+                "password must be at least 8 chars".into(),
+            ));
         }
         if !username
             .chars()
@@ -142,10 +144,12 @@ impl AuthService {
         let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
 
         // Resolve active tenant: first tenant the user is a member of.
-        let tenant_row = sqlx::query("SELECT tenant_id FROM tenant_members WHERE user_id = ? ORDER BY tenant_id LIMIT 1")
-            .bind(user_id)
-            .fetch_optional(&state.pool)
-            .await?;
+        let tenant_row = sqlx::query(
+            "SELECT tenant_id FROM tenant_members WHERE user_id = ? ORDER BY tenant_id LIMIT 1",
+        )
+        .bind(user_id)
+        .fetch_optional(&state.pool)
+        .await?;
         let tenant_id: i64 = match tenant_row {
             Some(r) => r.try_get("tenant_id").unwrap_or(0),
             None => return Err(AppError::Internal(anyhow::anyhow!("user has no tenant"))),
@@ -166,10 +170,12 @@ impl AuthService {
     }
 
     pub async fn me(state: &AppState, user: &crate::auth::AuthUser) -> AppResult<UserInfo> {
-        let row = sqlx::query("SELECT id, uuid, username, display_name, is_system_admin FROM users WHERE id = ?")
-            .bind(user.user_id)
-            .fetch_one(&state.pool)
-            .await?;
+        let row = sqlx::query(
+            "SELECT id, uuid, username, display_name, is_system_admin FROM users WHERE id = ?",
+        )
+        .bind(user.user_id)
+        .fetch_one(&state.pool)
+        .await?;
         Ok(UserInfo {
             id: row.try_get("id").unwrap_or(0),
             uuid: row.try_get("uuid").unwrap_or_default(),
@@ -184,13 +190,7 @@ pub fn slugify(s: &str) -> String {
     s.trim()
         .to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_alphanumeric() {
-                c
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .trim_matches('-')
         .to_string()

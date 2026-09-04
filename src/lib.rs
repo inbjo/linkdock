@@ -13,12 +13,12 @@ pub mod web_assets;
 pub mod test_support;
 
 use axum::body::Body;
+use axum::extract::State;
 use axum::http::{header, HeaderValue, Method, Request, StatusCode};
 use axum::middleware::from_fn;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
-use axum::extract::State;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
@@ -84,14 +84,17 @@ async fn metrics(State(state): State<state::AppState>) -> String {
         .fetch_one(&state.pool)
         .await
         .unwrap_or(0);
-    let collections: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or(0);
-    let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')")
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or(0);
+    let collections: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or(0);
+    let sessions: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
 
     format!(
         "# HELP linkdock_users_total Total number of registered users.\n\

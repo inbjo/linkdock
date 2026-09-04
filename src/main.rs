@@ -14,9 +14,7 @@ async fn main() -> anyhow::Result<()> {
             .json()
             .init();
     } else {
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .init();
+        tracing_subscriber::fmt().with_env_filter(filter).init();
     }
 
     let config = Config::from_env();

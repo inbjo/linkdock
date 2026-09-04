@@ -48,24 +48,30 @@ impl TenantService {
         .bind(user_id)
         .fetch_all(&state.pool)
         .await?;
-        let roles = sqlx::query_as::<_, TenantMember>(
-            "SELECT * FROM tenant_members WHERE user_id = ?",
-        )
-        .bind(user_id)
-        .fetch_all(&state.pool)
-        .await?;
+        let roles =
+            sqlx::query_as::<_, TenantMember>("SELECT * FROM tenant_members WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_all(&state.pool)
+                .await?;
         let role_map: std::collections::HashMap<i64, String> =
             roles.into_iter().map(|m| (m.tenant_id, m.role)).collect();
         Ok(rows
             .into_iter()
             .map(|t| {
-                let role = role_map.get(&t.id).cloned().unwrap_or_else(|| "member".into());
+                let role = role_map
+                    .get(&t.id)
+                    .cloned()
+                    .unwrap_or_else(|| "member".into());
                 TenantWithRole { tenant: t, role }
             })
             .collect())
     }
 
-    pub async fn create(state: &AppState, user_id: i64, req: CreateTenantRequest) -> AppResult<Tenant> {
+    pub async fn create(
+        state: &AppState,
+        user_id: i64,
+        req: CreateTenantRequest,
+    ) -> AppResult<Tenant> {
         let name = req.name.trim().to_string();
         if name.is_empty() || name.len() > 100 {
             return Err(AppError::Validation("tenant name length invalid".into()));
@@ -170,10 +176,7 @@ impl TenantService {
             .await
     }
 
-    pub async fn list_members(
-        state: &AppState,
-        tenant_id: i64,
-    ) -> AppResult<Vec<MemberInfo>> {
+    pub async fn list_members(state: &AppState, tenant_id: i64) -> AppResult<Vec<MemberInfo>> {
         let rows = sqlx::query(
             r#"SELECT tm.tenant_id, tm.user_id, tm.role, tm.created_at, tm.updated_at,
                       u.username, u.display_name, u.uuid
@@ -210,13 +213,14 @@ impl TenantService {
         } else {
             user.require_manage_members()?;
         }
-        let role = TenantRole::from_str(&req.role)
+        let role = TenantRole::parse(&req.role)
             .ok_or_else(|| AppError::Validation("invalid role".into()))?;
-        let user_row = sqlx::query("SELECT id, username, display_name, uuid FROM users WHERE username = ?")
-            .bind(req.username.trim())
-            .fetch_optional(&state.pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound)?;
+        let user_row =
+            sqlx::query("SELECT id, username, display_name, uuid FROM users WHERE username = ?")
+                .bind(req.username.trim())
+                .fetch_optional(&state.pool)
+                .await?
+                .ok_or_else(|| AppError::NotFound)?;
         let target_user_id: i64 = user_row.try_get("id").unwrap_or(0);
         let username: String = user_row.try_get("username").unwrap_or_default();
         let display_name: String = user_row.try_get("display_name").unwrap_or_default();
@@ -257,7 +261,7 @@ impl TenantService {
         } else {
             user.require_manage_members()?;
         }
-        let new_role = TenantRole::from_str(&req.role)
+        let new_role = TenantRole::parse(&req.role)
             .ok_or_else(|| AppError::Validation("invalid role".into()))?;
         // Prevent removing the last owner.
         if new_role != TenantRole::Owner {

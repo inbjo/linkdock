@@ -5,7 +5,11 @@ use sqlx::Row;
 pub struct ExportService;
 
 /// Export bookmarks as Netscape HTML format.
-pub async fn export_html(state: &AppState, tenant_id: i64, collection_id: Option<i64>) -> AppResult<String> {
+pub async fn export_html(
+    state: &AppState,
+    tenant_id: i64,
+    collection_id: Option<i64>,
+) -> AppResult<String> {
     let collections = sqlx::query_as::<_, crate::domain::collection::Collection>(
         "SELECT * FROM collections WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY parent_id NULLS FIRST, name",
     )
@@ -13,7 +17,7 @@ pub async fn export_html(state: &AppState, tenant_id: i64, collection_id: Option
     .fetch_all(&state.pool)
     .await?;
 
-    let links = if let Some(cid) = collection_id {
+    let links = if let Some(_cid) = collection_id {
         sqlx::query_as::<_, crate::domain::link::Link>(
             "SELECT * FROM links WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY collection_id, position",
         )
@@ -30,8 +34,10 @@ pub async fn export_html(state: &AppState, tenant_id: i64, collection_id: Option
     };
 
     // Build collection tree.
-    let mut children_map: std::collections::HashMap<Option<i64>, Vec<&crate::domain::collection::Collection>> =
-        std::collections::HashMap::new();
+    let mut children_map: std::collections::HashMap<
+        Option<i64>,
+        Vec<&crate::domain::collection::Collection>,
+    > = std::collections::HashMap::new();
     for c in &collections {
         children_map.entry(c.parent_id).or_default().push(c);
     }
@@ -52,12 +58,19 @@ pub async fn export_html(state: &AppState, tenant_id: i64, collection_id: Option
     fn write_folder(
         html: &mut String,
         col: &crate::domain::collection::Collection,
-        children_map: &std::collections::HashMap<Option<i64>, Vec<&crate::domain::collection::Collection>>,
+        children_map: &std::collections::HashMap<
+            Option<i64>,
+            Vec<&crate::domain::collection::Collection>,
+        >,
         links_by_col: &std::collections::HashMap<i64, Vec<&crate::domain::link::Link>>,
         depth: usize,
     ) {
         let indent = "    ".repeat(depth);
-        html.push_str(&format!("{}<DT><H3>{}</H3>\n", indent, escape_html(&col.name)));
+        html.push_str(&format!(
+            "{}<DT><H3>{}</H3>\n",
+            indent,
+            escape_html(&col.name)
+        ));
         html.push_str(&format!("{}<DL><p>\n", indent));
         // Sub-folders.
         if let Some(children) = children_map.get(&Some(col.id)) {
@@ -75,7 +88,11 @@ pub async fn export_html(state: &AppState, tenant_id: i64, collection_id: Option
                     escape_html(&link.name)
                 ));
                 if !link.description.is_empty() {
-                    html.push_str(&format!("{}    <DD>{}\n", indent, escape_html(&link.description)));
+                    html.push_str(&format!(
+                        "{}    <DD>{}\n",
+                        indent,
+                        escape_html(&link.description)
+                    ));
                 }
             }
         }
@@ -199,16 +216,21 @@ pub async fn export_csv(state: &AppState, tenant_id: i64) -> AppResult<String> {
         collections.iter().map(|c| (c.id, c.name.clone())).collect();
 
     let mut wtr = csv::Writer::from_writer(Vec::new());
-    wtr.write_record(&["url", "name", "description", "collection"])
+    wtr.write_record(["url", "name", "description", "collection"])
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     for link in &links {
-        let col_name = col_map.get(&link.collection_id).cloned().unwrap_or_default();
-        wtr.write_record(&[&link.url, &link.name, &link.description, &col_name])
+        let col_name = col_map
+            .get(&link.collection_id)
+            .cloned()
+            .unwrap_or_default();
+        wtr.write_record([&link.url, &link.name, &link.description, &col_name])
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     }
 
-    let data = wtr.into_inner().map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let data = wtr
+        .into_inner()
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     Ok(String::from_utf8_lossy(&data).to_string())
 }
 
@@ -228,8 +250,10 @@ pub async fn export_xbel(state: &AppState, tenant_id: i64) -> AppResult<String> 
     .fetch_all(&state.pool)
     .await?;
 
-    let mut children_map: std::collections::HashMap<Option<i64>, Vec<&crate::domain::collection::Collection>> =
-        std::collections::HashMap::new();
+    let mut children_map: std::collections::HashMap<
+        Option<i64>,
+        Vec<&crate::domain::collection::Collection>,
+    > = std::collections::HashMap::new();
     for c in &collections {
         children_map.entry(c.parent_id).or_default().push(c);
     }
@@ -248,13 +272,20 @@ pub async fn export_xbel(state: &AppState, tenant_id: i64) -> AppResult<String> 
     fn write_folder(
         xml: &mut String,
         col: &crate::domain::collection::Collection,
-        children_map: &std::collections::HashMap<Option<i64>, Vec<&crate::domain::collection::Collection>>,
+        children_map: &std::collections::HashMap<
+            Option<i64>,
+            Vec<&crate::domain::collection::Collection>,
+        >,
         links_by_col: &std::collections::HashMap<i64, Vec<&crate::domain::link::Link>>,
         depth: usize,
     ) {
         let indent = "  ".repeat(depth);
         xml.push_str(&format!("{}<folder>\n", indent));
-        xml.push_str(&format!("{}  <title>{}</title>\n", indent, escape_xml(&col.name)));
+        xml.push_str(&format!(
+            "{}  <title>{}</title>\n",
+            indent,
+            escape_xml(&col.name)
+        ));
         if let Some(children) = children_map.get(&Some(col.id)) {
             for child in children {
                 write_folder(xml, child, children_map, links_by_col, depth + 1);
@@ -262,8 +293,16 @@ pub async fn export_xbel(state: &AppState, tenant_id: i64) -> AppResult<String> 
         }
         if let Some(links) = links_by_col.get(&col.id) {
             for link in links {
-                xml.push_str(&format!("{}  <bookmark href=\"{}\">\n", indent, escape_xml(&link.url)));
-                xml.push_str(&format!("{}    <title>{}</title>\n", indent, escape_xml(&link.name)));
+                xml.push_str(&format!(
+                    "{}  <bookmark href=\"{}\">\n",
+                    indent,
+                    escape_xml(&link.url)
+                ));
+                xml.push_str(&format!(
+                    "{}    <title>{}</title>\n",
+                    indent,
+                    escape_xml(&link.name)
+                ));
                 xml.push_str(&format!("{}  </bookmark>\n", indent));
             }
         }
@@ -279,7 +318,10 @@ pub async fn export_xbel(state: &AppState, tenant_id: i64) -> AppResult<String> 
     // Root-level bookmarks.
     if let Some(root_links) = links_by_col.get(&0) {
         for link in root_links {
-            xml.push_str(&format!("  <bookmark href=\"{}\">\n", escape_xml(&link.url)));
+            xml.push_str(&format!(
+                "  <bookmark href=\"{}\">\n",
+                escape_xml(&link.url)
+            ));
             xml.push_str(&format!("    <title>{}</title>\n", escape_xml(&link.name)));
             xml.push_str("  </bookmark>\n");
         }

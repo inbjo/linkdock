@@ -2,7 +2,6 @@ use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use std::collections::HashMap;
 
 /// A parsed bookmark from an import file.
@@ -134,7 +133,17 @@ impl ImportService {
         let mut errors = Vec::new();
 
         for (i, bm) in req.bookmarks.iter().enumerate() {
-            match import_one(&mut *tx, tenant_id, user.user_id, bm, &mut col_cache, root_collection_id, &req.duplicate_strategy).await {
+            match import_one(
+                &mut tx,
+                tenant_id,
+                user.user_id,
+                bm,
+                &mut col_cache,
+                root_collection_id,
+                &req.duplicate_strategy,
+            )
+            .await
+            {
                 Ok(ImportOutcome::Created) => success += 1,
                 Ok(ImportOutcome::Skipped) => skipped += 1,
                 Ok(ImportOutcome::Updated) => success += 1,
@@ -180,12 +189,18 @@ async fn import_one(
     }
     // Reject dangerous protocols unless http/https/ftp.
     let lower = url.to_lowercase();
-    if !lower.starts_with("http://") && !lower.starts_with("https://") && !lower.starts_with("ftp://") && !lower.starts_with("javascript:") {
+    if !lower.starts_with("http://")
+        && !lower.starts_with("https://")
+        && !lower.starts_with("ftp://")
+        && !lower.starts_with("javascript:")
+    {
         return Err(AppError::Validation("unsupported protocol".into()));
     }
 
     // Resolve collection from folder path.
-    let collection_id = resolve_collection_path(tx, tenant_id, user_id, &bm.folder_path, col_cache, root_id).await?;
+    let collection_id =
+        resolve_collection_path(tx, tenant_id, user_id, &bm.folder_path, col_cache, root_id)
+            .await?;
 
     // Check for duplicate URL in the same collection.
     if duplicate_strategy != "keep" {
@@ -203,13 +218,15 @@ async fn import_one(
                 return Ok(ImportOutcome::Skipped);
             }
             if duplicate_strategy == "update" {
-                sqlx::query("UPDATE links SET name = ?, description = ?, updated_at = ? WHERE id = ?")
-                    .bind(&bm.name)
-                    .bind(&bm.description)
-                    .bind(crate::auth::extractor::now_iso())
-                    .bind(existing_id)
-                    .execute(&mut *tx)
-                    .await?;
+                sqlx::query(
+                    "UPDATE links SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+                )
+                .bind(&bm.name)
+                .bind(&bm.description)
+                .bind(crate::auth::extractor::now_iso())
+                .bind(existing_id)
+                .execute(&mut *tx)
+                .await?;
                 return Ok(ImportOutcome::Updated);
             }
         }
@@ -342,7 +359,11 @@ fn extract_tag(line: &str, tag: &str) -> Option<String> {
     let content_start = start + gt + 1;
     let close = format!("</{}", tag);
     let close_lower = line[content_start..].to_lowercase().find(&close)?;
-    Some(line[content_start..content_start + close_lower].trim().to_string())
+    Some(
+        line[content_start..content_start + close_lower]
+            .trim()
+            .to_string(),
+    )
 }
 
 fn extract_bookmark(line: &str) -> Option<(String, String)> {
@@ -356,7 +377,9 @@ fn extract_bookmark(line: &str) -> Option<(String, String)> {
     let a_end = lower.find('>')?;
     let content_start = a_end + 1;
     let close_a = line[content_start..].to_lowercase().find("</a>")?;
-    let name = line[content_start..content_start + close_a].trim().to_string();
+    let name = line[content_start..content_start + close_a]
+        .trim()
+        .to_string();
 
     Some((url, name))
 }
@@ -375,7 +398,9 @@ fn parse_linkwarden_json(content: &str) -> AppResult<Vec<ParsedBookmark>> {
         .map_err(|e| AppError::Validation(format!("invalid JSON: {}", e)))?;
 
     // Linkwarden export format: { collections: [...], links: [...] }
-    let links = value.get("links").and_then(|v| v.as_array())
+    let links = value
+        .get("links")
+        .and_then(|v| v.as_array())
         .ok_or_else(|| AppError::Validation("missing 'links' array".into()))?;
 
     // Build collection id -> path map.
@@ -385,12 +410,19 @@ fn parse_linkwarden_json(content: &str) -> AppResult<Vec<ParsedBookmark>> {
         let mut col_map: HashMap<i64, (String, Option<i64>)> = HashMap::new();
         for col in collections {
             let id = col.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
-            let name = col.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let parent_id = col.get("parentId").or_else(|| col.get("parent_id")).and_then(|v| v.as_i64());
+            let name = col
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let parent_id = col
+                .get("parentId")
+                .or_else(|| col.get("parent_id"))
+                .and_then(|v| v.as_i64());
             col_map.insert(id, (name, parent_id));
         }
         // Resolve paths.
-        for (id, _) in &col_map {
+        for id in col_map.keys() {
             let path = resolve_json_path(*id, &col_map);
             col_paths.insert(*id, path);
         }
@@ -398,12 +430,35 @@ fn parse_linkwarden_json(content: &str) -> AppResult<Vec<ParsedBookmark>> {
 
     let mut bookmarks = Vec::new();
     for link in links {
-        let url = link.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let name = link.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let description = link.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let collection_id = link.get("collectionId").or_else(|| link.get("collection_id")).and_then(|v| v.as_i64());
-        let folder_path = collection_id.and_then(|id| col_paths.get(&id)).cloned().unwrap_or_default();
-        bookmarks.push(ParsedBookmark { url, name, description, folder_path });
+        let url = link
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let name = link
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let description = link
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let collection_id = link
+            .get("collectionId")
+            .or_else(|| link.get("collection_id"))
+            .and_then(|v| v.as_i64());
+        let folder_path = collection_id
+            .and_then(|id| col_paths.get(&id))
+            .cloned()
+            .unwrap_or_default();
+        bookmarks.push(ParsedBookmark {
+            url,
+            name,
+            description,
+            folder_path,
+        });
     }
 
     Ok(bookmarks)
@@ -429,16 +484,26 @@ fn resolve_json_path(id: i64, map: &HashMap<i64, (String, Option<i64>)>) -> Vec<
 
 fn parse_csv(content: &str) -> AppResult<Vec<ParsedBookmark>> {
     let mut reader = csv::Reader::from_reader(content.as_bytes());
-    let headers = reader.headers()
+    let headers = reader
+        .headers()
         .map_err(|e| AppError::Validation(format!("CSV error: {}", e)))?
         .clone();
 
-    let url_idx = headers.iter().position(|h| h.eq_ignore_ascii_case("url") || h.eq_ignore_ascii_case("link"));
-    let name_idx = headers.iter().position(|h| h.eq_ignore_ascii_case("name") || h.eq_ignore_ascii_case("title"));
-    let desc_idx = headers.iter().position(|h| h.eq_ignore_ascii_case("description") || h.eq_ignore_ascii_case("notes"));
-    let folder_idx = headers.iter().position(|h| h.eq_ignore_ascii_case("folder") || h.eq_ignore_ascii_case("collection"));
+    let url_idx = headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case("url") || h.eq_ignore_ascii_case("link"));
+    let name_idx = headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case("name") || h.eq_ignore_ascii_case("title"));
+    let desc_idx = headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case("description") || h.eq_ignore_ascii_case("notes"));
+    let folder_idx = headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case("folder") || h.eq_ignore_ascii_case("collection"));
 
-    let url_idx = url_idx.ok_or_else(|| AppError::Validation("CSV must have a 'url' column".into()))?;
+    let url_idx =
+        url_idx.ok_or_else(|| AppError::Validation("CSV must have a 'url' column".into()))?;
 
     let mut bookmarks = Vec::new();
     for record in reader.records() {
@@ -447,13 +512,29 @@ fn parse_csv(content: &str) -> AppResult<Vec<ParsedBookmark>> {
         if url.is_empty() {
             continue;
         }
-        let name = name_idx.and_then(|i| record.get(i)).unwrap_or("").to_string();
-        let description = desc_idx.and_then(|i| record.get(i)).unwrap_or("").to_string();
+        let name = name_idx
+            .and_then(|i| record.get(i))
+            .unwrap_or("")
+            .to_string();
+        let description = desc_idx
+            .and_then(|i| record.get(i))
+            .unwrap_or("")
+            .to_string();
         let folder_path = folder_idx
             .and_then(|i| record.get(i))
-            .map(|s| s.split('/').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+            .map(|s| {
+                s.split('/')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
             .unwrap_or_default();
-        bookmarks.push(ParsedBookmark { url, name, description, folder_path });
+        bookmarks.push(ParsedBookmark {
+            url,
+            name,
+            description,
+            folder_path,
+        });
     }
 
     Ok(bookmarks)

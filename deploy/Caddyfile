@@ -1,25 +1,27 @@
 # Caddy reverse proxy configuration for Linkwarden
 #
 # Caddy automatically handles HTTPS with Let's Encrypt.
-# Place in /etc/caddy/Caddyfile or use with `caddy run`.
+# The domain is set via the LW_DOMAIN env variable in docker-compose.yml.
+#
+# For standalone Caddy (not docker-compose), replace {$DOMAIN} with your domain.
 
-bookmarks.example.com {
-    # Upload size for imports
-    request_body {
-        max_size 50MB
-    }
+{$DOMAIN} {
+	# Upload size for imports (match LW max_upload_mb)
+	request_body {
+		max_size 50MB
+	}
 
-    # Proxy to Linkwarden backend
-    reverse_proxy 127.0.0.1:3000 {
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+	# Proxy all requests to Linkwarden backend
+	reverse_proxy linkwarden:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
 
-    # Cache static assets
-    @static path /assets/* /favicon.ico /robots.txt
-    handle @static {
-        reverse_proxy 127.0.0.1:3000
-        header Cache-Control "public, max-age=3600"
-    }
+	# Health check — no logging
+	@health path /health/live /health/ready
+	handle @health {
+		reverse_proxy linkwarden:3000
+		log_skip
+	}
 }

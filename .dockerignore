@@ -1,0 +1,12 @@
+# Exclude files not needed in Docker build to speed up context transfer
+target/
+data/
+web/node_modules/
+web/dist/
+dist-release/
+.git/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.env
+*.log

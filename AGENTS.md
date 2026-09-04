@@ -25,11 +25,13 @@ Environment variables:
 - `LW_SESSION_SECRET` — 32-byte hex secret for sessions (auto-generated if missing)
 - `LW_COOKIE_SECURE` — `0`/`false` to disable Secure flag (default: enabled)
 - `LW_CORS_ORIGINS` — comma-separated allowed origins
+- `LW_LOG_FORMAT` — `json` for structured logging, `text` for default
+- `RUST_LOG` — log level filter (default: `info,linkwarden=debug`)
 
 ## Architecture
 
 - **Backend**: Rust + Axum 0.8 + SQLite (sqlx) + FTS5
-- **Frontend**: Vite + React + TypeScript (embedded via rust-embed at build time)
+- **Frontend**: Vite + React + TypeScript + Tailwind CSS (embedded via rust-embed)
 - **Floccus target**: v5.9.2 (see `docs/floccus-contract.md`)
 
 ### Key Design Decisions
@@ -40,22 +42,37 @@ Environment variables:
 - Invalid tokens return `403` (Floccus browser adapter expects this).
 - Soft delete for links and collections; FTS index kept in sync via triggers.
 - Cursor pagination by `id DESC` (stable, no skip on changes).
+- Request ID middleware: auto-generates or propagates `x-request-id` header.
+- JSON structured logging via `LW_LOG_FORMAT=json`.
+- Prometheus metrics at `/metrics`.
 
 ## Project Structure
 
 ```
 src/
-├── lib.rs          — router builder, SPA fallback
-├── main.rs         — entry point
+├── lib.rs          — router builder, SPA fallback, metrics
+├── main.rs         — entry point, logging init
 ├── config.rs       — env-based config
 ├── error.rs        — unified error -> JSON
 ├── db.rs           — SQLite pool + migrations
 ├── state.rs        — AppState
+├── middleware/     — request ID middleware
 ├── auth/           — password, token, session, extractors, middleware
 ├── domain/         — SQL row structs
-├── services/       — business logic (auth, tenant, collection, link, search, tag, token)
+├── services/       — business logic (auth, tenant, collection, link, search, tag, token, io, audit)
 ├── routes/
-│   ├── app/        — /api/app/v1/* management API
+│   ├── app/        — /api/app/v1/* management API (auth, tenant, collection, link, tag, token, io, admin)
 │   └── linkwarden/ — /api/v1/* Floccus-compatible API
 └── web_assets.rs   — rust-embed frontend
+
+deploy/             — systemd service, nginx/Caddy configs, backup/restore scripts, deployment docs
 ```
+
+## Deployment
+
+See `deploy/README.md` for detailed deployment instructions including:
+- Docker / docker-compose
+- Binary + systemd
+- Nginx / Caddy reverse proxy
+- Backup and restore
+- Monitoring (health checks, metrics, structured logging)

@@ -3,6 +3,7 @@ pub mod config;
 pub mod db;
 pub mod domain;
 pub mod error;
+pub mod middleware;
 pub mod routes;
 pub mod services;
 pub mod state;
@@ -13,6 +14,7 @@ pub mod test_support;
 
 use axum::body::Body;
 use axum::http::{header, HeaderValue, Method, Request, StatusCode};
+use axum::middleware::from_fn;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
@@ -45,11 +47,13 @@ pub fn build_router(state: state::AppState) -> Router {
     Router::new()
         .route("/health/live", get(|| async { "ok" }))
         .route("/health/ready", get(health_ready))
+        .route("/metrics", get(metrics))
         .nest("/api/app/v1", routes::app::router())
         .nest("/api/v1", routes::linkwarden::router())
         .fallback(spa_fallback)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
+        .layer(from_fn(middleware::request_id::request_id_middleware))
         .with_state(app_state)
 }
 
@@ -64,6 +68,48 @@ async fn health_ready(State(state): State<state::AppState>) -> impl IntoResponse
             (StatusCode::SERVICE_UNAVAILABLE, "not ready")
         }
     }
+}
+
+/// Prometheus-compatible metrics endpoint.
+async fn metrics(State(state): State<state::AppState>) -> String {
+    let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+    let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM links WHERE deleted_at IS NULL")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+    let collections: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+    let sessions: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')")
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+
+    format!(
+        "# HELP linkwarden_users_total Total number of registered users.\n\
+         # TYPE linkwarden_users_total gauge\n\
+         linkwarden_users_total {users}\n\
+         # HELP linkwarden_tenants_total Total number of workspaces.\n\
+         # TYPE linkwarden_tenants_total gauge\n\
+         linkwarden_tenants_total {tenants}\n\
+         # HELP linkwarden_links_total Total number of active bookmarks.\n\
+         # TYPE linkwarden_links_total gauge\n\
+         linkwarden_links_total {links}\n\
+         # HELP linkwarden_collections_total Total number of active collections.\n\
+         # TYPE linkwarden_collections_total gauge\n\
+         linkwarden_collections_total {collections}\n\
+         # HELP linkwarden_active_sessions Total number of active sessions.\n\
+         # TYPE linkwarden_active_sessions gauge\n\
+         linkwarden_active_sessions {sessions}\n"
+    )
 }
 
 async fn spa_fallback(req: Request<Body>) -> Response {

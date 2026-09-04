@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod auth;
 pub mod collection;
 pub mod io;
@@ -18,4 +19,5 @@ pub fn router() -> Router<AppState> {
         .merge(tag::router())
         .merge(token::router())
         .merge(io::router())
+        .nest("/admin", admin::router())
 }

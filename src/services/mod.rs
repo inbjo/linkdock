@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod collection;
+pub mod io;
 pub mod link;
 pub mod search;
 pub mod tag;

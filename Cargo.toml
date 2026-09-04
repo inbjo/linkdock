@@ -17,7 +17,7 @@ name = "linkwarden"
 path = "src/main.rs"
 
 [dependencies]
-axum = { version = "0.8", features = ["macros", "http2"] }
+axum = { version = "0.8", features = ["macros", "http2", "multipart"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-gzip", "set-header"] }
@@ -40,6 +40,7 @@ hex = "0.4"
 subtle = "2"
 mime_guess = "2"
 futures = "0.3"
+csv = "1"
 reqwest = { version = "0.12", features = ["json", "cookies"], optional = true }
 tempfile = { version = "3", optional = true }
 

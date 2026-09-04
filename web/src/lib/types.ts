@@ -130,3 +130,10 @@ export interface ApiError {
     message: string
   }
 }
+
+export interface ParsedBookmark {
+  url: string
+  name: string
+  description: string
+  folder_path: string[]
+}

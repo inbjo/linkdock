@@ -79,10 +79,10 @@ function LinkEditInline({ link, onSaved }: { link: LinkWithTags; onSaved: () => 
   const save = async () => {
     try {
       await api.updateLink(link.id, { url, name, description, tags: tags.split(',').map((t) => t.trim()).filter(Boolean) })
-      showSuccess('Updated')
+      showSuccess(t('links.updated'))
       onSaved()
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Failed')
+      showError(e instanceof Error ? e.message : t('common.error'))
     }
   }
 

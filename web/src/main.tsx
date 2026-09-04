@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/i18n'
 import '@/styles/index.css'
 import { AuthProvider } from '@/hooks/useAuth'
+import { ThemeProvider } from '@/hooks/useTheme'
 import { AppLayout } from '@/pages/AppLayout'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -28,8 +29,9 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -47,9 +49,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/admin" element={<AdminPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/bookmarks" replace />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

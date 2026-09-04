@@ -19,9 +19,9 @@ export function WorkspacePage() {
     onSuccess: async () => {
       await refresh()
       qc.invalidateQueries({ queryKey: ['tenants'] })
-      showSuccess('Workspace updated')
+      showSuccess(t('workspace.updated'))
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   if (!me || !current) return null
@@ -51,7 +51,7 @@ export function WorkspacePage() {
             {tnt.id === me.tenant_id ? (
               <span className="badge" style={{ background: 'var(--color-primary)', color: 'white' }}>{t('workspace.current')}</span>
             ) : (
-              <button className="btn btn-sm" onClick={async () => { await api.selectTenant(tnt.id); await refresh(); showSuccess('Switched') }}>
+              <button className="btn btn-sm" onClick={async () => { await api.selectTenant(tnt.id); await refresh(); showSuccess(t('workspace.switched')) }}>
                 {t('workspace.switch')}
               </button>
             )}

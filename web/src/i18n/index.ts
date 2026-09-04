@@ -1,160 +1,53 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
+import { en } from './locales/en'
+import { zh } from './locales/zh'
 
-const resources = {
-  en: {
-    translation: {
-      app: { name: 'Linkdock' },
-      nav: {
-        bookmarks: 'Bookmarks',
-        search: 'Search',
-        trash: 'Trash',
-        settings: 'Settings',
-        admin: 'Admin',
-      },
-      auth: {
-        login: 'Login',
-        register: 'Register',
-        logout: 'Logout',
-        username: 'Username',
-        password: 'Password',
-        display_name: 'Display Name',
-        login_title: 'Login to your account',
-        register_title: 'Create a new account',
-        no_account: "Don't have an account?",
-        have_account: 'Already have an account?',
-      },
-      collections: {
-        title: 'Collections',
-        new: 'New Collection',
-        name: 'Name',
-        parent: 'Parent Collection',
-        root: 'Root (no parent)',
-        delete: 'Delete Collection',
-        delete_confirm: 'Delete this collection and all sub-collections and bookmarks?',
-        edit: 'Edit Collection',
-      },
-      links: {
-        title: 'Bookmarks',
-        new: 'New Bookmark',
-        url: 'URL',
-        name: 'Name',
-        description: 'Description',
-        collection: 'Collection',
-        tags: 'Tags',
-        edit: 'Edit Bookmark',
-        delete: 'Delete',
-        restore: 'Restore',
-        permanent_delete: 'Delete Permanently',
-        delete_confirm: 'Delete this bookmark?',
-        empty: 'No bookmarks found',
-        selected: '{{count}} selected',
-        batch_move: 'Move Selected',
-        batch_delete: 'Delete Selected',
-        batch_restore: 'Restore Selected',
-      },
-      tags: {
-        title: 'Tags',
-        new: 'New Tag',
-        edit: 'Edit Tag',
-        delete: 'Delete Tag',
-        delete_confirm: 'Delete this tag?',
-      },
-      settings: {
-        profile: 'Profile',
-        workspace: 'Workspace',
-        members: 'Members',
-        tokens: 'Access Tokens',
-        import_export: 'Import / Export',
-        sync: 'Sync (Floccus)',
-        sessions: 'Sessions',
-      },
-      tokens: {
-        title: 'Access Tokens',
-        new: 'Create Token',
-        name: 'Token Name',
-        token_created: 'Token Created',
-        token_warning: 'Copy this token now. It will not be shown again.',
-        copy: 'Copy',
-        copied: 'Copied!',
-        revoke: 'Revoke',
-        revoked: 'Revoked',
-        active: 'Active',
-        last_used: 'Last Used',
-        never: 'Never',
-        created: 'Created',
-        prefix: 'Prefix',
-        scopes: 'Scopes',
-      },
-      sync: {
-        title: 'Floccus Sync Setup',
-        intro: 'Use Floccus browser extension to sync your bookmarks across browsers.',
-        step1: '1. Create an Access Token above',
-        step2: '2. In Floccus, choose "Linkwarden" as the sync method',
-        step3: '3. Enter your server URL and the access token',
-        step4: '4. Set the server folder to "Floccus" (recommended)',
-        server_url: 'Server URL',
-        token: 'Access Token',
-        help_403: '403 error: Your token is invalid or revoked. Create a new one.',
-        help_redirect: 'Redirect error: Make sure your reverse proxy terminates HTTPS.',
-        help_root: 'Root folder not found: Floccus will auto-create it on first sync.',
-      },
-      members: {
-        title: 'Members',
-        add: 'Add Member',
-        username: 'Username',
-        role: 'Role',
-        owner: 'Owner',
-        admin: 'Admin',
-        member: 'Member',
-        viewer: 'Viewer',
-        remove: 'Remove',
-        change_role: 'Change Role',
-        remove_confirm: 'Remove this member from the workspace?',
-      },
-      workspace: {
-        title: 'Workspace Settings',
-        name: 'Workspace Name',
-        slug: 'Slug',
-        save: 'Save',
-        switch: 'Switch Workspace',
-        current: 'Current Workspace',
-      },
-      trash: {
-        title: 'Trash',
-        empty: 'Trash is empty',
-        restore: 'Restore',
-        permanent_delete: 'Delete Permanently',
-        restore_confirm: 'Restore this bookmark?',
-        delete_confirm: 'Permanently delete this bookmark? This cannot be undone.',
-      },
-      common: {
-        save: 'Save',
-        cancel: 'Cancel',
-        delete: 'Delete',
-        create: 'Create',
-        update: 'Update',
-        close: 'Close',
-        search: 'Search',
-        loading: 'Loading...',
-        error: 'Error',
-        success: 'Success',
-        yes: 'Yes',
-        no: 'No',
-        actions: 'Actions',
-        name: 'Name',
-        none: 'None',
-        back: 'Back',
-      },
-    },
-  },
+export type SupportedLocale = 'en' | 'zh'
+
+export const availableLocales: { code: SupportedLocale; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'zh', label: '中文' },
+]
+
+const STORAGE_KEY = 'linkdock.locale'
+
+function detectInitialLocale(): SupportedLocale {
+  // 1. Explicit user choice in localStorage
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (stored === 'en' || stored === 'zh') return stored
+
+  // 2. Browser language
+  const browser = navigator.language.toLowerCase()
+  if (browser.startsWith('zh')) return 'zh'
+
+  // 3. Default
+  return 'en'
 }
 
+const initialLocale = detectInitialLocale()
+
 i18n.use(initReactI18next).init({
-  resources,
-  lng: 'en',
+  resources: {
+    en: { translation: en },
+    zh: { translation: zh },
+  },
+  lng: initialLocale,
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
 })
+
+// Persist locale changes
+i18n.on('languageChanged', (lng: string) => {
+  localStorage.setItem(STORAGE_KEY, lng)
+  document.documentElement.lang = lng
+})
+
+// Set initial lang attribute
+document.documentElement.lang = initialLocale
+
+export function changeLocale(locale: SupportedLocale) {
+  i18n.changeLanguage(locale)
+}
 
 export default i18n

@@ -25,13 +25,13 @@ export function TokensPage() {
       setShowCreate(false)
       qc.invalidateQueries({ queryKey: ['tokens'] })
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const revokeMut = useMutation({
     mutationFn: (id: number) => api.revokeToken(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens'] }); showSuccess('Token revoked') },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens'] }); showSuccess(t('tokens.revoked')) },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const copyToken = () => {

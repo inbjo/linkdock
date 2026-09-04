@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
+import { SettingsBar } from '@/components/SettingsBar'
 
 export function RegisterPage() {
   const { t } = useTranslation()
@@ -18,17 +19,17 @@ export function RegisterPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password.length < 8) {
-      showError('Password must be at least 8 characters')
+      showError(t('auth.password_too_short'))
       return
     }
     setLoading(true)
     try {
       await api.register(username, password, displayName)
       await refresh()
-      showSuccess('Registration successful')
+      showSuccess(t('auth.register_success'))
       nav('/bookmarks')
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Registration failed')
+      showError(err instanceof Error ? err.message : t('auth.register'))
     } finally {
       setLoading(false)
     }
@@ -36,6 +37,7 @@ export function RegisterPage() {
 
   return (
     <div style={{ maxWidth: '24rem', margin: '4rem auto', padding: '0 1rem' }}>
+      <SettingsBar />
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>{t('auth.register_title')}</h1>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>

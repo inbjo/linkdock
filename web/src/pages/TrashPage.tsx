@@ -18,14 +18,14 @@ export function TrashPage() {
 
   const restoreMut = useMutation({
     mutationFn: (id: number) => api.restoreLink(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['links'] }); showSuccess('Restored') },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['links'] }); showSuccess(t('links.restored')) },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const purgeMut = useMutation({
     mutationFn: (id: number) => api.batchDelete([id], true),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['links'] }); showSuccess('Deleted permanently') },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['links'] }); showSuccess(t('links.deleted')) },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   return (

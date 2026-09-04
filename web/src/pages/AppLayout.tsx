@@ -2,15 +2,19 @@ import { useState } from 'react'
 import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
+import { useTheme } from '@/hooks/useTheme'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
+import { availableLocales, changeLocale, type SupportedLocale } from '@/i18n'
 
 export function AppLayout() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { me, tenants, loading, logout, refresh } = useAuth()
+  const { theme, setTheme, toggleTheme } = useTheme()
   const { showError, showSuccess, element } = useToast()
   const nav = useNavigate()
   const [tenantOpen, setTenantOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>{t('common.loading')}</div>
@@ -31,7 +35,7 @@ export function AppLayout() {
       await api.selectTenant(id)
       await refresh()
       setTenantOpen(false)
-      showSuccess('Workspace switched')
+      showSuccess(t('workspace.switched'))
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to switch')
     }
@@ -78,7 +82,7 @@ export function AppLayout() {
               onClick={() => setTenantOpen(!tenantOpen)}
             >
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentTenant?.name || 'Select workspace'}
+                {currentTenant?.name || t('workspace.select')}
               </span>
               <span>{tenantOpen ? '▴' : '▾'}</span>
             </button>
@@ -140,6 +144,28 @@ export function AppLayout() {
         </nav>
 
         <div style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)', fontSize: '0.75rem' }}>
+          {/* Language & Theme switchers */}
+          <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.5rem' }}>
+            <select
+              className="input"
+              style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+              value={i18n.language}
+              onChange={(e) => changeLocale(e.target.value as SupportedLocale)}
+              title={t('settings.language')}
+            >
+              {availableLocales.map((l) => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
+            <button
+              className="btn btn-sm"
+              style={{ flexShrink: 0, padding: '0.25rem 0.5rem' }}
+              onClick={toggleTheme}
+              title={t('settings.theme')}
+            >
+              {theme === 'dark' ? '☀' : theme === 'light' ? '☾' : '◐'}
+            </button>
+          </div>
           <div style={{ color: 'var(--color-text-secondary)' }}>{me.username}</div>
           <button className="btn btn-sm" style={{ marginTop: '0.5rem', width: '100%' }} onClick={handleLogout}>
             {t('auth.logout')}

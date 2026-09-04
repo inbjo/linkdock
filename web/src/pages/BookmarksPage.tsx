@@ -32,9 +32,9 @@ export function BookmarksPage() {
     mutationFn: (id: number) => api.deleteLink(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['links'] })
-      showSuccess('Bookmark deleted')
+      showSuccess(t('links.deleted'))
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Delete failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const batchDeleteMut = useMutation({
@@ -42,9 +42,9 @@ export function BookmarksPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['links'] })
       setSelectedLinks(new Set())
-      showSuccess('Bookmarks deleted')
+      showSuccess(t('links.deleted'))
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Batch delete failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const batchMoveMut = useMutation({
@@ -53,9 +53,9 @@ export function BookmarksPage() {
       qc.invalidateQueries({ queryKey: ['links'] })
       setSelectedLinks(new Set())
       setShowBatchMove(false)
-      showSuccess('Bookmarks moved')
+      showSuccess(t('links.moved'))
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Batch move failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const toggleSelect = (id: number, checked: boolean) => {
@@ -171,11 +171,11 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
 
   const save = async () => {
     if (!url.trim()) {
-      showError('URL is required')
+      showError(t('links.url') + ' is required')
       return
     }
     if (!collectionId) {
-      showError('Collection is required')
+      showError(t('links.collection') + ' is required')
       return
     }
     setLoading(true)
@@ -186,10 +186,10 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
       } else {
         await api.createLink({ url, name, description, collection_id: collectionId, tags: tagList })
       }
-      showSuccess(link ? 'Bookmark updated' : 'Bookmark created')
+      showSuccess(link ? t('links.updated') : t('links.created'))
       onSaved()
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Save failed')
+      showError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -220,7 +220,7 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
         <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated, tags" />
       </div>
       {link && (
-        <button className="btn btn-danger btn-sm" onClick={async () => { await api.deleteLink(link.id); showSuccess('Deleted'); onSaved() }}>
+        <button className="btn btn-danger btn-sm" onClick={async () => { await api.deleteLink(link.id); showSuccess(t('links.deleted')); onSaved() }}>
           {t('links.delete')}
         </button>
       )}
@@ -244,7 +244,7 @@ function CollectionEditForm({ collection, parentId, onSaved }: {
 
   const save = async () => {
     if (!name.trim()) {
-      showError('Name is required')
+      showError(t('common.name') + ' is required')
       return
     }
     setLoading(true)
@@ -254,10 +254,10 @@ function CollectionEditForm({ collection, parentId, onSaved }: {
       } else {
         await api.createCollection({ name, parent_id: parent })
       }
-      showSuccess(collection ? 'Collection updated' : 'Collection created')
+      showSuccess(collection ? t('collections.updated') : t('collections.created'))
       onSaved()
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Save failed')
+      showError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setLoading(false)
     }

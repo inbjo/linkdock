@@ -57,7 +57,7 @@ export function AdminPage() {
 
   return (
     <div style={{ padding: '1rem', maxWidth: '60rem' }}>
-      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('nav.admin')}</h1>
+      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('admin.title')}</h1>
       <StatsSection />
       <UsersSection />
       <TenantsSection />
@@ -67,6 +67,7 @@ export function AdminPage() {
 }
 
 function StatsSection() {
+  const { t } = useTranslation()
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ['admin', 'stats'],
     queryFn: async () => {
@@ -76,18 +77,18 @@ function StatsSection() {
     },
   })
 
-  if (isLoading) return <div>Loading...</div>
+  if (isLoading) return <div>{t('common.loading')}</div>
   if (!stats) return null
 
   const items = [
-    { label: 'Users', value: stats.users },
-    { label: 'Tenants', value: stats.tenants },
-    { label: 'Collections', value: stats.collections },
-    { label: 'Links', value: stats.links },
-    { label: 'Tags', value: stats.tags },
-    { label: 'Active Tokens', value: stats.tokens },
-    { label: 'Active Sessions', value: stats.sessions },
-    { label: 'Audit Entries', value: stats.audit_entries },
+    { label: t('admin.users'), value: stats.users },
+    { label: t('admin.tenants'), value: stats.tenants },
+    { label: t('admin.collections'), value: stats.collections },
+    { label: t('admin.links'), value: stats.links },
+    { label: t('admin.tags'), value: stats.tags },
+    { label: t('admin.active_tokens'), value: stats.tokens },
+    { label: t('admin.active_sessions'), value: stats.sessions },
+    { label: t('admin.audit_entries'), value: stats.audit_entries },
   ]
 
   return (
@@ -103,6 +104,7 @@ function StatsSection() {
 }
 
 function UsersSection() {
+  const { t } = useTranslation()
   const { data: users, isLoading } = useQuery<AdminUser[]>({
     queryKey: ['admin', 'users'],
     queryFn: async () => {
@@ -114,19 +116,19 @@ function UsersSection() {
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Users</h2>
-      {isLoading ? <div>Loading...</div> : (
+      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.users')}</h2>
+      {isLoading ? <div>{t('common.loading')}</div> : (
         <div className="card" style={{ padding: 0, overflow: 'auto' }}>
           <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem' }}>ID</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Username</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Display Name</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Admin</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Disabled</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Tenants</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Created</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.id')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.username')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.display_name')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.admin_flag')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.disabled')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.tenants')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.created')}</th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +152,7 @@ function UsersSection() {
 }
 
 function TenantsSection() {
+  const { t } = useTranslation()
   const { data: tenants, isLoading } = useQuery<AdminTenant[]>({
     queryKey: ['admin', 'tenants'],
     queryFn: async () => {
@@ -161,29 +164,29 @@ function TenantsSection() {
 
   return (
     <div style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Tenants</h2>
-      {isLoading ? <div>Loading...</div> : (
+      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.tenants')}</h2>
+      {isLoading ? <div>{t('common.loading')}</div> : (
         <div className="card" style={{ padding: 0, overflow: 'auto' }}>
           <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem' }}>ID</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Name</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Slug</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Members</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Links</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>Created</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.id')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.name')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.slug')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.members')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.links')}</th>
+                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.created')}</th>
               </tr>
             </thead>
             <tbody>
-              {(tenants || []).map((t) => (
-                <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.id}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{t.name}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.slug}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.member_count}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{t.link_count}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>{new Date(t.created_at).toLocaleDateString()}</td>
+              {(tenants || []).map((tnt) => (
+                <tr key={tnt.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.id}</td>
+                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{tnt.name}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.slug}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.member_count}</td>
+                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.link_count}</td>
+                  <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>{new Date(tnt.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -195,6 +198,7 @@ function TenantsSection() {
 }
 
 function AuditSection() {
+  const { t } = useTranslation()
   const { data: entries, isLoading } = useQuery<AuditEntry[]>({
     queryKey: ['admin', 'audit'],
     queryFn: async () => {
@@ -206,19 +210,19 @@ function AuditSection() {
 
   return (
     <div>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Audit Log (last 50)</h2>
-      {isLoading ? <div>Loading...</div> : (
+      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.audit_log')} ({t('admin.last_50')})</h2>
+      {isLoading ? <div>{t('common.loading')}</div> : (
         <div className="card scrollbar-thin" style={{ padding: 0, overflow: 'auto', maxHeight: '24rem' }}>
           <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.375rem 0.5rem' }}>ID</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>Time</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>Action</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>Resource</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>User</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>Tenant</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>IP</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.id')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.time')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.action')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.resource')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.user')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.tenant')}</th>
+                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.ip')}</th>
               </tr>
             </thead>
             <tbody>

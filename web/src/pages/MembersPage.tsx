@@ -28,21 +28,21 @@ export function MembersPage() {
       qc.invalidateQueries({ queryKey: ['members'] })
       setShowAdd(false)
       setAddUsername('')
-      showSuccess('Member added')
+      showSuccess(t('members.added'))
     },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const updateRoleMut = useMutation({
     mutationFn: ({ userId, role }: { userId: number; role: string }) => api.updateMember(me!.tenant_id, userId, role),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); showSuccess('Role updated') },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); showSuccess(t('members.role_updated')) },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const removeMut = useMutation({
     mutationFn: (userId: number) => api.removeMember(me!.tenant_id, userId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); showSuccess('Member removed') },
-    onError: (e) => showError(e instanceof Error ? e.message : 'Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members'] }); showSuccess(t('members.removed')) },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   if (!me) return null

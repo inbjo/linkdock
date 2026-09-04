@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
-import { api } from '@/lib/api'
 import type { ParsedBookmark } from '@/lib/types'
 
 interface ImportPreviewData {
@@ -29,7 +28,7 @@ export function ImportExportPage() {
 
   const handleUpload = async () => {
     if (!file) {
-      showError('Please select a file')
+      showError(t('import_export.select_file'))
       return
     }
     setLoading(true)
@@ -48,9 +47,9 @@ export function ImportExportPage() {
       }
       const data: ImportPreviewData = await resp.json()
       setPreview(data)
-      showSuccess(`Parsed ${data.preview.total_bookmarks} bookmarks in ${data.preview.total_folders} folders`)
+      showSuccess(t('import_export.parsed', { count: data.preview.total_bookmarks, folders: data.preview.total_folders }))
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Upload failed')
+      showError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -75,11 +74,11 @@ export function ImportExportPage() {
         throw new Error(err.error?.message || `HTTP ${resp.status}`)
       }
       const result = await resp.json()
-      showSuccess(`Imported: ${result.success} created, ${result.skipped} skipped, ${result.failed} failed`)
+      showSuccess(t('import_export.imported', { count: result.success }))
       setPreview(null)
       setFile(null)
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Import failed')
+      showError(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setLoading(false)
     }
@@ -97,10 +96,10 @@ export function ImportExportPage() {
 
       {/* Import section */}
       <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>Import</h3>
+        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.import_title')}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div>
-            <label className="label">Format</label>
+            <label className="label">{t('import_export.format')}</label>
             <select className="input" value={format} onChange={(e) => setFormat(e.target.value)}>
               <option value="html">Netscape Bookmark HTML</option>
               <option value="json">Linkdock JSON</option>
@@ -109,7 +108,7 @@ export function ImportExportPage() {
             </select>
           </div>
           <div>
-            <label className="label">File</label>
+            <label className="label">{t('import_export.select_file')}</label>
             <input
               type="file"
               className="input"
@@ -118,7 +117,7 @@ export function ImportExportPage() {
             />
           </div>
           <button className="btn btn-primary" onClick={handleUpload} disabled={!file || loading}>
-            {loading ? 'Parsing...' : 'Upload & Preview'}
+            {loading ? t('common.loading') : t('import_export.upload')}
           </button>
         </div>
       </div>
@@ -126,13 +125,13 @@ export function ImportExportPage() {
       {/* Preview */}
       {preview && (
         <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>Preview</h3>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.preview')}</h3>
           <div style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            <strong>{preview.preview.total_bookmarks}</strong> bookmarks in <strong>{preview.preview.total_folders}</strong> folders
+            <strong>{preview.preview.total_bookmarks}</strong> {t('import_export.total_bookmarks').toLowerCase()} · <strong>{preview.preview.total_folders}</strong> {t('import_export.total_folders').toLowerCase()}
           </div>
           {preview.preview.folders.length > 0 && (
             <div style={{ marginBottom: '0.75rem' }}>
-              <div className="label">Folders</div>
+              <div className="label">{t('import_export.total_folders')}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', maxHeight: '8rem', overflow: 'auto' }} className="scrollbar-thin">
                 {preview.preview.folders.map((f) => <div key={f}>{f}</div>)}
               </div>
@@ -140,7 +139,7 @@ export function ImportExportPage() {
           )}
           {preview.preview.sample.length > 0 && (
             <div style={{ marginBottom: '0.75rem' }}>
-              <div className="label">Sample (first 10)</div>
+              <div className="label">{t('import_export.sample')}</div>
               <div style={{ fontSize: '0.75rem' }}>
                 {preview.preview.sample.map((b, i) => (
                   <div key={i} style={{ padding: '0.25rem 0', borderBottom: '1px solid var(--color-border)' }}>
@@ -152,18 +151,18 @@ export function ImportExportPage() {
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div>
-              <label className="label">Duplicate strategy</label>
+              <label className="label">{t('import_export.duplicate_strategy')}</label>
               <select className="input" value={duplicateStrategy} onChange={(e) => setDuplicateStrategy(e.target.value)}>
-                <option value="keep">Keep duplicates (create copies)</option>
-                <option value="skip">Skip duplicates</option>
-                <option value="update">Update duplicates</option>
+                <option value="keep">{t('import_export.keep')}</option>
+                <option value="skip">{t('import_export.skip')}</option>
+                <option value="update">{t('import_export.update')}</option>
               </select>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-primary" onClick={handleExecute} disabled={loading}>
-                {loading ? 'Importing...' : 'Confirm Import'}
+                {loading ? t('common.loading') : t('import_export.execute')}
               </button>
-              <button className="btn" onClick={() => setPreview(null)}>Cancel</button>
+              <button className="btn" onClick={() => setPreview(null)}>{t('common.cancel')}</button>
             </div>
           </div>
         </div>
@@ -171,7 +170,7 @@ export function ImportExportPage() {
 
       {/* Export section */}
       <div className="card">
-        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>Export</h3>
+        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.export_title')}</h3>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => handleExport('html')}>Bookmark HTML</button>
           <button className="btn" onClick={() => handleExport('json')}>JSON</button>

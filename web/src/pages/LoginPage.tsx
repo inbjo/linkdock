@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
+import { SettingsBar } from '@/components/SettingsBar'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -20,10 +21,10 @@ export function LoginPage() {
     try {
       await api.login(username, password)
       await refresh()
-      showSuccess('Login successful')
+      showSuccess(t('auth.login_success'))
       nav('/bookmarks')
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Login failed')
+      showError(err instanceof Error ? err.message : t('auth.login'))
     } finally {
       setLoading(false)
     }
@@ -31,6 +32,7 @@ export function LoginPage() {
 
   return (
     <div style={{ maxWidth: '24rem', margin: '4rem auto', padding: '0 1rem' }}>
+      <SettingsBar />
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>{t('auth.login_title')}</h1>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>

@@ -8,10 +8,10 @@ export function SettingsBar() {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <div style={{ position: 'fixed', top: '1rem', right: '1rem', display: 'flex', gap: '0.375rem', zIndex: 50 }}>
+    <div style={{ position: 'fixed', top: 'var(--space-md)', right: 'var(--space-md)', display: 'flex', gap: 'var(--space-2xs)', zIndex: 50 }}>
       <select
         className="input"
-        style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+        style={{ width: 'auto', padding: 'var(--space-3xs) var(--space-2xs)', fontSize: 'var(--text-xs)' }}
         value={i18n.language}
         onChange={(e) => changeLocale(e.target.value as SupportedLocale)}
         title={t('settings.language')}
@@ -21,10 +21,10 @@ export function SettingsBar() {
         ))}
       </select>
       <button
-        className="btn btn-sm"
-        style={{ padding: '0.25rem 0.5rem' }}
+        className="btn btn-sm btn-icon"
         onClick={toggleTheme}
         title={t('settings.theme')}
+        aria-label={t('settings.theme')}
       >
         {theme === 'dark' ? '☀' : theme === 'light' ? '☾' : '◐'}
       </button>

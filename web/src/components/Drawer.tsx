@@ -8,17 +8,26 @@ interface DrawerProps {
   width?: string
 }
 
-export function Drawer({ open, onClose, title, children, width = '28rem' }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, width = '30rem' }: DrawerProps) {
   const [visible, setVisible] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) setVisible(true)
     else {
-      const timer = setTimeout(() => setVisible(false), 200)
+      const timer = setTimeout(() => setVisible(false), 220)
       return () => clearTimeout(timer)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open, onClose])
 
   if (!visible && !open) return null
 
@@ -29,9 +38,9 @@ export function Drawer({ open, onClose, title, children, width = '28rem' }: Draw
           position: 'fixed',
           inset: 0,
           zIndex: 40,
-          background: 'rgba(0,0,0,0.3)',
+          background: 'oklch(0% 0 0 / 0.25)',
           opacity: open ? 1 : 0,
-          transition: 'opacity 0.2s',
+          transition: 'opacity var(--dur) var(--ease-out)',
         }}
         onClick={onClose}
       />
@@ -44,11 +53,11 @@ export function Drawer({ open, onClose, title, children, width = '28rem' }: Draw
           bottom: 0,
           width: `min(${width}, 100vw)`,
           zIndex: 41,
-          background: 'var(--color-bg)',
-          borderLeft: '1px solid var(--color-border)',
-          boxShadow: '-4px 0 6px rgba(0,0,0,0.1)',
+          background: 'var(--color-paper)',
+          borderLeft: '1px solid var(--color-rule)',
+          boxShadow: 'var(--shadow-drawer)',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.2s',
+          transition: 'transform var(--dur) var(--ease-out)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -58,15 +67,24 @@ export function Drawer({ open, onClose, title, children, width = '28rem' }: Draw
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '1rem',
-            borderBottom: '1px solid var(--color-border)',
+            padding: 'var(--space-md)',
+            borderBottom: '1px solid var(--color-rule)',
             flexShrink: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{title}</h2>
-          <button className="btn btn-sm" onClick={onClose} aria-label="Close">✕</button>
+          <h2
+            className="font-display"
+            style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 600, letterSpacing: '-0.02em' }}
+          >
+            {title}
+          </h2>
+          <button className="btn btn-sm btn-icon" onClick={onClose} aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }} className="scrollbar-thin">
+        <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin">
           {children}
         </div>
       </div>

@@ -35,6 +35,7 @@ export const zh: Translation = {
     edit: '编辑收藏夹',
     created: '收藏夹已创建',
     updated: '收藏夹已更新',
+    deleted: '收藏夹已删除',
   },
   links: {
     title: '书签',
@@ -60,6 +61,7 @@ export const zh: Translation = {
     tagged: '标签已更新',
     created: '书签已创建',
     updated: '书签已更新',
+    select_all: '全选',
   },
   tags: {
     title: '标签',
@@ -98,6 +100,8 @@ export const zh: Translation = {
     created: '创建时间',
     prefix: '前缀',
     scopes: '权限范围',
+    revoke_confirm: '撤销此令牌？此操作不可撤销。',
+    empty: '暂无令牌',
   },
   sync: {
     title: 'Floccus 同步设置',
@@ -108,6 +112,9 @@ export const zh: Translation = {
     step4: '4. 将服务器文件夹设为 "Floccus"（推荐）',
     server_url: '服务器 URL',
     token: '访问令牌',
+    token_hint: '在令牌页面创建访问令牌，然后粘贴到 Floccus 中。',
+    setup_steps: '设置步骤',
+    troubleshooting: '故障排除',
     help_403: '403 错误：令牌无效或已撤销，请创建新令牌。',
     help_redirect: '重定向错误：确保反向代理已配置 HTTPS。',
     help_root: '根文件夹未找到：Floccus 会在首次同步时自动创建。',
@@ -127,6 +134,7 @@ export const zh: Translation = {
     added: '成员已添加',
     removed: '成员已移除',
     role_updated: '角色已更新',
+    empty: '暂无成员',
   },
   workspace: {
     title: '工作区设置',
@@ -142,6 +150,7 @@ export const zh: Translation = {
   trash: {
     title: '回收站',
     empty: '回收站为空',
+    description: '已删除的书签会移到这里。可以恢复或永久删除。',
     restore: '恢复',
     permanent_delete: '永久删除',
     restore_confirm: '恢复此书签？',
@@ -204,6 +213,8 @@ export const zh: Translation = {
     title: '个人资料',
     username: '用户名',
     display_name: '显示名称',
+    role: '角色',
+    system_admin: '系统管理员',
     save: '保存',
     saved: '个人资料已保存',
     sessions: '活跃会话',
@@ -228,5 +239,11 @@ export const zh: Translation = {
     none: '无',
     back: '返回',
     confirm: '确认',
+    copied: '已复制',
+    copy: '复制',
+  },
+  search: {
+    title: '搜索书签',
+    no_results: '未找到结果',
   },
 }

@@ -10,20 +10,25 @@ import { availableLocales, changeLocale, type SupportedLocale } from '@/i18n'
 export function AppLayout() {
   const { t, i18n } = useTranslation()
   const { me, tenants, loading, logout, refresh } = useAuth()
-  const { theme, setTheme, toggleTheme } = useTheme()
+  const { theme, toggleTheme } = useTheme()
   const { showError, showSuccess, element } = useToast()
   const nav = useNavigate()
   const [tenantOpen, setTenantOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>{t('common.loading')}</div>
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-3)' }}>
+          {t('common.loading')}
+        </div>
+      </div>
+    )
   }
   if (!me) {
     return <Navigate to="/login" replace />
   }
 
-  const currentTenant = tenants.find((t) => t.id === me.tenant_id)
+  const currentTenant = tenants.find((tnt) => tnt.id === me.tenant_id)
 
   const handleLogout = async () => {
     await logout()
@@ -37,7 +42,7 @@ export function AppLayout() {
       setTenantOpen(false)
       showSuccess(t('workspace.switched'))
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to switch')
+      showError(err instanceof Error ? err.message : t('common.error'))
     }
   }
 
@@ -45,15 +50,19 @@ export function AppLayout() {
     <NavLink
       to={to}
       style={({ isActive }) => ({
-        display: 'block',
-        padding: '0.5rem 0.75rem',
-        borderRadius: '0.25rem',
-        fontSize: '0.875rem',
-        fontWeight: 500,
-        color: isActive ? 'var(--color-primary)' : 'var(--color-text)',
-        background: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+        display: 'flex',
+        alignItems: 'center',
+        padding: 'var(--space-2xs) var(--space-xs)',
+        borderRadius: 'var(--radius)',
+        fontSize: 'var(--text-sm)',
+        fontWeight: isActive ? 500 : 400,
+        color: isActive ? 'var(--color-accent)' : 'var(--color-ink-2)',
+        background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
         textDecoration: 'none',
+        transition: 'background var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out)',
       })}
+      onMouseEnter={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink)' }}
+      onMouseLeave={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink-2)' }}
     >
       {label}
     </NavLink>
@@ -64,56 +73,75 @@ export function AppLayout() {
       {/* Sidebar */}
       <aside
         style={{
-          width: '16rem',
+          width: '15rem',
           flexShrink: 0,
-          borderRight: '1px solid var(--color-border)',
-          background: 'var(--color-bg-secondary)',
+          borderRight: '1px solid var(--color-rule)',
+          background: 'var(--color-paper-2)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}
       >
-        <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ fontWeight: 700, fontSize: '1rem' }}>{t('app.name')}</div>
-          <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+        {/* Brand + workspace selector */}
+        <div style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
+          <div
+            className="font-display"
+            style={{ fontWeight: 700, fontSize: 'var(--text-md)', letterSpacing: '-0.02em', color: 'var(--color-ink)' }}
+          >
+            {t('app.name')}
+          </div>
+          <div style={{ position: 'relative', marginTop: 'var(--space-sm)' }}>
             <button
               className="btn btn-sm"
-              style={{ width: '100%', justifyContent: 'space-between' }}
+              style={{ width: '100%', justifyContent: 'space-between', fontWeight: 400 }}
               onClick={() => setTenantOpen(!tenantOpen)}
             >
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {currentTenant?.name || t('workspace.select')}
               </span>
-              <span>{tenantOpen ? '▴' : '▾'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)' }}>
+                {tenantOpen ? '−' : '+'}
+              </span>
             </button>
             {tenantOpen && (
               <div
-                className="card"
                 style={{
                   position: 'absolute',
                   top: '100%',
                   left: 0,
                   right: 0,
-                  marginTop: '0.25rem',
-                  padding: '0.25rem',
+                  marginTop: 'var(--space-2xs)',
+                  padding: 'var(--space-2xs)',
+                  background: 'var(--color-paper)',
+                  border: '1px solid var(--color-rule)',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: 'var(--shadow-lg)',
                   zIndex: 10,
                   maxHeight: '16rem',
                   overflow: 'auto',
                 }}
+                className="scrollbar-thin"
               >
                 {tenants.map((tnt) => (
                   <div
                     key={tnt.id}
                     style={{
-                      padding: '0.375rem 0.5rem',
-                      borderRadius: '0.25rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 'var(--space-2xs) var(--space-xs)',
+                      borderRadius: 'var(--radius-sm)',
                       cursor: 'pointer',
-                      fontSize: '0.8125rem',
-                      background: tnt.id === me.tenant_id ? 'var(--color-bg-tertiary)' : 'transparent',
+                      fontSize: 'var(--text-sm)',
+                      background: tnt.id === me.tenant_id ? 'var(--color-accent-subtle)' : 'transparent',
+                      transition: 'background var(--dur-short) var(--ease-out)',
                     }}
+                    onMouseEnter={(e) => { if (tnt.id !== me.tenant_id) e.currentTarget.style.background = 'var(--color-paper-3)' }}
+                    onMouseLeave={(e) => { if (tnt.id !== me.tenant_id) e.currentTarget.style.background = 'transparent' }}
                     onClick={() => switchTenant(tnt.id)}
                   >
-                    {tnt.name} <span className="badge" style={{ marginLeft: '0.25rem' }}>{tnt.role}</span>
+                    <span>{tnt.name}</span>
+                    <span className="badge" style={{ marginLeft: 'var(--space-2xs)' }}>{tnt.role}</span>
                   </div>
                 ))}
               </div>
@@ -121,12 +149,18 @@ export function AppLayout() {
           </div>
         </div>
 
-        <nav style={{ flex: 1, overflow: 'auto', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }} className="scrollbar-thin">
+        {/* Nav */}
+        <nav style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin">
+          <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
+            {t('nav.bookmarks')}
+          </div>
           {navItem('/bookmarks', t('nav.bookmarks'))}
           {navItem('/search', t('nav.search'))}
           {navItem('/trash', t('nav.trash'))}
-          <div style={{ height: '1px', background: 'var(--color-border)', margin: '0.5rem 0' }} />
-          <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', padding: '0 0.75rem', marginBottom: '0.25rem' }}>
+
+          <div style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
+
+          <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
             {t('nav.settings')}
           </div>
           {navItem('/settings/profile', t('settings.profile'))}
@@ -135,20 +169,24 @@ export function AppLayout() {
           {navItem('/settings/tokens', t('settings.tokens'))}
           {navItem('/settings/sync', t('settings.sync'))}
           {navItem('/settings/import-export', t('settings.import_export'))}
+
           {me.is_system_admin && (
             <>
-              <div style={{ height: '1px', background: 'var(--color-border)', margin: '0.5rem 0' }} />
+              <div style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
+              <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
+                {t('nav.admin')}
+              </div>
               {navItem('/admin', t('nav.admin'))}
             </>
           )}
         </nav>
 
-        <div style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)', fontSize: '0.75rem' }}>
-          {/* Language & Theme switchers */}
-          <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.5rem' }}>
+        {/* Footer: locale + theme + user */}
+        <div style={{ padding: 'var(--space-xs)', borderTop: '1px solid var(--color-rule)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2xs)', marginBottom: 'var(--space-2xs)' }}>
             <select
               className="input"
-              style={{ flex: 1, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+              style={{ flex: 1, padding: 'var(--space-3xs) var(--space-2xs)', fontSize: 'var(--text-xs)' }}
               value={i18n.language}
               onChange={(e) => changeLocale(e.target.value as SupportedLocale)}
               title={t('settings.language')}
@@ -158,18 +196,32 @@ export function AppLayout() {
               ))}
             </select>
             <button
-              className="btn btn-sm"
-              style={{ flexShrink: 0, padding: '0.25rem 0.5rem' }}
+              className="btn btn-sm btn-icon"
               onClick={toggleTheme}
               title={t('settings.theme')}
+              aria-label={t('settings.theme')}
             >
               {theme === 'dark' ? '☀' : theme === 'light' ? '☾' : '◐'}
             </button>
           </div>
-          <div style={{ color: 'var(--color-text-secondary)' }}>{me.username}</div>
-          <button className="btn btn-sm" style={{ marginTop: '0.5rem', width: '100%' }} onClick={handleLogout}>
-            {t('auth.logout')}
-          </button>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: 'var(--space-2xs) var(--space-xs)',
+              fontSize: 'var(--text-xs)',
+            }}
+          >
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-2)' }}>{me.username}</span>
+            <button
+              className="btn btn-sm btn-ghost"
+              style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-3xs) var(--space-2xs)' }}
+              onClick={handleLogout}
+            >
+              {t('auth.logout')}
+            </button>
+          </div>
         </div>
       </aside>
 

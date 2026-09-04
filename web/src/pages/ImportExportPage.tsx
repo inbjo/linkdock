@@ -90,92 +90,140 @@ export function ImportExportPage() {
 
   if (!me) return null
 
+  const formats = [
+    { value: 'html', label: 'Netscape Bookmark HTML' },
+    { value: 'json', label: 'Linkdock JSON' },
+    { value: 'csv', label: 'CSV' },
+    { value: 'xbel', label: 'XBEL' },
+  ]
+
   return (
-    <div style={{ padding: '1rem', maxWidth: '40rem' }}>
-      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('settings.import_export')}</h1>
-
-      {/* Import section */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.import_title')}</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div>
-            <label className="label">{t('import_export.format')}</label>
-            <select className="input" value={format} onChange={(e) => setFormat(e.target.value)}>
-              <option value="html">Netscape Bookmark HTML</option>
-              <option value="json">Linkdock JSON</option>
-              <option value="csv">CSV</option>
-              <option value="xbel">XBEL</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">{t('import_export.select_file')}</label>
-            <input
-              type="file"
-              className="input"
-              accept=".html,.htm,.json,.csv,.xbel"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </div>
-          <button className="btn btn-primary" onClick={handleUpload} disabled={!file || loading}>
-            {loading ? t('common.loading') : t('import_export.upload')}
-          </button>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      <div style={{ maxWidth: '40rem', margin: '0 auto' }}>
+        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+          {t('settings.import_export')}
         </div>
-      </div>
+        <h1
+          className="font-display"
+          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
+        >
+          {t('import_export.title')}
+        </h1>
 
-      {/* Preview */}
-      {preview && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.preview')}</h3>
-          <div style={{ fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
-            <strong>{preview.preview.total_bookmarks}</strong> {t('import_export.total_bookmarks').toLowerCase()} · <strong>{preview.preview.total_folders}</strong> {t('import_export.total_folders').toLowerCase()}
+        {/* Import */}
+        <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+          <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>
+            {t('import_export.import_title')}
           </div>
-          {preview.preview.folders.length > 0 && (
-            <div style={{ marginBottom: '0.75rem' }}>
-              <div className="label">{t('import_export.total_folders')}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', maxHeight: '8rem', overflow: 'auto' }} className="scrollbar-thin">
-                {preview.preview.folders.map((f) => <div key={f}>{f}</div>)}
-              </div>
-            </div>
-          )}
-          {preview.preview.sample.length > 0 && (
-            <div style={{ marginBottom: '0.75rem' }}>
-              <div className="label">{t('import_export.sample')}</div>
-              <div style={{ fontSize: '0.75rem' }}>
-                {preview.preview.sample.map((b, i) => (
-                  <div key={i} style={{ padding: '0.25rem 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <strong>{b.name || b.url}</strong> — {b.url}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
             <div>
-              <label className="label">{t('import_export.duplicate_strategy')}</label>
-              <select className="input" value={duplicateStrategy} onChange={(e) => setDuplicateStrategy(e.target.value)}>
-                <option value="keep">{t('import_export.keep')}</option>
-                <option value="skip">{t('import_export.skip')}</option>
-                <option value="update">{t('import_export.update')}</option>
+              <label className="label">{t('import_export.format')}</label>
+              <select className="input" value={format} onChange={(e) => setFormat(e.target.value)}>
+                {formats.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary" onClick={handleExecute} disabled={loading}>
-                {loading ? t('common.loading') : t('import_export.execute')}
-              </button>
-              <button className="btn" onClick={() => setPreview(null)}>{t('common.cancel')}</button>
+            <div>
+              <label className="label">{t('import_export.select_file')}</label>
+              <input
+                type="file"
+                className="input"
+                accept=".html,.htm,.json,.csv,.xbel"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
             </div>
+            <button className="btn btn-primary" onClick={handleUpload} disabled={!file || loading} style={{ alignSelf: 'flex-start' }}>
+              {loading ? t('common.loading') : t('import_export.upload')}
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Export section */}
-      <div className="card">
-        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 0.75rem 0' }}>{t('import_export.export_title')}</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className="btn" onClick={() => handleExport('html')}>Bookmark HTML</button>
-          <button className="btn" onClick={() => handleExport('json')}>JSON</button>
-          <button className="btn" onClick={() => handleExport('csv')}>CSV</button>
-          <button className="btn" onClick={() => handleExport('xbel')}>XBEL</button>
+        {/* Preview */}
+        {preview && (
+          <div className="card" style={{ marginBottom: 'var(--space-md)' }}>
+            <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>
+              {t('import_export.preview')}
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-md)', marginBottom: 'var(--space-md)' }}>
+              <div>
+                <div className="font-display" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--color-accent)' }}>
+                  {preview.preview.total_bookmarks}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)', textTransform: 'uppercase' }}>
+                  {t('import_export.total_bookmarks')}
+                </div>
+              </div>
+              <div>
+                <div className="font-display" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--color-ink)' }}>
+                  {preview.preview.total_folders}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)', textTransform: 'uppercase' }}>
+                  {t('import_export.total_folders')}
+                </div>
+              </div>
+            </div>
+            {preview.preview.folders.length > 0 && (
+              <div style={{ marginBottom: 'var(--space-md)' }}>
+                <label className="label">{t('import_export.total_folders')}</label>
+                <div
+                  style={{ fontSize: 'var(--text-xs)', color: 'var(--color-ink-2)', maxHeight: '8rem', overflow: 'auto', fontFamily: 'var(--font-mono)' }}
+                  className="scrollbar-thin"
+                >
+                  {preview.preview.folders.map((f) => <div key={f}>{f}</div>)}
+                </div>
+              </div>
+            )}
+            {preview.preview.sample.length > 0 && (
+              <div style={{ marginBottom: 'var(--space-md)' }}>
+                <label className="label">{t('import_export.sample')}</label>
+                <div style={{ fontSize: 'var(--text-xs)' }}>
+                  {preview.preview.sample.map((b, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: 'var(--space-2xs) 0',
+                        borderBottom: '1px solid var(--color-rule)',
+                      }}
+                    >
+                      <span className="font-display" style={{ fontWeight: 500 }}>{b.name || b.url}</span>
+                      <span style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', marginLeft: 'var(--space-2xs)' }}>
+                        {b.url}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+              <div>
+                <label className="label">{t('import_export.duplicate_strategy')}</label>
+                <select className="input" value={duplicateStrategy} onChange={(e) => setDuplicateStrategy(e.target.value)}>
+                  <option value="keep">{t('import_export.keep')}</option>
+                  <option value="skip">{t('import_export.skip')}</option>
+                  <option value="update">{t('import_export.update')}</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-2xs)' }}>
+                <button className="btn btn-primary" onClick={handleExecute} disabled={loading}>
+                  {loading ? t('common.loading') : t('import_export.execute')}
+                </button>
+                <button className="btn" onClick={() => setPreview(null)}>{t('common.cancel')}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Export */}
+        <div className="card">
+          <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>
+            {t('import_export.export_title')}
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-2xs)', flexWrap: 'wrap' }}>
+            {formats.map((f) => (
+              <button key={f.value} className="btn btn-sm" onClick={() => handleExport(f.value)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       {element}

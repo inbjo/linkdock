@@ -6,24 +6,41 @@ export function Toast({ message, type, onClose }: { message: string; type: 'erro
     return () => clearTimeout(timer)
   }, [onClose])
 
-  const color = type === 'error' ? 'var(--color-danger)' : 'var(--color-success)'
+  const isError = type === 'error'
   return (
     <div
       style={{
         position: 'fixed',
-        top: '1rem',
-        right: '1rem',
+        bottom: 'var(--space-md)',
+        right: 'var(--space-md)',
         zIndex: 100,
-        padding: '0.75rem 1rem',
-        borderRadius: '0.375rem',
-        background: 'var(--color-bg)',
-        border: `1px solid ${color}`,
-        borderLeft: `4px solid ${color}`,
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        padding: 'var(--space-xs) var(--space-md)',
+        borderRadius: 'var(--radius)',
+        background: 'var(--color-paper)',
+        border: '1px solid var(--color-rule)',
+        borderLeft: `3px solid ${isError ? 'var(--color-danger)' : 'var(--color-accent)'}`,
+        boxShadow: 'var(--shadow-lg)',
         maxWidth: '24rem',
+        fontSize: 'var(--text-sm)',
+        fontFamily: 'var(--font-body)',
+        color: 'var(--color-ink)',
+        animation: 'toast-in var(--dur) var(--ease-out)',
       }}
     >
-      {message}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
+        {isError ? (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: 'var(--color-danger)' }}>
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 5v3.5M8 11v0.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: 'var(--color-accent)' }}>
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M5.5 8l2 2 3-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        <span>{message}</span>
+      </div>
     </div>
   )
 }

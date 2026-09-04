@@ -43,54 +43,94 @@ export function TokensPage() {
   }
 
   return (
-    <div style={{ padding: '1rem', maxWidth: '40rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>{t('tokens.title')}</h1>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>{t('tokens.new')}</button>
-      </div>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      <div style={{ maxWidth: '40rem', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-lg)' }}>
+          <div>
+            <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+              {t('settings.tokens')}
+            </div>
+            <h1
+              className="font-display"
+              style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}
+            >
+              {t('tokens.title')}
+            </h1>
+          </div>
+          <button className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>
+            + {t('tokens.new')}
+          </button>
+        </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {(tokens || []).map((tok: AccessToken) => (
-          <div key={tok.id} className="card" style={{ padding: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{tok.name}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-                  {t('tokens.prefix')}: {tok.token_prefix}… | {t('tokens.scopes')}: {tok.scopes}
+        <div className="card" style={{ padding: 0 }}>
+          {(tokens || []).map((tok: AccessToken, i: number) => (
+            <div
+              key={tok.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'start',
+                padding: 'var(--space-sm) var(--space-md)',
+                borderBottom: i < (tokens?.length || 0) - 1 ? '1px solid var(--color-rule)' : 'none',
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="font-display" style={{ fontWeight: 500, fontSize: 'var(--text-sm)' }}>{tok.name}</div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--color-ink-3)',
+                    marginTop: 'var(--space-3xs)',
+                  }}
+                >
+                  {t('tokens.prefix')}: {tok.token_prefix}… · {t('tokens.scopes')}: {tok.scopes}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-                  {t('tokens.created')}: {new Date(tok.created_at).toLocaleDateString()} |
-                  {tok.last_used_at ? ` ${t('tokens.last_used')}: ${new Date(tok.last_used_at).toLocaleDateString()}` : ` ${t('tokens.last_used')}: ${t('tokens.never')}`}
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--text-xs)',
+                    color: 'var(--color-ink-3)',
+                    marginTop: 'var(--space-3xs)',
+                  }}
+                >
+                  {t('tokens.created')}: {new Date(tok.created_at).toLocaleDateString()}
+                  {tok.last_used_at ? ` · ${t('tokens.last_used')}: ${new Date(tok.last_used_at).toLocaleDateString()}` : ` · ${t('tokens.last_used')}: ${t('tokens.never')}`}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
                 {tok.revoked_at ? (
-                  <span className="badge" style={{ background: 'var(--color-danger)', color: 'white' }}>{t('tokens.revoked')}</span>
+                  <span className="badge badge-danger">{t('tokens.revoked')}</span>
                 ) : (
-                  <span className="badge" style={{ background: 'var(--color-success)', color: 'white' }}>{t('tokens.active')}</span>
+                  <span className="badge badge-success">{t('tokens.active')}</span>
                 )}
                 {!tok.revoked_at && (
-                  <button className="btn btn-sm btn-danger" onClick={() => { if (confirm('Revoke this token?')) revokeMut.mutate(tok.id) }}>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    onClick={() => { if (confirm(t('tokens.revoke_confirm'))) revokeMut.mutate(tok.id) }}
+                  >
                     {t('tokens.revoke')}
                   </button>
                 )}
               </div>
             </div>
-          </div>
-        ))}
-        {tokens && tokens.length === 0 && (
-          <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center', padding: '2rem' }}>No tokens yet</div>
-        )}
+          ))}
+          {tokens && tokens.length === 0 && (
+            <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>
+              {t('tokens.empty')}
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('tokens.new')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <div>
             <label className="label">{t('tokens.name')}</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </div>
           <button className="btn btn-primary" onClick={() => createMut.mutate()} disabled={!name.trim() || createMut.isPending}>
-            {t('common.create')}
+            {createMut.isPending ? t('common.loading') : t('common.create')}
           </button>
         </div>
       </Modal>
@@ -101,11 +141,27 @@ export function TokensPage() {
         title={t('tokens.token_created')}
         footer={<button className="btn" onClick={() => { setCreatedToken(null); setCopied(false) }}>{t('common.close')}</button>}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ padding: '0.75rem', background: 'var(--color-bg-tertiary)', borderRadius: '0.375rem', fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div
+            style={{
+              padding: 'var(--space-sm)',
+              background: 'var(--color-paper-3)',
+              borderRadius: 'var(--radius)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              wordBreak: 'break-all',
+              border: '1px solid var(--color-rule)',
+            }}
+          >
             {createdToken}
           </div>
-          <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>⚠ {t('tokens.token_warning')}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2xs)', color: 'var(--color-danger)', fontSize: 'var(--text-sm)' }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: '0.125rem' }}>
+              <path d="M8 2v8M8 12v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <span>{t('tokens.token_warning')}</span>
+          </div>
           <button className="btn btn-primary" onClick={copyToken}>
             {copied ? t('tokens.copied') : t('tokens.copy')}
           </button>

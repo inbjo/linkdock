@@ -90,42 +90,37 @@ impl ImportService {
         user.require_write()?;
         let tenant_id = user.tenant_id;
         let mut tx = state.pool.begin().await?;
-        let now = crate::auth::extractor::now_iso();
 
-        // Resolve or create target collection.
-        let root_collection_id = match req.target_collection_id {
-            Some(id) => {
-                let count: i64 = sqlx::query_scalar(
-                    "SELECT COUNT(*) FROM collections WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
-                )
-                .bind(id)
-                .bind(tenant_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                if count == 0 {
-                    return Err(AppError::NotFound);
+        // Resolve target collection. When none specified, bookmarks are imported
+        // directly at the root level (no "Imported xxx" wrapper folder).
+        // Folder paths are created at root level (parent_id = NULL).
+        // Bookmarks with no folder path go into an "Uncategorized" collection,
+        // which is created lazily only if such bookmarks actually exist.
+        let (fallback_collection_id, first_level_parent): (Option<i64>, Option<i64>) =
+            match req.target_collection_id {
+                Some(id) => {
+                    let count: i64 = sqlx::query_scalar(
+                        "SELECT COUNT(*) FROM collections WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
+                    )
+                    .bind(id)
+                    .bind(tenant_id)
+                    .fetch_one(&mut *tx)
+                    .await?;
+                    if count == 0 {
+                        return Err(AppError::NotFound);
+                    }
+                    (Some(id), Some(id))
                 }
-                id
-            }
-            None => {
-                // Create an "Imported" root collection.
-                let uuid_str = uuid::Uuid::new_v4().to_string();
-                let id: i64 = sqlx::query_scalar(
-                    "INSERT INTO collections (uuid, tenant_id, parent_id, name, created_by) VALUES (?, ?, NULL, ?, ?) RETURNING id",
-                )
-                .bind(&uuid_str)
-                .bind(tenant_id)
-                .bind(format!("Imported {}", &now[..10]))
-                .bind(user.user_id)
-                .fetch_one(&mut *tx)
-                .await?;
-                id
-            }
-        };
+                None => {
+                    // first_level_parent = None means folders are created at root (parent_id = NULL)
+                    // fallback_collection_id = None means Uncategorized will be created lazily
+                    (None, None)
+                }
+            };
 
         // Cache for folder path -> collection id.
-        let mut col_cache: HashMap<String, i64> = HashMap::new();
-        col_cache.insert(String::new(), root_collection_id);
+        let mut col_cache: HashMap<String, Option<i64>> = HashMap::new();
+        col_cache.insert(String::new(), fallback_collection_id);
 
         let mut success = 0usize;
         let mut skipped = 0usize;
@@ -139,7 +134,8 @@ impl ImportService {
                 user.user_id,
                 bm,
                 &mut col_cache,
-                root_collection_id,
+                fallback_collection_id,
+                first_level_parent,
                 &req.duplicate_strategy,
             )
             .await
@@ -178,8 +174,9 @@ async fn import_one(
     tenant_id: i64,
     user_id: i64,
     bm: &ParsedBookmark,
-    col_cache: &mut HashMap<String, i64>,
-    root_id: i64,
+    col_cache: &mut HashMap<String, Option<i64>>,
+    fallback_collection_id: Option<i64>,
+    first_level_parent: Option<i64>,
     duplicate_strategy: &str,
 ) -> AppResult<ImportOutcome> {
     // Validate URL.
@@ -198,9 +195,39 @@ async fn import_one(
     }
 
     // Resolve collection from folder path.
-    let collection_id =
-        resolve_collection_path(tx, tenant_id, user_id, &bm.folder_path, col_cache, root_id)
-            .await?;
+    // If folder_path is empty, use the fallback collection (target or lazily-created Uncategorized).
+    let collection_id = if bm.folder_path.is_empty() || bm.folder_path.iter().all(|f| f.trim().is_empty()) {
+        match fallback_collection_id {
+            Some(id) => id,
+            None => {
+                // Lazily find or create "Uncategorized" collection.
+                let existing: Option<i64> = sqlx::query_scalar(
+                    "SELECT id FROM collections WHERE tenant_id = ? AND parent_id IS NULL AND name = 'Uncategorized' AND deleted_at IS NULL LIMIT 1",
+                )
+                .bind(tenant_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+
+                match existing {
+                    Some(id) => id,
+                    None => {
+                        let uuid_str = uuid::Uuid::new_v4().to_string();
+                        sqlx::query_scalar(
+                            "INSERT INTO collections (uuid, tenant_id, parent_id, name, created_by) VALUES (?, ?, NULL, 'Uncategorized', ?) RETURNING id",
+                        )
+                        .bind(&uuid_str)
+                        .bind(tenant_id)
+                        .bind(user_id)
+                        .fetch_one(&mut *tx)
+                        .await?
+                    }
+                }
+            }
+        }
+    } else {
+        resolve_collection_path(tx, tenant_id, user_id, &bm.folder_path, col_cache, first_level_parent)
+            .await?
+    };
 
     // Check for duplicate URL in the same collection.
     if duplicate_strategy != "keep" {
@@ -255,15 +282,16 @@ async fn resolve_collection_path(
     tenant_id: i64,
     user_id: i64,
     folder_path: &[String],
-    cache: &mut HashMap<String, i64>,
-    root_id: i64,
+    cache: &mut HashMap<String, Option<i64>>,
+    first_level_parent: Option<i64>,
 ) -> AppResult<i64> {
     let cache_key = folder_path.join("/");
     if let Some(id) = cache.get(&cache_key) {
-        return Ok(*id);
+        return Ok(id.unwrap_or(0));
     }
 
-    let mut current_parent = root_id;
+    // First folder level uses first_level_parent (NULL for root-level when no target).
+    let mut current_parent: Option<i64> = first_level_parent;
     let mut current_path = String::new();
 
     for folder_name in folder_path {
@@ -308,11 +336,12 @@ async fn resolve_collection_path(
             }
         };
 
-        cache.insert(current_path.clone(), col_id);
-        current_parent = col_id;
+        cache.insert(current_path.clone(), Some(col_id));
+        current_parent = Some(col_id);
     }
 
-    Ok(current_parent)
+    // If no folders in path, use root_id or 0 (root-level).
+    Ok(current_parent.unwrap_or(0))
 }
 
 // --- Parsers ---
@@ -390,6 +419,7 @@ fn decode_html_entities(s: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
+        .replace("&apos;", "'")
         .replace("&nbsp;", " ")
 }
 
@@ -544,29 +574,32 @@ fn parse_xbel(content: &str) -> AppResult<Vec<ParsedBookmark>> {
     let mut bookmarks = Vec::new();
     let mut folder_stack: Vec<String> = Vec::new();
 
-    for line in content.lines() {
-        let trimmed = line.trim();
+    let lines: Vec<&str> = content.lines().collect();
+
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
 
         // <folder> ... <title>Name</title>
         if trimmed.starts_with("<folder") {
-            // Title will be on next line(s); for simplicity, extract from same or next line.
-            if let Some(name) = extract_xbel_title(content, trimmed) {
-                folder_stack.push(name);
-            } else {
-                folder_stack.push("Untitled".to_string());
-            }
+            // Title is usually on the next line — look ahead up to 5 lines.
+            let name = look_ahead_title(&lines, i, 5).unwrap_or_else(|| "Untitled".to_string());
+            folder_stack.push(name);
+            i += 1;
             continue;
         }
 
         if trimmed.starts_with("</folder>") {
             folder_stack.pop();
+            i += 1;
             continue;
         }
 
-        // <bookmark href="url"> ... <title>Name</title>
+        // <bookmark href="url"> ... <title>Name</title> ... </bookmark>
         if trimmed.starts_with("<bookmark") {
             if let Some(href) = extract_attr(trimmed, "href") {
-                let name = extract_xbel_title(content, trimmed).unwrap_or_default();
+                // Title may be on the same line or a subsequent line (before </bookmark>).
+                let name = look_ahead_title(&lines, i, 10).unwrap_or_default();
                 bookmarks.push(ParsedBookmark {
                     url: href,
                     name,
@@ -575,13 +608,30 @@ fn parse_xbel(content: &str) -> AppResult<Vec<ParsedBookmark>> {
                 });
             }
         }
+
+        i += 1;
     }
 
     Ok(bookmarks)
 }
 
-fn extract_xbel_title(_content: &str, line: &str) -> Option<String> {
-    extract_tag(line, "title")
+/// Look ahead from `start` line for a `<title>...</title>` tag, up to `max_lines` lines.
+/// Also checks the current line (index `start`) in case title is inline.
+fn look_ahead_title(lines: &[&str], start: usize, max_lines: usize) -> Option<String> {
+    let end = (start + max_lines + 1).min(lines.len());
+    for j in start..end {
+        let trimmed = lines[j].trim();
+        if let Some(title) = extract_tag(trimmed, "title") {
+            if !title.is_empty() {
+                return Some(decode_html_entities(&title));
+            }
+        }
+        // Stop if we hit a closing tag before finding a title
+        if trimmed.starts_with("</bookmark>") || trimmed.starts_with("</folder>") {
+            break;
+        }
+    }
+    None
 }
 
 fn extract_attr(line: &str, attr: &str) -> Option<String> {
@@ -591,4 +641,86 @@ fn extract_attr(line: &str, attr: &str) -> Option<String> {
     let start = pos + pattern.len();
     let end = line[start..].find('"')?;
     Some(line[start..start + end].to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_xbel_with_multiline_titles() {
+        let xbel = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xbel PUBLIC "+//IDN python.org//DTD XML Bookmark Exchange Language 1.0//EN//XML" "http://pyxml.sourceforge.net/topics/dtds/xbel.dtd">
+<xbel version="1.0">
+<folder id="1">
+  <title>Bookmarks Bar</title>
+  <folder id="3">
+    <title>常去</title>
+    <bookmark href="http://example.com/" id="13">
+      <title>Example Site</title>
+    </bookmark>
+    <bookmark href="http://other.com/" id="14">
+      <title>Other Site</title>
+    </bookmark>
+  </folder>
+  <bookmark href="http://root.com/" id="15">
+    <title>Root Bookmark</title>
+  </bookmark>
+</folder>
+</xbel>"#;
+
+        let bookmarks = parse_xbel(xbel).unwrap();
+        assert_eq!(bookmarks.len(), 3, "should parse 3 bookmarks");
+
+        // First bookmark: inside "Bookmarks Bar / 常去"
+        assert_eq!(bookmarks[0].url, "http://example.com/");
+        assert_eq!(bookmarks[0].name, "Example Site");
+        assert_eq!(bookmarks[0].folder_path, vec!["Bookmarks Bar", "常去"]);
+
+        // Second bookmark: same folder
+        assert_eq!(bookmarks[1].url, "http://other.com/");
+        assert_eq!(bookmarks[1].name, "Other Site");
+        assert_eq!(bookmarks[1].folder_path, vec!["Bookmarks Bar", "常去"]);
+
+        // Third bookmark: directly under "Bookmarks Bar"
+        assert_eq!(bookmarks[2].url, "http://root.com/");
+        assert_eq!(bookmarks[2].name, "Root Bookmark");
+        assert_eq!(bookmarks[2].folder_path, vec!["Bookmarks Bar"]);
+    }
+
+    #[test]
+    fn test_parse_xbel_html_entities() {
+        let xbel = r#"<?xml version="1.0" encoding="UTF-8"?>
+<xbel version="1.0">
+<folder id="1">
+  <title>Test &amp; Demo</title>
+  <bookmark href="http://example.com/" id="1">
+    <title>Sound&apos;s Blog</title>
+  </bookmark>
+</folder>
+</xbel>"#;
+
+        let bookmarks = parse_xbel(xbel).unwrap();
+        assert_eq!(bookmarks.len(), 1);
+        assert_eq!(bookmarks[0].name, "Sound's Blog");
+        assert_eq!(bookmarks[0].folder_path, vec!["Test & Demo"]);
+    }
+
+    #[test]
+    fn test_parse_xbel_empty_title_fallback() {
+        let xbel = r#"<?xml version="1.0" encoding="UTF-8"?>
+<xbel version="1.0">
+<folder id="1">
+  <bookmark href="http://notitle.com/" id="1">
+  </bookmark>
+</folder>
+</xbel>"#;
+
+        let bookmarks = parse_xbel(xbel).unwrap();
+        assert_eq!(bookmarks.len(), 1);
+        assert_eq!(bookmarks[0].url, "http://notitle.com/");
+        assert_eq!(bookmarks[0].name, "");
+        // Folder with no title should fall back to "Untitled"
+        assert_eq!(bookmarks[0].folder_path, vec!["Untitled"]);
+    }
 }

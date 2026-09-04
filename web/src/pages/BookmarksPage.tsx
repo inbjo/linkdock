@@ -21,6 +21,8 @@ export function BookmarksPage() {
   const [showNewLink, setShowNewLink] = useState(false)
   const [showNewCollection, setShowNewCollection] = useState(false)
   const [showBatchMove, setShowBatchMove] = useState(false)
+  const [renameCollection, setRenameCollection] = useState<CollectionNode | null>(null)
+  const [deleteCollectionNode, setDeleteCollectionNode] = useState<CollectionNode | null>(null)
 
   const { data: tree } = useQuery({ queryKey: ['collections', 'tree'], queryFn: () => api.collectionTree() })
   const { data: links, isLoading: linksLoading } = useQuery({
@@ -58,6 +60,28 @@ export function BookmarksPage() {
     onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
+  const deleteCollectionMut = useMutation({
+    mutationFn: (id: number) => api.deleteCollection(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['collections'] })
+      qc.invalidateQueries({ queryKey: ['links'] })
+      setDeleteCollectionNode(null)
+      if (selectedCollection === deleteCollectionNode?.id) setSelectedCollection(null)
+      showSuccess(t('collections.deleted'))
+    },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
+  })
+
+  const renameCollectionMut = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => api.updateCollection(id, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['collections'] })
+      setRenameCollection(null)
+      showSuccess(t('collections.updated'))
+    },
+    onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
+  })
+
   const toggleSelect = (id: number, checked: boolean) => {
     setSelectedLinks((prev) => {
       const next = new Set(prev)
@@ -67,6 +91,10 @@ export function BookmarksPage() {
     })
   }
 
+  const selectAll = () => {
+    if (links) setSelectedLinks(new Set(links.map((l) => l.id)))
+  }
+
   const flatCollections = useCallback((nodes: CollectionNode[]): Collection[] => {
     return nodes.flatMap((n) => [{ ...n, tenant_id: 0, uuid: '', description: n.description, position: 0, created_by: 0, deleted_at: null, created_at: '', updated_at: '' }, ...flatCollections(n.children)])
   }, [])
@@ -74,33 +102,94 @@ export function BookmarksPage() {
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       {/* Left: Collections */}
-      <div style={{ width: '15rem', flexShrink: 0, borderRight: '1px solid var(--color-border)', padding: '0.5rem', overflow: 'auto' }} className="scrollbar-thin">
-        <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
-          <button className="btn btn-sm btn-primary" style={{ flex: 1 }} onClick={() => setShowNewLink(true)}>+ {t('links.new')}</button>
-          <button className="btn btn-sm" onClick={() => setShowNewCollection(true)}>+ 📁</button>
+      <div
+        style={{
+          width: '14rem',
+          flexShrink: 0,
+          borderRight: '1px solid var(--color-rule)',
+          background: 'var(--color-paper)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ padding: 'var(--space-sm)', borderBottom: '1px solid var(--color-rule)' }}>
+          <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+            {t('collections.title')}
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-2xs)' }}>
+            <button className="btn btn-sm btn-primary" style={{ flex: 1 }} onClick={() => setShowNewLink(true)}>
+              + {t('links.new')}
+            </button>
+            <button className="btn btn-sm btn-icon" onClick={() => setShowNewCollection(true)} title={t('collections.new')}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 4h4l1 1.5h5v6H2V4z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
         </div>
-        {tree && <CollectionTree nodes={tree} selectedId={selectedCollection} onSelect={(id) => { setSelectedCollection(id); setSelectedLinks(new Set()) }} />}
+        <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-2xs)' }} className="scrollbar-thin">
+          {tree && (
+            <CollectionTree
+              nodes={tree}
+              selectedId={selectedCollection}
+              onSelect={(id) => { setSelectedCollection(id); setSelectedLinks(new Set()) }}
+              onDelete={(id) => {
+                const node = findNode(tree, id)
+                if (node) setDeleteCollectionNode(node)
+              }}
+              onRename={(id) => {
+                const node = findNode(tree, id)
+                if (node) setRenameCollection(node)
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Center: Link list */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }} className="scrollbar-thin">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>
-            {selectedCollection ? tree?.find((n) => n.id === selectedCollection)?.name || t('links.title') : t('links.title')}
-          </h1>
+      <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
+            {links && links.length > 0 && (
+              <input
+                type="checkbox"
+                checked={links.length > 0 && selectedLinks.size === links.length}
+                onChange={(e) => { if (e.target.checked) selectAll(); else setSelectedLinks(new Set()) }}
+                style={{ flexShrink: 0, accentColor: 'var(--color-accent)', width: '0.875rem', height: '0.875rem' }}
+                title={t('links.select_all')}
+              />
+            )}
+            <div>
+              <div className="section-label" style={{ marginBottom: 'var(--space-3xs)' }}>
+                {t('links.title')}
+              </div>
+              <h1
+                className="font-display"
+                style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', margin: 0 }}
+              >
+                {selectedCollection ? tree?.find((n) => n.id === selectedCollection)?.name || t('links.title') : t('links.title')}
+              </h1>
+            </div>
+          </div>
           {selectedLinks.size > 0 && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{t('links.selected', { count: selectedLinks.size })}</span>
+            <div style={{ display: 'flex', gap: 'var(--space-2xs)', alignItems: 'center' }}>
+              <span className="badge badge-accent">{t('links.selected', { count: selectedLinks.size })}</span>
               <button className="btn btn-sm" onClick={() => setShowBatchMove(true)}>{t('links.batch_move')}</button>
-              <button className="btn btn-sm btn-danger" onClick={() => batchDeleteMut.mutate([...selectedLinks])}>{t('links.batch_delete')}</button>
-              <button className="btn btn-sm" onClick={() => setSelectedLinks(new Set())}>{t('common.cancel')}</button>
+              <button className="btn btn-sm btn-danger" onClick={() => batchDeleteMut.mutate([...selectedLinks])}>
+                {t('links.batch_delete')}
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => setSelectedLinks(new Set())}>
+                {t('common.cancel')}
+              </button>
             </div>
           )}
         </div>
         {linksLoading ? (
-          <div>{t('common.loading')}</div>
+          <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>
+            {t('common.loading')}
+          </div>
         ) : links && links.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xs)' }}>
             {links.map((link) => (
               <LinkCardWithTags
                 key={link.id}
@@ -112,13 +201,29 @@ export function BookmarksPage() {
             ))}
           </div>
         ) : (
-          <div style={{ color: 'var(--color-text-secondary)', textAlign: 'center', padding: '2rem' }}>{t('links.empty')}</div>
+          <div
+            style={{
+              color: 'var(--color-ink-3)',
+              textAlign: 'center',
+              padding: 'var(--space-2xl)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {t('links.empty')}
+          </div>
         )}
       </div>
 
       {/* Right: Edit drawer */}
       <Drawer open={!!editLink} onClose={() => setEditLink(null)} title={t('links.edit')}>
-        {editLink && <LinkEditForm link={editLink} collections={tree ? flatCollections(tree) : []} onSaved={() => { setEditLink(null); qc.invalidateQueries({ queryKey: ['links'] }) }} />}
+        {editLink && (
+          <LinkEditForm
+            link={editLink}
+            collections={tree ? flatCollections(tree) : []}
+            onSaved={() => { setEditLink(null); qc.invalidateQueries({ queryKey: ['links'] }) }}
+          />
+        )}
       </Drawer>
 
       {/* New link modal */}
@@ -142,6 +247,52 @@ export function BookmarksPage() {
           collections={tree ? flatCollections(tree) : []}
           onMove={(target) => batchMoveMut.mutate({ ids: [...selectedLinks], target })}
         />
+      </Modal>
+
+      {/* Rename collection modal */}
+      <Modal open={!!renameCollection} onClose={() => setRenameCollection(null)} title={t('collections.edit')}>
+        {renameCollection && (
+          <RenameCollectionForm
+            node={renameCollection}
+            onRename={(name) => renameCollectionMut.mutate({ id: renameCollection.id, name })}
+            loading={renameCollectionMut.isPending}
+          />
+        )}
+      </Modal>
+
+      {/* Delete collection confirm modal */}
+      <Modal
+        open={!!deleteCollectionNode}
+        onClose={() => setDeleteCollectionNode(null)}
+        title={t('collections.delete')}
+      >
+        {deleteCollectionNode && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)', margin: 0 }}>
+              {t('collections.delete_confirm')}
+            </p>
+            <div style={{ padding: 'var(--space-sm)', background: 'var(--color-paper-3)', borderRadius: 'var(--radius)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>
+              {deleteCollectionNode.name}
+              {deleteCollectionNode.children.length > 0 && (
+                <span style={{ color: 'var(--color-ink-3)', marginLeft: 'var(--space-2xs)' }}>
+                  ({deleteCollectionNode.children.length} sub-folders)
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-2xs)' }}>
+              <button
+                className="btn btn-danger"
+                onClick={() => deleteCollectionMut.mutate(deleteCollectionNode.id)}
+                disabled={deleteCollectionMut.isPending}
+              >
+                {deleteCollectionMut.isPending ? t('common.loading') : t('common.delete')}
+              </button>
+              <button className="btn" onClick={() => setDeleteCollectionNode(null)}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
       {element}
     </div>
@@ -180,7 +331,7 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
     }
     setLoading(true)
     try {
-      const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
+      const tagList = tags.split(',').map((tag) => tag.trim()).filter(Boolean)
       if (link) {
         await api.updateLink(link.id, { url, name, description, collection_id: collectionId, tags: tagList })
       } else {
@@ -196,10 +347,10 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div>
         <label className="label">{t('links.url')}</label>
-        <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus />
+        <input className="input" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus placeholder="https://" />
       </div>
       <div>
         <label className="label">{t('links.name')}</label>
@@ -220,7 +371,7 @@ function LinkEditForm({ link, defaultCollection, collections, onSaved }: {
         <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated, tags" />
       </div>
       {link && (
-        <button className="btn btn-danger btn-sm" onClick={async () => { await api.deleteLink(link.id); showSuccess(t('links.deleted')); onSaved() }}>
+        <button className="btn btn-sm btn-danger" onClick={async () => { await api.deleteLink(link.id); showSuccess(t('links.deleted')); onSaved() }}>
           {t('links.delete')}
         </button>
       )}
@@ -264,7 +415,7 @@ function CollectionEditForm({ collection, parentId, onSaved }: {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div>
         <label className="label">{t('collections.name')}</label>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
@@ -286,7 +437,7 @@ function BatchMoveForm({ collections, onMove }: { collections: Collection[]; onM
   const { t } = useTranslation()
   const [target, setTarget] = useState(collections[0]?.id || 0)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div>
         <label className="label">{t('links.collection')}</label>
         <select className="input" value={target} onChange={(e) => setTarget(Number(e.target.value))}>
@@ -298,4 +449,29 @@ function BatchMoveForm({ collections, onMove }: { collections: Collection[]; onM
       </button>
     </div>
   )
+}
+
+function RenameCollectionForm({ node, onRename, loading }: { node: CollectionNode; onRename: (name: string) => void; loading: boolean }) {
+  const { t } = useTranslation()
+  const [name, setName] = useState(node.name)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+      <div>
+        <label className="label">{t('collections.name')}</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      </div>
+      <button className="btn btn-primary" onClick={() => onRename(name)} disabled={!name.trim() || loading}>
+        {loading ? t('common.loading') : t('common.save')}
+      </button>
+    </div>
+  )
+}
+
+function findNode(nodes: CollectionNode[], id: number): CollectionNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    const found = findNode(n.children, id)
+    if (found) return found
+  }
+  return null
 }

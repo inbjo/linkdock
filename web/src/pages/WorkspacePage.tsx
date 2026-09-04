@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
@@ -10,7 +10,7 @@ export function WorkspacePage() {
   const { me, tenants, refresh } = useAuth()
   const { showError, showSuccess, element } = useToast()
   const qc = useQueryClient()
-  const current = tenants.find((t) => t.id === me?.tenant_id)
+  const current = tenants.find((tnt) => tnt.id === me?.tenant_id)
   const [name, setName] = useState(current?.name || '')
   const [slug, setSlug] = useState(current?.slug || '')
 
@@ -27,36 +27,69 @@ export function WorkspacePage() {
   if (!me || !current) return null
 
   return (
-    <div style={{ padding: '1rem', maxWidth: '32rem' }}>
-      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('settings.workspace')}</h1>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div>
-          <label className="label">{t('workspace.name')}</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
+        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+          {t('settings.workspace')}
         </div>
-        <div>
-          <label className="label">{t('workspace.slug')}</label>
-          <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
-        </div>
-        <button className="btn btn-primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
-          {t('workspace.save')}
-        </button>
-      </div>
+        <h1
+          className="font-display"
+          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
+        >
+          {t('workspace.title')}
+        </h1>
 
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '1.5rem', marginBottom: '0.75rem' }}>{t('workspace.switch')}</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {tenants.map((tnt) => (
-          <div key={tnt.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem' }}>
-            <span style={{ fontSize: '0.875rem' }}>{tnt.name} <span className="badge" style={{ marginLeft: '0.25rem' }}>{tnt.role}</span></span>
-            {tnt.id === me.tenant_id ? (
-              <span className="badge" style={{ background: 'var(--color-primary)', color: 'white' }}>{t('workspace.current')}</span>
-            ) : (
-              <button className="btn btn-sm" onClick={async () => { await api.selectTenant(tnt.id); await refresh(); showSuccess(t('workspace.switched')) }}>
-                {t('workspace.switch')}
-              </button>
-            )}
+        <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            <div>
+              <label className="label">{t('workspace.name')}</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">{t('workspace.slug')}</label>
+              <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} style={{ fontFamily: 'var(--font-mono)' }} />
+            </div>
+            <button className="btn btn-primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending} style={{ alignSelf: 'flex-start' }}>
+              {updateMut.isPending ? t('common.loading') : t('workspace.save')}
+            </button>
           </div>
-        ))}
+        </div>
+
+        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+          {t('workspace.switch')}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xs)' }}>
+          {tenants.map((tnt) => (
+            <div
+              key={tnt.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: 'var(--space-sm) var(--space-md)',
+                border: '1px solid var(--color-rule)',
+                borderRadius: 'var(--radius)',
+                background: tnt.id === me.tenant_id ? 'var(--color-accent-subtle)' : 'var(--color-paper)',
+                borderColor: tnt.id === me.tenant_id ? 'var(--color-accent)' : 'var(--color-rule)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
+                <span className="font-display" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{tnt.name}</span>
+                <span className="badge">{tnt.role}</span>
+              </div>
+              {tnt.id === me.tenant_id ? (
+                <span className="badge badge-accent">{t('workspace.current')}</span>
+              ) : (
+                <button
+                  className="btn btn-sm"
+                  onClick={async () => { await api.selectTenant(tnt.id); await refresh(); showSuccess(t('workspace.switched')) }}
+                >
+                  {t('workspace.switch')}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
       {element}
     </div>

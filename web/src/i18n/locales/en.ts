@@ -33,6 +33,7 @@ export const en = {
     edit: 'Edit Collection',
     created: 'Collection created',
     updated: 'Collection updated',
+    deleted: 'Collection deleted',
   },
   links: {
     title: 'Bookmarks',
@@ -58,6 +59,7 @@ export const en = {
     tagged: 'Tags updated',
     created: 'Bookmark created',
     updated: 'Bookmark updated',
+    select_all: 'Select All',
   },
   tags: {
     title: 'Tags',
@@ -96,6 +98,8 @@ export const en = {
     created: 'Created',
     prefix: 'Prefix',
     scopes: 'Scopes',
+    revoke_confirm: 'Revoke this token? This cannot be undone.',
+    empty: 'No tokens yet',
   },
   sync: {
     title: 'Floccus Sync Setup',
@@ -106,6 +110,9 @@ export const en = {
     step4: '4. Set the server folder to "Floccus" (recommended)',
     server_url: 'Server URL',
     token: 'Access Token',
+    token_hint: 'Create an access token on the Tokens page, then paste it into Floccus.',
+    setup_steps: 'Setup Steps',
+    troubleshooting: 'Troubleshooting',
     help_403: '403 error: Your token is invalid or revoked. Create a new one.',
     help_redirect: 'Redirect error: Make sure your reverse proxy terminates HTTPS.',
     help_root: 'Root folder not found: Floccus will auto-create it on first sync.',
@@ -125,6 +132,7 @@ export const en = {
     added: 'Member added',
     removed: 'Member removed',
     role_updated: 'Role updated',
+    empty: 'No members yet',
   },
   workspace: {
     title: 'Workspace Settings',
@@ -140,6 +148,7 @@ export const en = {
   trash: {
     title: 'Trash',
     empty: 'Trash is empty',
+    description: 'Deleted bookmarks are moved here. They can be restored or permanently deleted.',
     restore: 'Restore',
     permanent_delete: 'Delete Permanently',
     restore_confirm: 'Restore this bookmark?',
@@ -202,6 +211,8 @@ export const en = {
     title: 'Profile',
     username: 'Username',
     display_name: 'Display Name',
+    role: 'Role',
+    system_admin: 'System Admin',
     save: 'Save',
     saved: 'Profile saved',
     sessions: 'Active Sessions',
@@ -226,6 +237,12 @@ export const en = {
     none: 'None',
     back: 'Back',
     confirm: 'Confirm',
+    copied: 'Copied',
+    copy: 'Copy',
+  },
+  search: {
+    title: 'Search Bookmarks',
+    no_results: 'No results found',
   },
 }
 

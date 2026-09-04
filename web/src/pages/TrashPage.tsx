@@ -29,19 +29,49 @@ export function TrashPage() {
   })
 
   return (
-    <div style={{ padding: '1rem', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('trash.title')}</h1>
-      {isLoading ? (
-        <div>{t('common.loading')}</div>
-      ) : trashLinks.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: '48rem' }}>
-          {trashLinks.map((link) => (
-            <TrashItem key={link.id} link={link} onRestore={() => restoreMut.mutate(link.id)} onPurge={() => { if (confirm(t('trash.delete_confirm'))) purgeMut.mutate(link.id) }} />
-          ))}
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
+        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+          {t('trash.title')}
         </div>
-      ) : (
-        <div style={{ color: 'var(--color-text-secondary)' }}>{t('trash.empty')}</div>
-      )}
+        <h1
+          className="font-display"
+          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-md)' }}
+        >
+          {t('trash.title')}
+        </h1>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)', marginBottom: 'var(--space-lg)', maxWidth: '32rem' }}>
+          {t('trash.description')}
+        </p>
+        {isLoading ? (
+          <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>
+            {t('common.loading')}
+          </div>
+        ) : trashLinks.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xs)' }}>
+            {trashLinks.map((link) => (
+              <TrashItem
+                key={link.id}
+                link={link}
+                onRestore={() => restoreMut.mutate(link.id)}
+                onPurge={() => { if (confirm(t('trash.delete_confirm'))) purgeMut.mutate(link.id) }}
+              />
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              color: 'var(--color-ink-3)',
+              textAlign: 'center',
+              padding: 'var(--space-2xl)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-sm)',
+            }}
+          >
+            {t('trash.empty')}
+          </div>
+        )}
+      </div>
       {element}
     </div>
   )
@@ -52,12 +82,42 @@ function TrashItem({ link, onRestore, onPurge }: { link: Link; onRestore: () => 
   let domain = ''
   try { domain = new URL(link.url).hostname } catch { domain = link.url }
   return (
-    <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{link.name || domain}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{link.url}</div>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 'var(--space-sm)',
+        border: '1px solid var(--color-rule)',
+        borderRadius: 'var(--radius)',
+        background: 'var(--color-paper-2)',
+        transition: 'border-color var(--dur-short) var(--ease-out)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-rule-strong)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-rule)' }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          className="font-display"
+          style={{ fontWeight: 500, fontSize: 'var(--text-sm)', color: 'var(--color-ink)' }}
+        >
+          {link.name || domain}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--text-xs)',
+            color: 'var(--color-ink-3)',
+            marginTop: 'var(--space-3xs)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {link.url}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
         <button className="btn btn-sm" onClick={onRestore}>{t('trash.restore')}</button>
         <button className="btn btn-sm btn-danger" onClick={onPurge}>{t('trash.permanent_delete')}</button>
       </div>

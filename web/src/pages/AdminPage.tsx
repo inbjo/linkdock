@@ -56,12 +56,22 @@ export function AdminPage() {
   if (!me.is_system_admin) return <Navigate to="/bookmarks" replace />
 
   return (
-    <div style={{ padding: '1rem', maxWidth: '60rem' }}>
-      <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem' }}>{t('admin.title')}</h1>
-      <StatsSection />
-      <UsersSection />
-      <TenantsSection />
-      <AuditSection />
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
+        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+          {t('nav.admin')}
+        </div>
+        <h1
+          className="font-display"
+          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
+        >
+          {t('admin.title')}
+        </h1>
+        <StatsSection />
+        <UsersSection />
+        <TenantsSection />
+        <AuditSection />
+      </div>
     </div>
   )
 }
@@ -77,7 +87,7 @@ function StatsSection() {
     },
   })
 
-  if (isLoading) return <div>{t('common.loading')}</div>
+  if (isLoading) return <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-lg)' }}>{t('common.loading')}</div>
   if (!stats) return null
 
   const items = [
@@ -92,11 +102,42 @@ function StatsSection() {
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 1fr))',
+        gap: 'var(--space-2xs)',
+        marginBottom: 'var(--space-xl)',
+      }}
+    >
       {items.map((item) => (
-        <div key={item.label} className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{item.value.toLocaleString()}</div>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>{item.label}</div>
+        <div
+          key={item.label}
+          style={{
+            padding: 'var(--space-sm)',
+            border: '1px solid var(--color-rule)',
+            borderRadius: 'var(--radius)',
+            background: 'var(--color-paper)',
+          }}
+        >
+          <div
+            className="font-display"
+            style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
+          >
+            {item.value.toLocaleString()}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-ink-3)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              marginTop: 'var(--space-3xs)',
+            }}
+          >
+            {item.label}
+          </div>
         </div>
       ))}
     </div>
@@ -115,32 +156,34 @@ function UsersSection() {
   })
 
   return (
-    <div style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.users')}</h2>
-      {isLoading ? <div>{t('common.loading')}</div> : (
-        <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-          <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+    <div style={{ marginBottom: 'var(--space-xl)' }}>
+      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.users')}</div>
+      {isLoading ? (
+        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
+      ) : (
+        <div style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto' }} className="scrollbar-thin">
+          <table className="table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.id')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.username')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.display_name')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.admin_flag')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.disabled')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.tenants')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.created')}</th>
+              <tr>
+                <th>{t('admin.id')}</th>
+                <th>{t('admin.username')}</th>
+                <th>{t('admin.display_name')}</th>
+                <th>{t('admin.admin_flag')}</th>
+                <th>{t('admin.disabled')}</th>
+                <th>{t('admin.tenants')}</th>
+                <th>{t('admin.created')}</th>
               </tr>
             </thead>
             <tbody>
               {(users || []).map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{u.id}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{u.username}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{u.display_name}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{u.is_system_admin ? '✓' : ''}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{u.disabled ? '✓' : ''}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{u.tenant_count}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                <tr key={u.id}>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{u.id}</td>
+                  <td className="font-display" style={{ fontWeight: 500 }}>{u.username}</td>
+                  <td style={{ color: 'var(--color-ink-2)' }}>{u.display_name}</td>
+                  <td>{u.is_system_admin ? <span className="badge badge-accent">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
+                  <td>{u.disabled ? <span className="badge badge-danger">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{u.tenant_count}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,30 +206,32 @@ function TenantsSection() {
   })
 
   return (
-    <div style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.tenants')}</h2>
-      {isLoading ? <div>{t('common.loading')}</div> : (
-        <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-          <table style={{ width: '100%', fontSize: '0.8125rem', borderCollapse: 'collapse' }}>
+    <div style={{ marginBottom: 'var(--space-xl)' }}>
+      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.tenants')}</div>
+      {isLoading ? (
+        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
+      ) : (
+        <div style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto' }} className="scrollbar-thin">
+          <table className="table">
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.id')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.name')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.slug')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.members')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.links')}</th>
-                <th style={{ padding: '0.5rem 0.75rem' }}>{t('admin.created')}</th>
+              <tr>
+                <th>{t('admin.id')}</th>
+                <th>{t('admin.name')}</th>
+                <th>{t('admin.slug')}</th>
+                <th>{t('admin.members')}</th>
+                <th>{t('admin.links')}</th>
+                <th>{t('admin.created')}</th>
               </tr>
             </thead>
             <tbody>
               {(tenants || []).map((tnt) => (
-                <tr key={tnt.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.id}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', fontWeight: 600 }}>{tnt.name}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.slug}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.member_count}</td>
-                  <td style={{ padding: '0.5rem 0.75rem' }}>{tnt.link_count}</td>
-                  <td style={{ padding: '0.5rem 0.75rem', color: 'var(--color-text-secondary)' }}>{new Date(tnt.created_at).toLocaleDateString()}</td>
+                <tr key={tnt.id}>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{tnt.id}</td>
+                  <td className="font-display" style={{ fontWeight: 500 }}>{tnt.name}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-2)' }}>{tnt.slug}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.member_count}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.link_count}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(tnt.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -210,31 +255,38 @@ function AuditSection() {
 
   return (
     <div>
-      <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{t('admin.audit_log')} ({t('admin.last_50')})</h2>
-      {isLoading ? <div>{t('common.loading')}</div> : (
-        <div className="card scrollbar-thin" style={{ padding: 0, overflow: 'auto', maxHeight: '24rem' }}>
-          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>
+        {t('admin.audit_log')} · {t('admin.last_50')}
+      </div>
+      {isLoading ? (
+        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
+      ) : (
+        <div
+          style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto', maxHeight: '24rem' }}
+          className="scrollbar-thin"
+        >
+          <table className="table" style={{ fontSize: 'var(--text-xs)' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.id')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.time')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.action')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.resource')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.user')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.tenant')}</th>
-                <th style={{ padding: '0.375rem 0.5rem' }}>{t('admin.ip')}</th>
+              <tr>
+                <th>{t('admin.id')}</th>
+                <th>{t('admin.time')}</th>
+                <th>{t('admin.action')}</th>
+                <th>{t('admin.resource')}</th>
+                <th>{t('admin.user')}</th>
+                <th>{t('admin.tenant')}</th>
+                <th>{t('admin.ip')}</th>
               </tr>
             </thead>
             <tbody>
               {(entries || []).map((e) => (
-                <tr key={e.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.375rem 0.5rem' }}>{e.id}</td>
-                  <td style={{ padding: '0.375rem 0.5rem', color: 'var(--color-text-secondary)' }}>{new Date(e.created_at).toLocaleString()}</td>
-                  <td style={{ padding: '0.375rem 0.5rem', fontWeight: 600 }}>{e.action}</td>
-                  <td style={{ padding: '0.375rem 0.5rem' }}>{e.resource_type}{e.resource_id ? `:${e.resource_id}` : ''}</td>
-                  <td style={{ padding: '0.375rem 0.5rem' }}>{e.user_id ?? '-'}</td>
-                  <td style={{ padding: '0.375rem 0.5rem' }}>{e.tenant_id ?? '-'}</td>
-                  <td style={{ padding: '0.375rem 0.5rem', color: 'var(--color-text-secondary)' }}>{e.ip_address ?? '-'}</td>
+                <tr key={e.id}>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{e.id}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="font-display" style={{ fontWeight: 500 }}>{e.action}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.resource_type}{e.resource_id ? `:${e.resource_id}` : ''}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.user_id ?? '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.tenant_id ?? '—'}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{e.ip_address ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

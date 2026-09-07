@@ -14,7 +14,7 @@ export function MembersPage() {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [addUsername, setAddUsername] = useState('')
-  const [addRole, setAddRole] = useState('member')
+  const [addRole, setAddRole] = useState('editor')
 
   const { data: members } = useQuery({
     queryKey: ['members', me?.tenant_id],
@@ -99,7 +99,7 @@ export function MembersPage() {
                   >
                     <option value="owner">{t('members.owner')}</option>
                     <option value="admin">{t('members.admin')}</option>
-                    <option value="member">{t('members.member')}</option>
+                    <option value="editor">{t('members.editor')}</option>
                     <option value="viewer">{t('members.viewer')}</option>
                   </select>
                 ) : (
@@ -134,7 +134,7 @@ export function MembersPage() {
             <label className="label">{t('members.role')}</label>
             <select className="input" value={addRole} onChange={(e) => setAddRole(e.target.value)}>
               <option value="admin">{t('members.admin')}</option>
-              <option value="member">{t('members.member')}</option>
+              <option value="editor">{t('members.editor')}</option>
               <option value="viewer">{t('members.viewer')}</option>
             </select>
           </div>

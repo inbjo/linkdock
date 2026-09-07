@@ -11,6 +11,10 @@ pub struct TestApp {
 
 impl TestApp {
     pub async fn new() -> Self {
+        Self::new_with_setup_token(None).await
+    }
+
+    pub async fn new_with_setup_token(setup_token: Option<&str>) -> Self {
         let tmpdir = tempfile::tempdir().unwrap();
         let db_path = tmpdir.path().join("test.sqlite3");
         let database_url = format!("sqlite://{}?mode=rwc", db_path.display());
@@ -30,6 +34,7 @@ impl TestApp {
             },
             session_ttl_hours: 720,
             cookie_secure: false,
+            setup_token: setup_token.map(str::to_string),
             webauthn_rp_id: "localhost".to_string(),
             webauthn_rp_origin: "http://localhost".to_string(),
             webauthn_rp_name: "Linkdock Test".to_string(),

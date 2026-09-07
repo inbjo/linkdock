@@ -5,9 +5,10 @@ interface LinkCardProps {
   selected: boolean
   onSelect: (id: number, selected: boolean) => void
   onClick: (link: LinkWithTags) => void
+  readOnly?: boolean
 }
 
-export function LinkCard({ link, selected, onSelect, onClick }: LinkCardProps) {
+export function LinkCard({ link, selected, onSelect, onClick, readOnly = false }: LinkCardProps) {
   let domain = ''
   let favicon = ''
   try {
@@ -27,25 +28,27 @@ export function LinkCard({ link, selected, onSelect, onClick }: LinkCardProps) {
         border: '1px solid var(--color-rule)',
         borderRadius: 'var(--radius)',
         background: 'var(--color-paper)',
-        cursor: 'pointer',
+        cursor: readOnly ? 'default' : 'pointer',
         borderColor: selected ? 'var(--color-accent)' : 'var(--color-rule)',
         boxShadow: selected ? '0 0 0 1px var(--color-accent)' : 'none',
         transition: 'border-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out)',
       }}
       onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = 'var(--color-rule-strong)' }}
       onMouseLeave={(e) => { if (!selected) e.currentTarget.style.borderColor = 'var(--color-rule)' }}
-      onClick={() => onClick(link)}
+      onClick={() => { if (!readOnly) onClick(link) }}
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={(e) => {
-          e.stopPropagation()
-          onSelect(link.id, e.target.checked)
-        }}
-        onClick={(e) => e.stopPropagation()}
-        style={{ marginTop: '0.125rem', flexShrink: 0, accentColor: 'var(--color-accent)' }}
-      />
+      {!readOnly && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => {
+            e.stopPropagation()
+            onSelect(link.id, e.target.checked)
+          }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ marginTop: '0.125rem', flexShrink: 0, accentColor: 'var(--color-accent)' }}
+        />
+      )}
       {favicon && (
         <img
           src={favicon}

@@ -11,7 +11,7 @@ use sqlx::Row;
 pub enum TenantRole {
     Owner,
     Admin,
-    Member,
+    Editor,
     Viewer,
 }
 
@@ -20,7 +20,7 @@ impl TenantRole {
         match s {
             "owner" => Some(Self::Owner),
             "admin" => Some(Self::Admin),
-            "member" => Some(Self::Member),
+            "editor" | "member" => Some(Self::Editor),
             "viewer" => Some(Self::Viewer),
             _ => None,
         }
@@ -30,7 +30,7 @@ impl TenantRole {
         match self {
             Self::Owner => "owner",
             Self::Admin => "admin",
-            Self::Member => "member",
+            Self::Editor => "editor",
             Self::Viewer => "viewer",
         }
     }
@@ -60,11 +60,18 @@ pub struct AuthUser {
     pub via_token: bool,
     /// Access token id if via_token.
     pub token_id: Option<i64>,
+    /// Space-separated scopes when authenticated via an access token.
+    pub token_scopes: Option<String>,
 }
 
 impl AuthUser {
     pub fn require_write(&self) -> AppResult<()> {
-        if self.tenant_role.can_write() {
+        let token_can_write = !self.via_token
+            || self
+                .token_scopes
+                .as_deref()
+                .is_some_and(|scopes| has_scope(scopes, "bookmarks:write"));
+        if self.tenant_role.can_write() && token_can_write {
             Ok(())
         } else {
             Err(AppError::Forbidden)
@@ -84,6 +91,14 @@ impl AuthUser {
             Ok(())
         } else {
             Err(AppError::Forbidden)
+        }
+    }
+
+    pub fn require_session(&self) -> AppResult<()> {
+        if self.via_token {
+            Err(AppError::Forbidden)
+        } else {
+            Ok(())
         }
     }
 
@@ -180,7 +195,7 @@ async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser
                   tm.role
            FROM access_tokens at
            JOIN users u ON u.id = at.user_id
-           LEFT JOIN tenant_members tm ON tm.tenant_id = at.tenant_id AND tm.user_id = at.user_id
+           JOIN tenant_members tm ON tm.tenant_id = at.tenant_id AND tm.user_id = at.user_id
            WHERE at.token_hash = ?"#,
     )
     .bind(&hash)
@@ -212,11 +227,12 @@ async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser
     let user_id: i64 = row.try_get("user_id").unwrap_or(0);
     let username: String = row.try_get("username").unwrap_or_default();
     let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
-    let role_str: Option<String> = row.try_get("role").ok().flatten();
-    let role = role_str
-        .as_deref()
-        .and_then(TenantRole::parse)
-        .unwrap_or(TenantRole::Member);
+    let role_str: String = row.try_get("role").unwrap_or_default();
+    let role = TenantRole::parse(&role_str).ok_or(AppError::Forbidden)?;
+    let scopes: String = row.try_get("scopes").unwrap_or_default();
+    if !has_scope(&scopes, "bookmarks:read") {
+        return Err(AppError::Forbidden);
+    }
 
     // Update last_used_at (best effort).
     let _ = sqlx::query("UPDATE access_tokens SET last_used_at = ? WHERE id = ?")
@@ -233,6 +249,7 @@ async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser
         tenant_role: role,
         via_token: true,
         token_id: Some(token_id),
+        token_scopes: Some(scopes),
     })
 }
 
@@ -244,7 +261,7 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
                   tm.role
            FROM sessions s
            JOIN users u ON u.id = s.user_id
-           LEFT JOIN tenant_members tm ON tm.tenant_id = s.active_tenant_id AND tm.user_id = s.user_id
+           JOIN tenant_members tm ON tm.tenant_id = s.active_tenant_id AND tm.user_id = s.user_id
            WHERE s.session_hash = ?"#,
     )
     .bind(&hash)
@@ -269,11 +286,8 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
     let tenant_id: i64 = row.try_get("active_tenant_id").unwrap_or(0);
     let username: String = row.try_get("username").unwrap_or_default();
     let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
-    let role_str: Option<String> = row.try_get("role").ok().flatten();
-    let role = role_str
-        .as_deref()
-        .and_then(TenantRole::parse)
-        .unwrap_or(TenantRole::Member);
+    let role_str: String = row.try_get("role").unwrap_or_default();
+    let role = TenantRole::parse(&role_str).ok_or(AppError::Forbidden)?;
 
     // Update last_used_at.
     let session_id: i64 = row.try_get("id").unwrap_or(0);
@@ -291,7 +305,14 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
         tenant_role: role,
         via_token: false,
         token_id: None,
+        token_scopes: None,
     })
+}
+
+fn has_scope(scopes: &str, expected: &str) -> bool {
+    scopes
+        .split_ascii_whitespace()
+        .any(|scope| scope == expected)
 }
 
 pub fn now_iso() -> String {

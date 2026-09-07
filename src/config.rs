@@ -8,6 +8,7 @@ pub struct Config {
     pub session_secret: [u8; 32],
     pub session_ttl_hours: i64,
     pub cookie_secure: bool,
+    pub setup_token: Option<String>,
     pub webauthn_rp_id: String,
     pub webauthn_rp_origin: String,
     pub webauthn_rp_name: String,
@@ -65,6 +66,10 @@ impl Config {
                     || listen.starts_with("localhost")
                     || listen.starts_with("::1"))
             });
+        let setup_token = std::env::var("DOCK_SETUP_TOKEN")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
         let cors_origins = std::env::var("DOCK_CORS_ORIGINS")
             .unwrap_or_default()
             .split(',')
@@ -84,6 +89,7 @@ impl Config {
             session_secret,
             session_ttl_hours: 24 * 30,
             cookie_secure,
+            setup_token,
             webauthn_rp_id,
             webauthn_rp_origin,
             webauthn_rp_name,

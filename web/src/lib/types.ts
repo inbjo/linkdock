@@ -10,12 +10,17 @@ export interface AuthResponse {
   user: User
 }
 
+export interface SetupStatus {
+  initialized: boolean
+  requires_setup_token: boolean
+}
+
 export interface MeResponse {
   id: number
   username: string
   is_system_admin: boolean
   tenant_id: number
-  tenant_role: 'owner' | 'admin' | 'member' | 'viewer'
+  tenant_role: 'owner' | 'admin' | 'editor' | 'viewer'
 }
 
 export interface Tenant {

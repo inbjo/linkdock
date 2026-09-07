@@ -67,6 +67,7 @@ async fn test_register_and_me() {
     let app = setup().await;
     let (session, body) = register_and_login(&app, "alice", "password123").await;
     assert_eq!(body["user"]["username"], "alice");
+    assert_eq!(body["user"]["is_system_admin"], true);
 
     let resp = app
         .client
@@ -79,6 +80,57 @@ async fn test_register_and_me() {
     let me: Value = resp.json().await.unwrap();
     assert_eq!(me["username"], "alice");
     assert_eq!(me["tenant_role"], "owner");
+    assert_eq!(me["is_system_admin"], true);
+
+    let (_, second) = register_and_login(&app, "alice-two", "password123").await;
+    assert_eq!(second["user"]["is_system_admin"], false);
+}
+
+#[tokio::test]
+async fn test_first_user_setup_token() {
+    let app = TestApp::new_with_setup_token(Some("one-time-bootstrap-secret")).await;
+
+    let status = app
+        .client
+        .get(format!("{}/api/app/v1/auth/setup", app.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(status.status(), StatusCode::OK);
+    let status: Value = status.json().await.unwrap();
+    assert_eq!(status["initialized"], false);
+    assert_eq!(status["requires_setup_token"], true);
+
+    let denied = app
+        .client
+        .post(format!("{}/api/app/v1/auth/register", app.base))
+        .json(&serde_json::json!({
+            "username": "bootstrap",
+            "password": "password123",
+            "display_name": "Bootstrap",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
+    let accepted = app
+        .client
+        .post(format!("{}/api/app/v1/auth/register", app.base))
+        .json(&serde_json::json!({
+            "username": "bootstrap",
+            "password": "password123",
+            "display_name": "Bootstrap",
+            "setup_token": "one-time-bootstrap-secret",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::OK);
+    assert_eq!(
+        accepted.json::<Value>().await.unwrap()["user"]["is_system_admin"],
+        true
+    );
 }
 
 #[tokio::test]
@@ -455,6 +507,217 @@ async fn test_multi_tenant_isolation() {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_workspace_selection_persists_across_login() {
+    let app = setup().await;
+    let (session, _) = register_and_login(&app, "workspace-user", "password123").await;
+
+    let created = app
+        .client
+        .post(format!("{}/api/app/v1/tenants", app.base))
+        .header("cookie", format!("lw_session={}", session))
+        .json(&serde_json::json!({ "name": "Work", "slug": "work-space" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::OK);
+    let workspace_id = created.json::<Value>().await.unwrap()["id"]
+        .as_i64()
+        .unwrap();
+
+    let selected = app
+        .client
+        .post(format!(
+            "{}/api/app/v1/tenants/{}/select",
+            app.base, workspace_id
+        ))
+        .header("cookie", format!("lw_session={}", session))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(selected.status(), StatusCode::OK);
+
+    let login = app
+        .client
+        .post(format!("{}/api/app/v1/auth/login", app.base))
+        .json(&serde_json::json!({
+            "username": "workspace-user",
+            "password": "password123",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(login.status(), StatusCode::OK);
+    let new_session = login.cookies().next().unwrap().value().to_string();
+
+    let me = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("lw_session={}", new_session))
+        .send()
+        .await
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+    assert_eq!(me["tenant_id"], workspace_id);
+}
+
+#[tokio::test]
+async fn test_viewer_can_create_read_only_device_token() {
+    let app = setup().await;
+    let (owner_session, _) = register_and_login(&app, "share-owner", "password123").await;
+    let (viewer_session, _) = register_and_login(&app, "share-viewer", "password123").await;
+
+    let owner_me = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("lw_session={}", owner_session))
+        .send()
+        .await
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+    let shared_workspace_id = owner_me["tenant_id"].as_i64().unwrap();
+
+    let added = app
+        .client
+        .post(format!(
+            "{}/api/app/v1/tenants/{}/members",
+            app.base, shared_workspace_id
+        ))
+        .header("cookie", format!("lw_session={}", owner_session))
+        .json(&serde_json::json!({ "username": "share-viewer", "role": "viewer" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(added.status(), StatusCode::OK);
+
+    let selected = app
+        .client
+        .post(format!(
+            "{}/api/app/v1/tenants/{}/select",
+            app.base, shared_workspace_id
+        ))
+        .header("cookie", format!("lw_session={}", viewer_session))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(selected.status(), StatusCode::OK);
+
+    let excessive = app
+        .client
+        .post(format!("{}/api/app/v1/tokens", app.base))
+        .header("cookie", format!("lw_session={}", viewer_session))
+        .json(&serde_json::json!({
+            "name": "viewer-write-device",
+            "scopes": "bookmarks:read bookmarks:write",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(excessive.status(), StatusCode::FORBIDDEN);
+
+    let token_response = app
+        .client
+        .post(format!("{}/api/app/v1/tokens", app.base))
+        .header("cookie", format!("lw_session={}", viewer_session))
+        .json(&serde_json::json!({ "name": "viewer-device" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(token_response.status(), StatusCode::OK);
+    let token_body: Value = token_response.json().await.unwrap();
+    assert_eq!(token_body["scopes"], "bookmarks:read");
+    let token = token_body["plaintext"].as_str().unwrap();
+
+    let read = app
+        .client
+        .get(format!("{}/api/v1/collections", app.base))
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(read.status(), StatusCode::OK);
+
+    let write = app
+        .client
+        .post(format!("{}/api/v1/collections", app.base))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&serde_json::json!({ "name": "Denied" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(write.status(), StatusCode::FORBIDDEN);
+
+    let viewer_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username = ?")
+        .bind("share-viewer")
+        .fetch_one(&app.state.pool)
+        .await
+        .unwrap();
+
+    let promoted = app
+        .client
+        .put(format!(
+            "{}/api/app/v1/tenants/{}/members/{}",
+            app.base, shared_workspace_id, viewer_id
+        ))
+        .header("cookie", format!("lw_session={}", owner_session))
+        .json(&serde_json::json!({ "role": "editor" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(promoted.status(), StatusCode::OK);
+    assert_eq!(promoted.json::<Value>().await.unwrap()["role"], "editor");
+
+    let editor_token_response = app
+        .client
+        .post(format!("{}/api/app/v1/tokens", app.base))
+        .header("cookie", format!("lw_session={}", viewer_session))
+        .json(&serde_json::json!({ "name": "editor-device" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(editor_token_response.status(), StatusCode::OK);
+    let editor_token_body: Value = editor_token_response.json().await.unwrap();
+    assert_eq!(
+        editor_token_body["scopes"],
+        "bookmarks:read bookmarks:write"
+    );
+    let editor_token = editor_token_body["plaintext"].as_str().unwrap();
+    let editor_write = app
+        .client
+        .post(format!("{}/api/v1/collections", app.base))
+        .header("Authorization", format!("Bearer {}", editor_token))
+        .json(&serde_json::json!({ "name": "Shared collection" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(editor_write.status(), StatusCode::OK);
+
+    let removed = app
+        .client
+        .delete(format!(
+            "{}/api/app/v1/tenants/{}/members/{}",
+            app.base, shared_workspace_id, viewer_id
+        ))
+        .header("cookie", format!("lw_session={}", owner_session))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(removed.status(), StatusCode::OK);
+
+    let revoked_by_membership = app
+        .client
+        .get(format!("{}/api/v1/collections", app.base))
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(revoked_by_membership.status(), StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]

@@ -5,16 +5,19 @@ import { api } from '@/lib/api'
 import { LinkCard } from '@/components/LinkCard'
 import { Drawer } from '@/components/Drawer'
 import { useToast } from '@/components/Toast'
+import { useAuth } from '@/hooks/useAuth'
 import type { LinkWithTags } from '@/lib/types'
 
 export function SearchPage() {
   const { t } = useTranslation()
   const { element } = useToast()
+  const { me } = useAuth()
+  const readOnly = me?.tenant_role === 'viewer'
   const [query, setQuery] = useState('')
   const [editLink, setEditLink] = useState<LinkWithTags | null>(null)
 
   const { data: allLinks, isLoading } = useQuery({
-    queryKey: ['links', 'all'],
+    queryKey: ['links', me?.tenant_id, 'all'],
     queryFn: () => api.listLinks(),
   })
 
@@ -63,7 +66,7 @@ export function SearchPage() {
         ) : filtered.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xs)' }}>
             {filtered.map((link) => (
-              <LinkCardWithTags key={link.id} linkId={link.id} onClick={setEditLink} />
+              <LinkCardWithTags key={link.id} linkId={link.id} onClick={setEditLink} readOnly={readOnly} />
             ))}
           </div>
         ) : (
@@ -88,14 +91,16 @@ export function SearchPage() {
   )
 }
 
-function LinkCardWithTags({ linkId, onClick }: { linkId: number; onClick: (l: LinkWithTags) => void }) {
-  const { data: link } = useQuery({ queryKey: ['link', linkId], queryFn: () => api.getLink(linkId), staleTime: 30000 })
+function LinkCardWithTags({ linkId, onClick, readOnly }: { linkId: number; onClick: (l: LinkWithTags) => void; readOnly: boolean }) {
+  const { me } = useAuth()
+  const { data: link } = useQuery({ queryKey: ['link', me?.tenant_id, linkId], queryFn: () => api.getLink(linkId), staleTime: 30000 })
   if (!link) return null
-  return <LinkCard link={link} selected={false} onSelect={() => {}} onClick={onClick} />
+  return <LinkCard link={link} selected={false} onSelect={() => {}} onClick={onClick} readOnly={readOnly} />
 }
 
 function LinkDetail({ linkId, onSaved }: { linkId: number; onSaved: () => void }) {
-  const { data: link } = useQuery({ queryKey: ['link', linkId], queryFn: () => api.getLink(linkId) })
+  const { me } = useAuth()
+  const { data: link } = useQuery({ queryKey: ['link', me?.tenant_id, linkId], queryFn: () => api.getLink(linkId) })
   if (!link) return <div style={{ color: 'var(--color-ink-3)' }}>Loading...</div>
   return <LinkEditInline link={link} onSaved={onSaved} />
 }

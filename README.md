@@ -5,7 +5,7 @@ A self-hosted, **Floccus-compatible** bookmark management service built with Rus
 ## Features
 
 - **Floccus Compatibility** — Works with Floccus v5.9+ via the Linkdock adapter (9 API endpoints)
-- **Multi-Tenant** — Multiple workspaces with role-based access (owner/admin/member/viewer)
+- **Multi-Workspace** — Separate personal, work, family, or team bookmark libraries with role-based access
 - **Collection Tree** — Nested folders with cycle detection
 - **Full-Text Search** — SQLite FTS5 with cursor pagination
 - **Soft Delete & Trash** — Restore accidentally deleted bookmarks
@@ -42,6 +42,15 @@ curl http://localhost:3000/health/live
 ```
 
 Open `http://localhost:3000` in your browser, register an account, and start bookmarking.
+
+On a fresh public instance, protect the first registration with a one-time initialization token:
+
+```bash
+DOCK_SETUP_TOKEN=$(openssl rand -hex 32)
+```
+
+The first account becomes the system administrator. Each account receives a personal workspace;
+users can create additional workspaces and share them as owner, admin, editor, or viewer.
 
 To enable Passkeys on a production domain, the configured origin must exactly match the
 public HTTPS origin. For the `sina.dev` mirror:
@@ -104,6 +113,11 @@ The Vite dev server proxies `/api` and `/health` to `localhost:3000`.
 
 ## Floccus Sync Setup
 
+Each access token is permanently bound to the active workspace at creation time. When syncing
+multiple workspaces in one browser, use separate, non-overlapping local bookmark folders and one
+Floccus profile/token per workspace. Viewers receive read-only tokens and should select Floccus's
+one-way server-to-browser strategy; owner, admin, and editor roles may use bidirectional sync.
+
 1. **Create an access token**: Log in → Settings → Access Tokens → Create Token → Copy
 2. **Install Floccus**: Get the [Floccus browser extension](https://floccus.org)
 3. **Configure Floccus**:
@@ -134,6 +148,7 @@ The Vite dev server proxies `/api` and `/health` to `localhost:3000`.
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/auth/register` | Register a new user |
+| GET | `/auth/setup` | Check first-account initialization requirements |
 | POST | `/auth/login` | Login (returns session cookie) |
 | POST | `/auth/passkey/start` | Start Passkey login for a username |
 | POST | `/auth/passkey/finish` | Verify Passkey and create session |
@@ -197,6 +212,7 @@ Authentication: Bearer token (`Authorization: Bearer lw_...`). Invalid tokens re
 | `DOCK_LISTEN` | `0.0.0.0:3000` | Bind address |
 | `DOCK_SESSION_SECRET` | random | 32-byte hex secret for session signing |
 | `DOCK_COOKIE_SECURE` | `true` | Set `false` if no HTTPS |
+| `DOCK_SETUP_TOKEN` | empty | Optional one-time protection for the first account on a fresh instance |
 | `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
 | `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain (no scheme or port) |
 | `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |

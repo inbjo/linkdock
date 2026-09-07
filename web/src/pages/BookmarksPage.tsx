@@ -23,12 +23,19 @@ export function BookmarksPage() {
   const [showBatchMove, setShowBatchMove] = useState(false)
   const [renameCollection, setRenameCollection] = useState<CollectionNode | null>(null)
   const [deleteCollectionNode, setDeleteCollectionNode] = useState<CollectionNode | null>(null)
+  const canWrite = me?.tenant_role !== 'viewer'
 
-  const { data: tree } = useQuery({ queryKey: ['collections', 'tree'], queryFn: () => api.collectionTree() })
+  const { data: tree } = useQuery({ queryKey: ['collections', me?.tenant_id, 'tree'], queryFn: () => api.collectionTree() })
   const { data: links, isLoading: linksLoading } = useQuery({
-    queryKey: ['links', selectedCollection],
+    queryKey: ['links', me?.tenant_id, selectedCollection],
     queryFn: () => api.listLinks(selectedCollection ?? undefined),
   })
+
+  useEffect(() => {
+    setSelectedCollection(null)
+    setSelectedLinks(new Set())
+    setEditLink(null)
+  }, [me?.tenant_id])
 
   const deleteLinkMut = useMutation({
     mutationFn: (id: number) => api.deleteLink(id),
@@ -116,7 +123,7 @@ export function BookmarksPage() {
           <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
             {t('collections.title')}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2xs)' }}>
+          {canWrite && <div style={{ display: 'flex', gap: 'var(--space-2xs)' }}>
             <button className="btn btn-sm btn-primary" style={{ flex: 1 }} onClick={() => setShowNewLink(true)}>
               + {t('links.new')}
             </button>
@@ -125,7 +132,7 @@ export function BookmarksPage() {
                 <path d="M2 4h4l1 1.5h5v6H2V4z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
               </svg>
             </button>
-          </div>
+          </div>}
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-2xs)' }} className="scrollbar-thin">
           {tree && (
@@ -133,14 +140,14 @@ export function BookmarksPage() {
               nodes={tree}
               selectedId={selectedCollection}
               onSelect={(id) => { setSelectedCollection(id); setSelectedLinks(new Set()) }}
-              onDelete={(id) => {
+              onDelete={canWrite ? (id) => {
                 const node = findNode(tree, id)
                 if (node) setDeleteCollectionNode(node)
-              }}
-              onRename={(id) => {
+              } : undefined}
+              onRename={canWrite ? (id) => {
                 const node = findNode(tree, id)
                 if (node) setRenameCollection(node)
-              }}
+              } : undefined}
             />
           )}
         </div>
@@ -150,7 +157,7 @@ export function BookmarksPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
-            {links && links.length > 0 && (
+            {canWrite && links && links.length > 0 && (
               <input
                 type="checkbox"
                 checked={links.length > 0 && selectedLinks.size === links.length}
@@ -197,6 +204,7 @@ export function BookmarksPage() {
                 selected={selectedLinks.has(link.id)}
                 onSelect={toggleSelect}
                 onClick={setEditLink}
+                readOnly={!canWrite}
               />
             ))}
           </div>
@@ -299,10 +307,11 @@ export function BookmarksPage() {
   )
 }
 
-function LinkCardWithTags({ linkId, selected, onSelect, onClick }: { linkId: number; selected: boolean; onSelect: (id: number, s: boolean) => void; onClick: (l: LinkWithTags) => void }) {
-  const { data: link } = useQuery({ queryKey: ['link', linkId], queryFn: () => api.getLink(linkId), staleTime: 30000 })
+function LinkCardWithTags({ linkId, selected, onSelect, onClick, readOnly }: { linkId: number; selected: boolean; onSelect: (id: number, s: boolean) => void; onClick: (l: LinkWithTags) => void; readOnly: boolean }) {
+  const { me } = useAuth()
+  const { data: link } = useQuery({ queryKey: ['link', me?.tenant_id, linkId], queryFn: () => api.getLink(linkId), staleTime: 30000 })
   if (!link) return null
-  return <LinkCard link={link} selected={selected} onSelect={onSelect} onClick={onClick} />
+  return <LinkCard link={link} selected={selected} onSelect={onSelect} onClick={onClick} readOnly={readOnly} />
 }
 
 function LinkEditForm({ link, defaultCollection, collections, onSaved }: {

@@ -2,7 +2,7 @@ import type {
   AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Collection,
   CollectionNode, LinkWithTags, Link, Tag, AccessToken, AccessTokenCreated,
   SessionInfo, BatchResult, ApiError,
-  PasskeyInfo, PasskeyChallenge,
+  PasskeyInfo, PasskeyChallenge, SetupStatus,
 } from './types'
 
 const BASE = '/api/app/v1'
@@ -33,10 +33,13 @@ class ApiClient {
   }
 
   // Auth
-  register(username: string, password: string, display_name: string) {
+  setupStatus() {
+    return this.request<SetupStatus>('/auth/setup')
+  }
+  register(username: string, password: string, display_name: string, setup_token?: string) {
     return this.request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, display_name }),
+      body: JSON.stringify({ username, password, display_name, setup_token }),
     })
   }
   login(username: string, password: string) {

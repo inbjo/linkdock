@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
@@ -14,7 +14,19 @@ export function RegisterPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [setupToken, setSetupToken] = useState('')
+  const [isFirstUser, setIsFirstUser] = useState(false)
+  const [requiresSetupToken, setRequiresSetupToken] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    api.setupStatus()
+      .then((status) => {
+        setIsFirstUser(!status.initialized)
+        setRequiresSetupToken(status.requires_setup_token)
+      })
+      .catch(() => undefined)
+  }, [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +36,7 @@ export function RegisterPage() {
     }
     setLoading(true)
     try {
-      await api.register(username, password, displayName)
+      await api.register(username, password, displayName, setupToken || undefined)
       await refresh()
       showSuccess(t('auth.register_success'))
       nav('/bookmarks')
@@ -110,6 +122,11 @@ export function RegisterPage() {
             {t('auth.register_title')}
           </h1>
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            {isFirstUser && (
+              <div className="card-flat" style={{ fontSize: 'var(--text-sm)', lineHeight: 1.55, color: 'var(--color-ink-2)' }}>
+                {t('auth.first_user_admin')}
+              </div>
+            )}
             <div>
               <label className="label">{t('auth.username')}</label>
               <input
@@ -143,6 +160,22 @@ export function RegisterPage() {
                 autoComplete="name"
               />
             </div>
+            {requiresSetupToken && (
+              <div>
+                <label className="label">{t('auth.setup_token')}</label>
+                <input
+                  className="input"
+                  type="password"
+                  value={setupToken}
+                  onChange={(e) => setSetupToken(e.target.value)}
+                  required
+                  autoComplete="one-time-code"
+                />
+                <div style={{ marginTop: 'var(--space-3xs)', color: 'var(--color-ink-3)', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+                  {t('auth.setup_token_hint')}
+                </div>
+              </div>
+            )}
             <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
               {loading ? t('common.loading') : t('auth.register')}
             </button>

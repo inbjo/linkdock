@@ -1,4 +1,4 @@
-use crate::auth::AuthUser;
+use crate::auth::{AuthUser, TenantRole};
 use crate::domain::token::{AccessToken, AccessTokenCreated};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -17,6 +17,7 @@ pub struct TokenService;
 
 impl TokenService {
     pub async fn list(state: &AppState, user: &AuthUser) -> AppResult<Vec<AccessToken>> {
+        user.require_session()?;
         let tokens = sqlx::query_as::<_, AccessToken>(
             r#"SELECT id, uuid, tenant_id, user_id, name, token_prefix, scopes,
                       expires_at, last_used_at, revoked_at, created_at
@@ -36,7 +37,7 @@ impl TokenService {
         user: &AuthUser,
         req: CreateTokenRequest,
     ) -> AppResult<AccessTokenCreated> {
-        user.require_manage_tokens()?;
+        user.require_session()?;
         let name = req.name.trim().to_string();
         if name.is_empty() || name.len() > 100 {
             return Err(AppError::Validation("token name length invalid".into()));
@@ -56,9 +57,7 @@ impl TokenService {
         }
         let (plaintext, prefix, hash) = crate::auth::token::generate_access_token();
         let uuid_str = uuid::Uuid::new_v4().to_string();
-        let scopes = req
-            .scopes
-            .unwrap_or_else(|| "bookmarks:read bookmarks:write".into());
+        let scopes = normalize_scopes(req.scopes.as_deref(), user.tenant_role)?;
         let token = sqlx::query_as::<_, AccessToken>(
             r#"INSERT INTO access_tokens (uuid, tenant_id, user_id, name, token_prefix, token_hash, scopes, expires_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -79,7 +78,7 @@ impl TokenService {
     }
 
     pub async fn revoke(state: &AppState, user: &AuthUser, token_id: i64) -> AppResult<()> {
-        user.require_manage_tokens()?;
+        user.require_session()?;
         let res = sqlx::query(
             r#"UPDATE access_tokens SET revoked_at = ?
                WHERE id = ? AND tenant_id = ? AND user_id = ? AND revoked_at IS NULL"#,
@@ -95,4 +94,32 @@ impl TokenService {
         }
         Ok(())
     }
+}
+
+fn normalize_scopes(requested: Option<&str>, role: TenantRole) -> AppResult<String> {
+    let can_write = role.can_write();
+    let wants_write = match requested {
+        Some(scopes) => {
+            let values: Vec<_> = scopes.split_ascii_whitespace().collect();
+            if values.is_empty()
+                || !values
+                    .iter()
+                    .all(|scope| matches!(*scope, "bookmarks:read" | "bookmarks:write"))
+                || !values.contains(&"bookmarks:read")
+            {
+                return Err(AppError::Validation("invalid token scopes".into()));
+            }
+            values.contains(&"bookmarks:write")
+        }
+        None => can_write,
+    };
+
+    if wants_write && !can_write {
+        return Err(AppError::Forbidden);
+    }
+    Ok(if wants_write {
+        "bookmarks:read bookmarks:write".to_string()
+    } else {
+        "bookmarks:read".to_string()
+    })
 }

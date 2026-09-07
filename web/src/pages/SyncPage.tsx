@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '@/components/Toast'
+import { useAuth } from '@/hooks/useAuth'
 
 export function SyncPage() {
   const { t } = useTranslation()
   const { showSuccess, element } = useToast()
+  const { me, tenants } = useAuth()
   const serverUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const currentWorkspace = tenants.find((tenant) => tenant.id === me?.tenant_id)
+  const readOnly = me?.tenant_role === 'viewer'
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const copyText = (text: string, field: string) => {
@@ -33,6 +37,24 @@ export function SyncPage() {
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)', lineHeight: 1.6, marginBottom: 'var(--space-lg)' }}>
           {t('sync.intro')}
         </p>
+
+        <div className="card-flat" style={{ marginBottom: 'var(--space-md)' }}>
+          <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('sync.sync_boundary')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: 'var(--space-sm)' }}>
+            <div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)' }}>{t('sync.local_folder')}</div>
+              <div className="font-display" style={{ marginTop: 'var(--space-3xs)', fontWeight: 600 }}>{currentWorkspace?.name || t('workspace.current')}</div>
+            </div>
+            <div style={{ color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>{readOnly ? '←' : '↔'}</div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)' }}>{t('sync.remote_workspace')}</div>
+              <div className="font-display" style={{ marginTop: 'var(--space-3xs)', fontWeight: 600 }}>{currentWorkspace?.name || '—'}</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--color-rule)', color: readOnly ? 'var(--color-warning)' : 'var(--color-ink-2)', fontSize: 'var(--text-sm)', lineHeight: 1.55 }}>
+            {readOnly ? t('sync.read_only_direction') : t('sync.read_write_direction')}
+          </div>
+        </div>
 
         {/* Server URL */}
         <div style={{ marginBottom: 'var(--space-md)' }}>

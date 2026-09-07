@@ -24,6 +24,7 @@ Environment variables:
 - `DOCK_LISTEN` — bind address (default: `0.0.0.0:3000`)
 - `DOCK_SESSION_SECRET` — 32-byte hex secret for sessions (auto-generated if missing)
 - `DOCK_COOKIE_SECURE` — `0`/`false` to disable Secure flag (default: enabled)
+- `DOCK_SETUP_TOKEN` — optional first-account initialization secret; the first account becomes system administrator
 - `DOCK_CORS_ORIGINS` — comma-separated allowed origins
 - `DOCK_LOG_FORMAT` — `json` for structured logging, `text` for default
 - `RUST_LOG` — log level filter (default: `info,linkdock=debug`)

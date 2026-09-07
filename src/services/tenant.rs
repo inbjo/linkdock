@@ -173,7 +173,13 @@ impl TenantService {
         // Verify user is a member of that tenant.
         Self::require_member_of(state, user.user_id, tenant_id).await?;
         crate::auth::session::SessionService::set_active_tenant(state, session_token, tenant_id)
-            .await
+            .await?;
+        sqlx::query("UPDATE users SET preferred_tenant_id = ? WHERE id = ?")
+            .bind(tenant_id)
+            .bind(user.user_id)
+            .execute(&state.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn list_members(state: &AppState, tenant_id: i64) -> AppResult<Vec<MemberInfo>> {

@@ -9,10 +9,17 @@ use serde_json::json;
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/auth/setup", get(setup_status))
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
         .route("/me", get(me))
+}
+
+async fn setup_status(
+    State(state): State<AppState>,
+) -> AppResult<Json<crate::services::auth::SetupStatus>> {
+    Ok(Json(AuthService::setup_status(&state).await?))
 }
 
 async fn register(

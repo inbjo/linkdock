@@ -4,6 +4,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
+use subtle::ConstantTimeEq;
 
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequest {
@@ -11,6 +12,8 @@ pub struct RegisterRequest {
     pub password: String,
     #[serde(default)]
     pub display_name: String,
+    #[serde(default)]
+    pub setup_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,9 +37,25 @@ pub struct UserInfo {
     pub is_system_admin: bool,
 }
 
+#[derive(Debug, Serialize)]
+pub struct SetupStatus {
+    pub initialized: bool,
+    pub requires_setup_token: bool,
+}
+
 pub struct AuthService;
 
 impl AuthService {
+    pub async fn setup_status(state: &AppState) -> AppResult<SetupStatus> {
+        let user_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+            .fetch_one(&state.pool)
+            .await?;
+        Ok(SetupStatus {
+            initialized: user_count > 0,
+            requires_setup_token: user_count == 0 && state.config.setup_token.is_some(),
+        })
+    }
+
     pub async fn register(state: &AppState, req: RegisterRequest) -> AppResult<AuthResponse> {
         let username = req.username.trim().to_string();
         if username.len() < 2 || username.len() > 64 {
@@ -59,10 +78,24 @@ impl AuthService {
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         let user_uuid = uuid::Uuid::new_v4().to_string();
 
+        let user_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
+            .fetch_one(&state.pool)
+            .await?;
+        if user_count == 0 {
+            if let Some(expected) = state.config.setup_token.as_deref() {
+                let supplied = req.setup_token.as_deref().unwrap_or_default();
+                if expected.as_bytes().ct_eq(supplied.as_bytes()).unwrap_u8() != 1 {
+                    return Err(AppError::Forbidden);
+                }
+            }
+        }
+
         let mut tx = state.pool.begin().await?;
 
         let user_row = sqlx::query(
-            "INSERT INTO users (uuid, username, password_hash, display_name) VALUES (?, ?, ?, ?) RETURNING id",
+            r#"INSERT INTO users (uuid, username, password_hash, display_name, is_system_admin)
+               VALUES (?, ?, ?, ?, CASE WHEN NOT EXISTS (SELECT 1 FROM users) THEN 1 ELSE 0 END)
+               RETURNING id, is_system_admin"#,
         )
         .bind(&user_uuid)
         .bind(&username)
@@ -77,6 +110,7 @@ impl AuthService {
             other => AppError::Internal(anyhow::anyhow!(other)),
         })?;
         let user_id: i64 = user_row.try_get("id").unwrap_or(0);
+        let is_system_admin = user_row.try_get::<i64, _>("is_system_admin").unwrap_or(0) != 0;
 
         // Create personal workspace.
         let tenant_uuid = uuid::Uuid::new_v4().to_string();
@@ -98,6 +132,12 @@ impl AuthService {
             .execute(&mut *tx)
             .await?;
 
+        sqlx::query("UPDATE users SET preferred_tenant_id = ? WHERE id = ?")
+            .bind(tenant_id)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
+
         tx.commit().await?;
 
         let (session, _sid) = SessionService::create(state, user_id, tenant_id).await?;
@@ -108,7 +148,7 @@ impl AuthService {
                 uuid: user_uuid,
                 username,
                 display_name: req.display_name.trim().to_string(),
-                is_system_admin: false,
+                is_system_admin,
             },
             session,
         })
@@ -159,7 +199,13 @@ impl AuthService {
 
         // Resolve active tenant: first tenant the user is a member of.
         let tenant_row = sqlx::query(
-            "SELECT tenant_id FROM tenant_members WHERE user_id = ? ORDER BY tenant_id LIMIT 1",
+            r#"SELECT tm.tenant_id
+               FROM tenant_members tm
+               JOIN users u ON u.id = tm.user_id
+               WHERE tm.user_id = ?
+               ORDER BY CASE WHEN tm.tenant_id = u.preferred_tenant_id THEN 0 ELSE 1 END,
+                        tm.tenant_id
+               LIMIT 1"#,
         )
         .bind(user_id)
         .fetch_optional(&state.pool)

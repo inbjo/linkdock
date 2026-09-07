@@ -3,14 +3,17 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import type { Link } from '@/lib/types'
+import { useAuth } from '@/hooks/useAuth'
 
 export function TrashPage() {
   const { t } = useTranslation()
   const { showError, showSuccess, element } = useToast()
   const qc = useQueryClient()
+  const { me } = useAuth()
+  const canWrite = me?.tenant_role !== 'viewer'
 
   const { data: links, isLoading } = useQuery({
-    queryKey: ['links', 'trash'],
+    queryKey: ['links', me?.tenant_id, 'trash'],
     queryFn: () => api.listLinks(undefined, true),
   })
 
@@ -55,6 +58,7 @@ export function TrashPage() {
                 link={link}
                 onRestore={() => restoreMut.mutate(link.id)}
                 onPurge={() => { if (confirm(t('trash.delete_confirm'))) purgeMut.mutate(link.id) }}
+                readOnly={!canWrite}
               />
             ))}
           </div>
@@ -77,7 +81,7 @@ export function TrashPage() {
   )
 }
 
-function TrashItem({ link, onRestore, onPurge }: { link: Link; onRestore: () => void; onPurge: () => void }) {
+function TrashItem({ link, onRestore, onPurge, readOnly }: { link: Link; onRestore: () => void; onPurge: () => void; readOnly: boolean }) {
   const { t } = useTranslation()
   let domain = ''
   try { domain = new URL(link.url).hostname } catch { domain = link.url }
@@ -117,10 +121,10 @@ function TrashItem({ link, onRestore, onPurge }: { link: Link; onRestore: () => 
           {link.url}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
+      {!readOnly && <div style={{ display: 'flex', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
         <button className="btn btn-sm" onClick={onRestore}>{t('trash.restore')}</button>
         <button className="btn btn-sm btn-danger" onClick={onPurge}>{t('trash.permanent_delete')}</button>
-      </div>
+      </div>}
     </div>
   )
 }

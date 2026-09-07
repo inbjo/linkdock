@@ -46,6 +46,7 @@ sudo systemctl daemon-reload
 
 Edit `/etc/systemd/system/linkdock.service`:
 - Set `DOCK_SESSION_SECRET` to a 32-byte hex string (`openssl rand -hex 32`)
+- Set `DOCK_SETUP_TOKEN` to a separate random value before exposing a fresh instance publicly
 - Adjust `DOCK_LISTEN` if needed (default: `127.0.0.1:3000`)
 - Set `DOCK_WEBAUTHN_RP_ID` and `DOCK_WEBAUTHN_ORIGIN` to the public domain and exact HTTPS origin
 
@@ -85,6 +86,7 @@ sudo systemctl restart caddy
 | `DOCK_LISTEN` | `0.0.0.0:3000` | Bind address |
 | `DOCK_SESSION_SECRET` | random | 32-byte hex secret for sessions |
 | `DOCK_COOKIE_SECURE` | `true` | Set to `false` if no HTTPS |
+| `DOCK_SETUP_TOKEN` | empty | Optional initialization secret required only by the first account |
 | `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
 | `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain, without scheme or port |
 | `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |
@@ -153,6 +155,7 @@ Each request includes an `x-request-id` header (propagated or auto-generated).
 ## Security Checklist
 
 - [ ] Set `DOCK_SESSION_SECRET` to a strong random value
+- [ ] Set `DOCK_SETUP_TOKEN` before exposing an empty database publicly
 - [ ] Use HTTPS (reverse proxy with TLS)
 - [ ] Set `DOCK_COOKIE_SECURE=true` (default)
 - [ ] Match the Passkey RP ID and Origin to the public HTTPS URL

@@ -5,32 +5,44 @@ import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { Modal } from '@/components/Modal'
 import type { AccessToken } from '@/lib/types'
+import { useAuth } from '@/hooks/useAuth'
 
 export function TokensPage() {
   const { t } = useTranslation()
   const { showError, showSuccess, element } = useToast()
   const qc = useQueryClient()
+  const { me, tenants } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
+  const [accessMode, setAccessMode] = useState<'read' | 'write'>('write')
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const { data: tokens } = useQuery({ queryKey: ['tokens'], queryFn: () => api.listTokens() })
+  const currentWorkspace = tenants.find((tenant) => tenant.id === me?.tenant_id)
+  const canWrite = me?.tenant_role !== 'viewer'
+  const { data: tokens } = useQuery({
+    queryKey: ['tokens', me?.tenant_id],
+    queryFn: () => api.listTokens(),
+    enabled: !!me,
+  })
 
   const createMut = useMutation({
-    mutationFn: () => api.createToken(name),
+    mutationFn: () => api.createToken(
+      name,
+      accessMode === 'write' && canWrite ? 'bookmarks:read bookmarks:write' : 'bookmarks:read',
+    ),
     onSuccess: (data) => {
       setCreatedToken(data.plaintext)
       setName('')
       setShowCreate(false)
-      qc.invalidateQueries({ queryKey: ['tokens'] })
+      qc.invalidateQueries({ queryKey: ['tokens', me?.tenant_id] })
     },
     onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const revokeMut = useMutation({
     mutationFn: (id: number) => api.revokeToken(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens'] }); showSuccess(t('tokens.revoked')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens', me?.tenant_id] }); showSuccess(t('tokens.revoked')) },
     onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
@@ -60,6 +72,14 @@ export function TokensPage() {
           <button className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>
             + {t('tokens.new')}
           </button>
+        </div>
+
+        <div className="card-flat" style={{ marginBottom: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)', alignItems: 'center' }}>
+          <div>
+            <div className="section-label" style={{ marginBottom: 'var(--space-3xs)' }}>{t('tokens.bound_workspace')}</div>
+            <div className="font-display" style={{ fontWeight: 600 }}>{currentWorkspace?.name || '—'}</div>
+          </div>
+          <span className="badge">{t(`members.${me?.tenant_role || 'viewer'}`)}</span>
         </div>
 
         <div className="card" style={{ padding: 0 }}>
@@ -128,6 +148,21 @@ export function TokensPage() {
           <div>
             <label className="label">{t('tokens.name')}</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label className="label">{t('tokens.access_mode')}</label>
+            <select
+              className="input"
+              value={canWrite ? accessMode : 'read'}
+              onChange={(e) => setAccessMode(e.target.value as 'read' | 'write')}
+              disabled={!canWrite}
+            >
+              <option value="write">{t('tokens.read_write')}</option>
+              <option value="read">{t('tokens.read_only')}</option>
+            </select>
+            <div style={{ marginTop: 'var(--space-3xs)', color: 'var(--color-ink-3)', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+              {canWrite ? t('tokens.binding_hint') : t('tokens.viewer_hint')}
+            </div>
           </div>
           <button className="btn btn-primary" onClick={() => createMut.mutate()} disabled={!name.trim() || createMut.isPending}>
             {createMut.isPending ? t('common.loading') : t('common.create')}

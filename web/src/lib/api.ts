@@ -2,6 +2,7 @@ import type {
   AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Collection,
   CollectionNode, LinkWithTags, Link, Tag, AccessToken, AccessTokenCreated,
   SessionInfo, BatchResult, ApiError,
+  PasskeyInfo, PasskeyChallenge,
 } from './types'
 
 const BASE = '/api/app/v1'
@@ -44,11 +45,40 @@ class ApiClient {
       body: JSON.stringify({ username, password }),
     })
   }
+  startPasskeyLogin(username: string) {
+    return this.request<PasskeyChallenge>('/auth/passkey/start', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    })
+  }
+  finishPasskeyLogin(flowId: string, credential: Record<string, unknown>) {
+    return this.request<AuthResponse>('/auth/passkey/finish', {
+      method: 'POST',
+      body: JSON.stringify({ flow_id: flowId, credential }),
+    })
+  }
   async logout() {
     await this.request('/auth/logout', { method: 'POST' })
   }
   me() {
     return this.request<MeResponse>('/me')
+  }
+
+  // Passkeys
+  listPasskeys() {
+    return this.request<PasskeyInfo[]>('/passkeys')
+  }
+  startPasskeyRegistration() {
+    return this.request<PasskeyChallenge>('/passkeys/register/start', { method: 'POST' })
+  }
+  finishPasskeyRegistration(flowId: string, name: string, credential: Record<string, unknown>) {
+    return this.request<PasskeyInfo>('/passkeys/register/finish', {
+      method: 'POST',
+      body: JSON.stringify({ flow_id: flowId, name, credential }),
+    })
+  }
+  deletePasskey(id: number) {
+    return this.request(`/passkeys/${id}`, { method: 'DELETE' })
   }
 
   // Tenants

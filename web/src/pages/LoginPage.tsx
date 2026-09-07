@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 import { SettingsBar } from '@/components/SettingsBar'
+import { getPasskey, isPasskeySupported } from '@/lib/webauthn'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -14,6 +15,7 @@ export function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,12 +32,34 @@ export function LoginPage() {
     }
   }
 
+  const loginWithPasskey = async () => {
+    if (!username.trim()) {
+      showError(t('auth.passkey_username_required'))
+      return
+    }
+    setPasskeyLoading(true)
+    try {
+      const challenge = await api.startPasskeyLogin(username)
+      const credential = await getPasskey(challenge.options)
+      await api.finishPasskeyLogin(challenge.flow_id, credential)
+      await refresh()
+      showSuccess(t('auth.login_success'))
+      nav('/bookmarks')
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') return
+      showError(err instanceof Error ? err.message : t('auth.passkey_login'))
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+    <div className="auth-shell" style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
       <SettingsBar />
 
       {/* Left: brand panel */}
       <div
+        className="auth-brand-panel"
         style={{
           flex: '1 1 50%',
           display: 'flex',
@@ -131,6 +155,20 @@ export function LoginPage() {
               {loading ? t('common.loading') : t('auth.login')}
             </button>
           </form>
+          <div className="auth-divider"><span>{t('auth.or')}</span></div>
+          <button
+            className="btn passkey-button"
+            type="button"
+            disabled={passkeyLoading || !isPasskeySupported()}
+            onClick={loginWithPasskey}
+            style={{ width: '100%' }}
+          >
+            <span aria-hidden="true" className="passkey-icon">⌁</span>
+            {passkeyLoading ? t('common.loading') : t('auth.passkey_login')}
+          </button>
+          {!isPasskeySupported() ? (
+            <p className="passkey-hint">{t('auth.passkey_unsupported')}</p>
+          ) : null}
           <p style={{ marginTop: 'var(--space-lg)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)' }}>
             {t('auth.no_account')}{' '}
             <Link to="/register" style={{ fontWeight: 500 }}>{t('auth.register')}</Link>

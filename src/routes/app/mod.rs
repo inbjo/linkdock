@@ -3,6 +3,7 @@ pub mod auth;
 pub mod collection;
 pub mod io;
 pub mod link;
+pub mod passkey;
 pub mod tag;
 pub mod tenant;
 pub mod token;
@@ -16,6 +17,7 @@ pub fn router() -> Router<AppState> {
         .merge(tenant::router())
         .merge(collection::router())
         .merge(link::router())
+        .merge(passkey::router())
         .merge(tag::router())
         .merge(token::router())
         .merge(io::router())

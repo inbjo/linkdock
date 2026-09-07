@@ -11,6 +11,7 @@ A self-hosted, **Floccus-compatible** bookmark management service built with Rus
 - **Soft Delete & Trash** — Restore accidentally deleted bookmarks
 - **Import / Export** — Netscape HTML, Linkdock JSON, CSV, XBEL
 - **Access Tokens** — SHA-256 hashed, scoped, revocable (for Floccus sync)
+- **Passkeys** — Passwordless login with Touch ID, Face ID, Windows Hello, or security keys
 - **Tag System** — Per-tenant tags with normalized names
 - **Batch Operations** — Move, delete, restore, tag multiple bookmarks at once
 - **Admin Dashboard** — System-wide stats, user/tenant management, audit log
@@ -41,6 +42,14 @@ curl http://localhost:3000/health/live
 ```
 
 Open `http://localhost:3000` in your browser, register an account, and start bookmarking.
+
+To enable Passkeys on a production domain, the configured origin must exactly match the
+public HTTPS origin. For the `sina.dev` mirror:
+
+```bash
+DOCK_WEBAUTHN_RP_ID=sina.dev
+DOCK_WEBAUTHN_ORIGIN=https://sina.dev
+```
 
 ### With HTTPS (Caddy Reverse Proxy)
 
@@ -126,8 +135,12 @@ The Vite dev server proxies `/api` and `/health` to `localhost:3000`.
 |--------|------|-------------|
 | POST | `/auth/register` | Register a new user |
 | POST | `/auth/login` | Login (returns session cookie) |
+| POST | `/auth/passkey/start` | Start Passkey login for a username |
+| POST | `/auth/passkey/finish` | Verify Passkey and create session |
 | POST | `/auth/logout` | Logout |
 | GET | `/me` | Current user info + active tenant |
+| GET/DELETE | `/passkeys` / `/passkeys/{id}` | List/remove Passkeys |
+| POST | `/passkeys/register/{start,finish}` | Register a Passkey |
 | GET | `/tenants` | List user's workspaces |
 | POST | `/tenants` | Create workspace |
 | PUT | `/tenants/{id}` | Update workspace |
@@ -185,6 +198,9 @@ Authentication: Bearer token (`Authorization: Bearer lw_...`). Invalid tokens re
 | `DOCK_SESSION_SECRET` | random | 32-byte hex secret for session signing |
 | `DOCK_COOKIE_SECURE` | `true` | Set `false` if no HTTPS |
 | `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
+| `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain (no scheme or port) |
+| `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |
+| `DOCK_WEBAUTHN_RP_NAME` | `Linkdock` | Service name shown by authenticators |
 | `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
 | `DOCK_PORT` | `3000` | Docker compose host port |

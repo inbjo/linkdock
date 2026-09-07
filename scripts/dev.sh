@@ -23,6 +23,8 @@ esac
 export DOCK_DATA_DIR="${DOCK_DATA_DIR:-$ROOT_DIR/data}"
 export DOCK_LISTEN="${DOCK_LISTEN:-127.0.0.1:3000}"
 export DOCK_COOKIE_SECURE="${DOCK_COOKIE_SECURE:-false}"
+export DOCK_WEBAUTHN_RP_ID="${DOCK_WEBAUTHN_RP_ID:-localhost}"
+export DOCK_WEBAUTHN_ORIGIN="${DOCK_WEBAUTHN_ORIGIN:-http://localhost:5173}"
 export RUST_LOG="${RUST_LOG:-info,linkdock=debug}"
 
 mkdir -p "$DOCK_DATA_DIR"

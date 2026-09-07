@@ -120,6 +120,19 @@ export interface SessionInfo {
   created_at: string
 }
 
+export interface PasskeyInfo {
+  id: number
+  uuid: string
+  name: string
+  last_used_at: string | null
+  created_at: string
+}
+
+export interface PasskeyChallenge {
+  flow_id: string
+  options: unknown
+}
+
 export interface BatchResult {
   affected: number
 }

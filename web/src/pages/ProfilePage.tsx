@@ -1,10 +1,60 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/lib/api'
+import { createPasskey, isPasskeySupported } from '@/lib/webauthn'
+import { useToast } from '@/components/Toast'
 
 export function ProfilePage() {
   const { t } = useTranslation()
   const { me } = useAuth()
+  const { showError, showSuccess } = useToast()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const { data: passkeys = [] } = useQuery({
+    queryKey: ['passkeys'],
+    queryFn: () => api.listPasskeys(),
+  })
   if (!me) return null
+
+  const addPasskey = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setAdding(true)
+    try {
+      const challenge = await api.startPasskeyRegistration()
+      const credential = await createPasskey(challenge.options)
+      await api.finishPasskeyRegistration(
+        challenge.flow_id,
+        name.trim() || t('passkeys.default_name'),
+        credential,
+      )
+      setName('')
+      await queryClient.invalidateQueries({ queryKey: ['passkeys'] })
+      showSuccess(t('passkeys.added'))
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') return
+      showError(err instanceof Error ? err.message : t('passkeys.add'))
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const deletePasskey = async (id: number) => {
+    if (!confirm(t('passkeys.delete_confirm'))) return
+    setDeletingId(id)
+    try {
+      await api.deletePasskey(id)
+      await queryClient.invalidateQueries({ queryKey: ['passkeys'] })
+      showSuccess(t('passkeys.deleted'))
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('passkeys.delete'))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const rows = [
     { label: t('auth.username'), value: me.username },
@@ -43,6 +93,79 @@ export function ProfilePage() {
             </div>
           ))}
         </div>
+
+        <section style={{ marginTop: 'var(--space-xl)' }}>
+          <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
+            {t('passkeys.security')}
+          </div>
+          <div className="profile-section-heading">
+            <div>
+              <h2 className="font-display">{t('passkeys.title')}</h2>
+              <p>{t('passkeys.description')}</p>
+            </div>
+          </div>
+
+          <div className="card passkey-card">
+            {passkeys.length > 0 ? (
+              <div className="passkey-list">
+                {passkeys.map((passkey) => (
+                  <div className="passkey-row" key={passkey.id}>
+                    <div className="passkey-glyph" aria-hidden="true">⌁</div>
+                    <div className="passkey-details">
+                      <strong>{passkey.name}</strong>
+                      <span>
+                        {t('passkeys.created')} {new Date(passkey.created_at).toLocaleDateString()}
+                        {passkey.last_used_at
+                          ? ` · ${t('passkeys.last_used')} ${new Date(passkey.last_used_at).toLocaleDateString()}`
+                          : ''}
+                      </span>
+                    </div>
+                    <button
+                      className="btn btn-danger-outline"
+                      type="button"
+                      disabled={deletingId === passkey.id}
+                      onClick={() => deletePasskey(passkey.id)}
+                    >
+                      {t('passkeys.delete')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="passkey-empty">
+                <div className="passkey-glyph" aria-hidden="true">⌁</div>
+                <div>
+                  <strong>{t('passkeys.empty')}</strong>
+                  <p>{t('passkeys.empty_hint')}</p>
+                </div>
+              </div>
+            )}
+
+            <form className="passkey-add" onSubmit={addPasskey}>
+              <div style={{ flex: 1 }}>
+                <label className="label" htmlFor="passkey-name">{t('passkeys.name')}</label>
+                <input
+                  id="passkey-name"
+                  className="input"
+                  value={name}
+                  maxLength={64}
+                  placeholder={t('passkeys.name_placeholder')}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={adding || !isPasskeySupported()}
+              >
+                {adding ? t('common.loading') : t('passkeys.add')}
+              </button>
+            </form>
+            {!isPasskeySupported() ? (
+              <p className="passkey-hint">{t('auth.passkey_unsupported')}</p>
+            ) : null}
+          </div>
+        </section>
       </div>
     </div>
   )

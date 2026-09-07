@@ -138,6 +138,20 @@ impl AuthService {
             return Err(AppError::Validation("invalid credentials".into()));
         }
         let user_id: i64 = row.try_get("id").unwrap_or(0);
+
+        Self::complete_login(state, user_id).await
+    }
+
+    pub async fn complete_login(state: &AppState, user_id: i64) -> AppResult<AuthResponse> {
+        let row = sqlx::query(
+            "SELECT id, uuid, username, display_name, is_system_admin, disabled FROM users WHERE id = ?",
+        )
+        .bind(user_id)
+        .fetch_one(&state.pool)
+        .await?;
+        if row.try_get::<i64, _>("disabled").unwrap_or(0) != 0 {
+            return Err(AppError::Forbidden);
+        }
         let user_uuid: String = row.try_get("uuid").unwrap_or_default();
         let username: String = row.try_get("username").unwrap_or_default();
         let display_name: String = row.try_get("display_name").unwrap_or_default();

@@ -82,6 +82,58 @@ async fn test_register_and_me() {
 }
 
 #[tokio::test]
+async fn test_passkey_registration_start_and_login_privacy() {
+    let app = setup().await;
+    let (session, _) = register_and_login(&app, "passkey-user", "password123").await;
+
+    let resp = app
+        .client
+        .post(format!("{}/api/app/v1/passkeys/register/start", app.base))
+        .header("cookie", format!("lw_session={}", session))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body: Value = resp.json().await.unwrap();
+    assert!(body["flow_id"].as_str().is_some());
+    assert!(body["options"]["publicKey"]["challenge"].as_str().is_some());
+    assert_eq!(body["options"]["publicKey"]["rp"]["id"], "localhost");
+
+    let no_key = app
+        .client
+        .post(format!("{}/api/app/v1/auth/passkey/start", app.base))
+        .json(&serde_json::json!({ "username": "passkey-user" }))
+        .send()
+        .await
+        .unwrap();
+    let unknown = app
+        .client
+        .post(format!("{}/api/app/v1/auth/passkey/start", app.base))
+        .json(&serde_json::json!({ "username": "unknown-user" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(no_key.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(unknown.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        no_key.json::<Value>().await.unwrap()["error"]["message"],
+        unknown.json::<Value>().await.unwrap()["error"]["message"]
+    );
+}
+
+#[tokio::test]
+async fn test_passkey_management_requires_session() {
+    let app = setup().await;
+    let resp = app
+        .client
+        .get(format!("{}/api/app/v1/passkeys", app.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
 async fn test_invalid_token_returns_403() {
     let app = setup().await;
     // Floccus expects 403 for invalid tokens.

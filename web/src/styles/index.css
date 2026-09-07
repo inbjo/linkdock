@@ -278,6 +278,108 @@ a:hover {
   color: var(--color-accent-ink);
 }
 
+/* ── Passkeys ─────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0;
+  color: var(--color-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-rule);
+}
+.passkey-button {
+  border-color: var(--color-rule-strong);
+  box-shadow: var(--shadow-sm);
+}
+.passkey-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.passkey-hint {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+.profile-section-heading h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  letter-spacing: -0.015em;
+}
+.profile-section-heading p {
+  margin: var(--space-3xs) 0 var(--space-md);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+.passkey-card { padding: 0; overflow: hidden; }
+.passkey-list { border-bottom: 1px solid var(--color-rule); }
+.passkey-row,
+.passkey-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+.passkey-row + .passkey-row { border-top: 1px solid var(--color-rule); }
+.passkey-glyph {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.passkey-details { flex: 1; min-width: 0; }
+.passkey-details strong,
+.passkey-empty strong { display: block; font-size: var(--text-sm); }
+.passkey-details span,
+.passkey-empty p {
+  display: block;
+  margin: var(--space-3xs) 0 0;
+  color: var(--color-ink-3);
+  font-size: var(--text-xs);
+}
+.passkey-add {
+  display: flex;
+  align-items: end;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-paper-2);
+}
+.btn-danger-outline { color: var(--color-danger); }
+.btn-danger-outline:hover { border-color: var(--color-danger); }
+
+@media (max-width: 720px) {
+  .auth-shell { flex-direction: column; overflow: auto !important; }
+  .auth-brand-panel { flex: 0 0 auto !important; padding: var(--space-xl) var(--space-lg) !important; }
+  .passkey-add { align-items: stretch; flex-direction: column; }
+  .passkey-row { align-items: flex-start; flex-wrap: wrap; }
+  .passkey-details { min-width: calc(100% - 3rem); }
+  .passkey-row .btn { margin-left: 3rem; }
+}
+
 .btn-danger {
   background: var(--color-danger);
   color: var(--color-danger-ink);

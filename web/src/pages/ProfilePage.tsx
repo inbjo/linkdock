@@ -9,7 +9,7 @@ import { useToast } from '@/components/Toast'
 export function ProfilePage() {
   const { t } = useTranslation()
   const { me } = useAuth()
-  const { showError, showSuccess } = useToast()
+  const { showError, showSuccess, element } = useToast()
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [adding, setAdding] = useState(false)
@@ -35,8 +35,13 @@ export function ProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ['passkeys'] })
       showSuccess(t('passkeys.added'))
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') return
-      showError(err instanceof Error ? err.message : t('passkeys.add'))
+      showError(
+        err instanceof DOMException && err.name === 'NotAllowedError'
+          ? t('passkeys.cancelled')
+          : err instanceof Error
+            ? err.message
+            : t('passkeys.add'),
+      )
     } finally {
       setAdding(false)
     }
@@ -64,6 +69,7 @@ export function ProfilePage() {
 
   return (
     <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+      {element}
       <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
         <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
           {t('settings.profile')}

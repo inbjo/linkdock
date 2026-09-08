@@ -10,7 +10,7 @@ import { getPasskey, isPasskeySupported } from '@/lib/webauthn'
 export function LoginPage() {
   const { t } = useTranslation()
   const nav = useNavigate()
-  const { showError, showSuccess } = useToast()
+  const { showError, showSuccess, element } = useToast()
   const { refresh } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -46,8 +46,13 @@ export function LoginPage() {
       showSuccess(t('auth.login_success'))
       nav('/bookmarks')
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') return
-      showError(err instanceof Error ? err.message : t('auth.passkey_login'))
+      showError(
+        err instanceof DOMException && err.name === 'NotAllowedError'
+          ? t('auth.passkey_cancelled')
+          : err instanceof Error
+            ? err.message
+            : t('auth.passkey_login'),
+      )
     } finally {
       setPasskeyLoading(false)
     }
@@ -55,6 +60,7 @@ export function LoginPage() {
 
   return (
     <div className="auth-shell" style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+      {element}
       <SettingsBar />
 
       {/* Left: brand panel */}

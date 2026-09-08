@@ -40,7 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             archive: tar.gz
           - target: x86_64-apple-darwin
@@ -65,7 +65,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev pkg-config
+          sudo apt-get install -y musl-tools binutils
 
       - uses: actions/setup-node@v4
         with:
@@ -80,7 +80,11 @@ jobs:
           npm run build
 
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Verify static Linux binary
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: scripts/verify-static.sh target/${{ matrix.target }}/release/linkdock
 
       - name: Package
         id: package

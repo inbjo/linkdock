@@ -46,6 +46,11 @@ webauthn-rs = "0.5"
 reqwest = { version = "0.12", features = ["json", "cookies"], optional = true }
 tempfile = { version = "3", optional = true }
 
+[target.x86_64-unknown-linux-musl.dependencies]
+# webauthn-rs uses OpenSSL for certificate and signature handling. Build its
+# OpenSSL dependency from source so the musl release has no host libc/SSL deps.
+openssl = { version = "0.10", features = ["vendored"] }
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 

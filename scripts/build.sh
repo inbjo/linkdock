@@ -5,6 +5,7 @@
 # Usage:
 #   ./scripts/build.sh              # debug build
 #   ./scripts/build.sh --release    # release build (optimized, embeds frontend)
+#   ./scripts/build.sh --static     # static musl release build
 #   ./scripts/build.sh --skip-frontend  # skip frontend build
 #
 set -euo pipefail
@@ -14,10 +15,12 @@ ROOT_DIR="$(pwd)"
 
 RELEASE=false
 SKIP_FRONTEND=false
+STATIC=false
 
 for arg in "$@"; do
     case "$arg" in
         --release) RELEASE=true ;;
+        --static) STATIC=true; RELEASE=true ;;
         --skip-frontend) SKIP_FRONTEND=true ;;
         *) echo "Unknown option: $arg"; exit 1 ;;
     esac
@@ -26,6 +29,7 @@ done
 echo "=========================================="
 echo " Linkdock Build"
 echo " Mode: $([ "$RELEASE" = true ] && echo 'release' || echo 'debug')"
+echo " Linkage: $([ "$STATIC" = true ] && echo 'static musl' || echo 'native')"
 echo " Frontend: $([ "$SKIP_FRONTEND" = true ] && echo 'skip' || echo 'build')"
 echo "=========================================="
 
@@ -50,7 +54,12 @@ fi
 
 # --- Step 2: Build backend ---
 echo ""
-if [ "$RELEASE" = true ]; then
+if [ "$STATIC" = true ]; then
+    echo "[2/2] Building backend (static musl release)..."
+    cargo build --release --locked --target x86_64-unknown-linux-musl
+    BINARY="target/x86_64-unknown-linux-musl/release/linkdock"
+    "$ROOT_DIR/scripts/verify-static.sh" "$BINARY"
+elif [ "$RELEASE" = true ]; then
     echo "[2/2] Building backend (release)..."
     cargo build --release
     BINARY="target/release/linkdock"

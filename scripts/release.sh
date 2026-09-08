@@ -35,14 +35,15 @@ npm run build
 cd "$ROOT_DIR"
 
 echo ""
-echo "[2/4] Building release binary..."
-cargo build --release
-BINARY="target/release/linkdock"
+echo "[2/4] Building static musl release binary..."
+cargo build --release --locked --target x86_64-unknown-linux-musl
+BINARY="target/x86_64-unknown-linux-musl/release/linkdock"
 
 if [ ! -f "$BINARY" ]; then
     echo "ERROR: Binary not found at $BINARY"
     exit 1
 fi
+"$ROOT_DIR/scripts/verify-static.sh" "$BINARY"
 
 # --- Step 2: Prepare package directory ---
 echo ""

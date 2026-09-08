@@ -6,6 +6,7 @@ A self-hosted, Floccus-compatible bookmark service built with Rust, Axum, and SQ
 
 - `cargo build` — build debug binary
 - `cargo build --release` — build release binary (embeds frontend from `web/dist/`)
+- `./scripts/build.sh --static` — build portable x86_64 Linux musl release binary
 - `cargo test` — run all tests (12 integration tests covering Floccus compat + multi-tenant)
 - `cargo clippy` — lint
 - `cargo fmt` — format

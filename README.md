@@ -90,12 +90,12 @@ Caddy will automatically provision Let's Encrypt certificates.
 ```bash
 # Prerequisites: Rust 1.75+, Node.js 22+, npm 10+
 
-# Build (frontend + backend)
-./scripts/build.sh --release
+# Build a portable static Linux binary (requires musl-tools, perl and make)
+./scripts/build.sh --static
 
 # Run
 DOCK_DATA_DIR=./data DOCK_SESSION_SECRET=$(openssl rand -hex 32) \
-    ./target/release/linkdock
+    ./target/x86_64-unknown-linux-musl/release/linkdock
 ```
 
 ### Development
@@ -133,7 +133,7 @@ one-way server-to-browser strategy; owner, admin, and editor roles may use bidir
 
 | Script | Description |
 |--------|-------------|
-| `./scripts/build.sh` | Build frontend + backend (debug or `--release`) |
+| `./scripts/build.sh` | Build frontend + backend (`--static` creates the portable musl release) |
 | `./scripts/docker-build.sh` | Build Docker image (`--run` to start, `--tag` for custom tag) |
 | `./scripts/dev.sh` | Start development environment (`--backend` or `--frontend` only) |
 | `./scripts/test.sh` | Run all tests (`--backend` or `--frontend` only) |
@@ -241,13 +241,13 @@ docker compose --profile with-proxy up -d
 ### Binary + systemd
 
 ```bash
-# Build
-./scripts/build.sh --release
+# Build a static binary without a glibc runtime dependency
+./scripts/build.sh --static
 
 # Install
 sudo useradd -r -s /sbin/nologin linkdock
 sudo mkdir -p /opt/linkdock/{bin,data}
-sudo cp target/release/linkdock /opt/linkdock/bin/
+sudo cp target/x86_64-unknown-linux-musl/release/linkdock /opt/linkdock/bin/
 sudo cp deploy/linkdock.service /etc/systemd/system/
 
 # Edit service file to set DOCK_SESSION_SECRET

@@ -53,11 +53,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev pkg-config
+          sudo apt-get install -y musl-tools binutils
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -69,8 +71,6 @@ jobs:
           npm ci
           npm run build
       - name: Build release binary
-        run: cargo build --release
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl
       - name: Verify binary
-        run: |
-          ./target/release/linkdock --help 2>/dev/null || true
-          test -f ./target/release/linkdock
+        run: scripts/verify-static.sh target/x86_64-unknown-linux-musl/release/linkdock

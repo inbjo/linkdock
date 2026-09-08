@@ -24,8 +24,8 @@ curl http://localhost:3000/health/live
 ### 1. Build
 
 ```bash
-cargo build --release
-# Binary: target/release/linkdock
+./scripts/build.sh --static
+# Binary: target/x86_64-unknown-linux-musl/release/linkdock
 ```
 
 The release build automatically embeds the frontend (from `web/dist/`).

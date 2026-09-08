@@ -38,7 +38,7 @@ export function Drawer({ open, onClose, title, children, width = '30rem' }: Draw
           position: 'fixed',
           inset: 0,
           zIndex: 40,
-          background: 'oklch(0% 0 0 / 0.25)',
+          background: 'var(--color-overlay-soft)',
           opacity: open ? 1 : 0,
           transition: 'opacity var(--dur) var(--ease-out)',
         }}

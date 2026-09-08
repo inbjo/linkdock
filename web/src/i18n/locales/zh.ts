@@ -294,6 +294,7 @@ export const zh: Translation = {
     logout_all_confirm: '退出所有会话？',
   },
   common: {
+    menu: '菜单',
     save: '保存',
     cancel: '取消',
     delete: '删除',

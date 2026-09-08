@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Outlet, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
@@ -13,7 +13,17 @@ export function AppLayout() {
   const { theme, toggleTheme } = useTheme()
   const { showError, showSuccess, element } = useToast()
   const nav = useNavigate()
+  const location = useLocation()
+  const mainRef = useRef<HTMLElement>(null)
   const [tenantOpen, setTenantOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 })
+    window.scrollTo({ top: 0 })
+    setMobileNavOpen(false)
+    setTenantOpen(false)
+  }, [location.pathname])
 
   if (loading) {
     return (
@@ -64,6 +74,7 @@ export function AppLayout() {
       })}
       onMouseEnter={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink)' }}
       onMouseLeave={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink-2)' }}
+      onClick={() => setMobileNavOpen(false)}
     >
       {label}
     </NavLink>
@@ -73,7 +84,7 @@ export function AppLayout() {
     <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
       <aside
-        className="app-sidebar"
+        className={`app-sidebar${mobileNavOpen ? ' is-mobile-open' : ''}`}
         style={{
           width: '15rem',
           flexShrink: 0,
@@ -86,13 +97,33 @@ export function AppLayout() {
       >
         {/* Brand + workspace selector */}
         <div className="app-brand-block" style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
-          <div
-            className="font-display"
-            style={{ fontWeight: 700, fontSize: 'var(--text-md)', letterSpacing: '-0.02em', color: 'var(--color-ink)' }}
-          >
-            {t('app.name')}
+          <div className="app-brand-header">
+            <div
+              className="font-display"
+              style={{ fontWeight: 700, fontSize: 'var(--text-md)', letterSpacing: '-0.02em', color: 'var(--color-ink)' }}
+            >
+              {t('app.name')}
+            </div>
+            <button
+              className="btn btn-icon app-mobile-toggle"
+              type="button"
+              aria-label={mobileNavOpen ? t('common.close') : t('common.menu')}
+              aria-expanded={mobileNavOpen}
+              aria-controls="app-navigation"
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              )}
+            </button>
           </div>
-          <div style={{ position: 'relative', marginTop: 'var(--space-sm)' }}>
+          <div className="app-workspace-switcher" style={{ position: 'relative', marginTop: 'var(--space-sm)' }}>
             <button
               className="btn btn-sm"
               style={{ width: '100%', justifyContent: 'space-between', fontWeight: 400 }}
@@ -152,7 +183,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin app-nav">
+        <nav id="app-navigation" style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin app-nav">
           <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
             {t('nav.bookmarks')}
           </div>
@@ -228,7 +259,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto' }} className="scrollbar-thin app-main min-w-0">
+      <main ref={mainRef} style={{ flex: 1, overflow: 'auto' }} className="scrollbar-thin app-main min-w-0">
         <Outlet />
       </main>
       {element}

@@ -29,7 +29,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'oklch(0% 0 0 / 0.4)',
+        background: 'var(--color-overlay)',
         padding: 'var(--space-md)',
       }}
       onClick={onClose}

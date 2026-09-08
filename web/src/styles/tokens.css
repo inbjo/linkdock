@@ -23,6 +23,8 @@
   --color-inverse: oklch(19% 0 0);
   --color-inverse-ink: oklch(98% 0 0);
   --color-inverse-muted: oklch(72% 0 0);
+  --color-overlay: oklch(0% 0 0 / 0.4);
+  --color-overlay-soft: oklch(0% 0 0 / 0.25);
 
   --font-display: "Hanken Grotesk", "Noto Sans SC", sans-serif;
   --font-body: "Hanken Grotesk", "Noto Sans SC", sans-serif;

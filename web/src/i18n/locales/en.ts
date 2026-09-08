@@ -292,6 +292,7 @@ export const en = {
     logout_all_confirm: 'Logout from all sessions?',
   },
   common: {
+    menu: 'Menu',
     save: 'Save',
     cancel: 'Cancel',
     delete: 'Delete',

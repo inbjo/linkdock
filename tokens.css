@@ -26,6 +26,8 @@
   --color-danger-ink: oklch(98% 0.01 27);
   --color-success:    oklch(60% 0.17 155);
   --color-warning:    oklch(72% 0.16 75);
+  --color-overlay:    oklch(0% 0 0 / 0.4);
+  --color-overlay-soft: oklch(0% 0 0 / 0.25);
 
   /* Fonts */
   --font-display: "Hanken Grotesk", "Noto Sans SC", sans-serif;

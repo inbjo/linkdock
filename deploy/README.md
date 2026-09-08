@@ -49,6 +49,7 @@ Edit `/etc/systemd/system/linkdock.service`:
 - Set `DOCK_SETUP_TOKEN` to a separate random value before exposing a fresh instance publicly
 - Adjust `DOCK_LISTEN` if needed (default: `127.0.0.1:3000`)
 - Set `DOCK_WEBAUTHN_RP_ID` and `DOCK_WEBAUTHN_ORIGIN` to the public domain and exact HTTPS origin
+- Set `DOCK_PUBLIC_URL` to the public HTTPS origin used in password-reset links
 
 ### 4. Start
 
@@ -91,6 +92,7 @@ sudo systemctl restart caddy
 | `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain, without scheme or port |
 | `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |
 | `DOCK_WEBAUTHN_RP_NAME` | `Linkdock` | Service name shown by authenticators |
+| `DOCK_PUBLIC_URL` | `DOCK_WEBAUTHN_ORIGIN` | Public origin used in password-reset email links |
 | `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
 

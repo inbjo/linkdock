@@ -3,7 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::audit::AuditService;
 use crate::state::AppState;
 use axum::extract::{Query, State};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
 use sqlx::Row;
@@ -14,6 +14,44 @@ pub fn router() -> Router<AppState> {
         .route("/users", get(list_users))
         .route("/tenants", get(list_tenants))
         .route("/audit", get(list_audit))
+        .route("/smtp", get(smtp_settings).put(update_smtp_settings))
+        .route("/smtp/test", post(test_smtp))
+}
+
+async fn smtp_settings(
+    State(state): State<AppState>,
+    auth: AuthContext,
+) -> AppResult<Json<crate::services::email::SmtpSettings>> {
+    require_admin(&auth.0)?;
+    Ok(Json(
+        crate::services::email::EmailService::settings(&state).await?,
+    ))
+}
+
+async fn update_smtp_settings(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    Json(req): Json<crate::services::email::UpdateSmtpSettings>,
+) -> AppResult<Json<crate::services::email::SmtpSettings>> {
+    require_admin(&auth.0)?;
+    Ok(Json(
+        crate::services::email::EmailService::update_settings(&state, req).await?,
+    ))
+}
+
+#[derive(serde::Deserialize)]
+struct TestSmtpRequest {
+    email: String,
+}
+
+async fn test_smtp(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    Json(req): Json<TestSmtpRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    require_admin(&auth.0)?;
+    crate::services::email::EmailService::send_test(&state, &req.email).await?;
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 fn require_admin(user: &AuthUser) -> AppResult<()> {
@@ -83,6 +121,7 @@ struct AdminUser {
     uuid: String,
     username: String,
     display_name: String,
+    email: Option<String>,
     is_system_admin: bool,
     disabled: bool,
     created_at: String,
@@ -95,7 +134,7 @@ async fn list_users(
 ) -> AppResult<Json<Vec<AdminUser>>> {
     require_admin(&auth.0)?;
     let rows = sqlx::query(
-        "SELECT u.id, u.uuid, u.username, u.display_name, u.is_system_admin, u.disabled, u.created_at,
+        "SELECT u.id, u.uuid, u.username, u.display_name, u.email, u.is_system_admin, u.disabled, u.created_at,
          (SELECT COUNT(*) FROM tenant_members tm WHERE tm.user_id = u.id) as tenant_count
          FROM users u ORDER BY u.id",
     )
@@ -109,6 +148,7 @@ async fn list_users(
             uuid: r.get("uuid"),
             username: r.get("username"),
             display_name: r.get("display_name"),
+            email: r.get("email"),
             is_system_admin: r.get::<i64, _>("is_system_admin") != 0,
             disabled: r.get::<i64, _>("disabled") != 0,
             created_at: r.get("created_at"),

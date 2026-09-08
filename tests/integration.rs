@@ -16,6 +16,7 @@ async fn register_and_login(app: &TestApp, username: &str, password: &str) -> (S
         .post(format!("{}/api/app/v1/auth/register", app.base))
         .json(&serde_json::json!({
             "username": username,
+            "email": format!("{}@example.com", username),
             "password": password,
             "display_name": username,
         }))
@@ -87,6 +88,99 @@ async fn test_register_and_me() {
 }
 
 #[tokio::test]
+async fn test_profile_email_and_password_reset() {
+    let app = setup().await;
+    let (session, _) = register_and_login(&app, "recovery-user", "password123").await;
+
+    let update = app
+        .client
+        .put(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("lw_session={session}"))
+        .json(&serde_json::json!({"email":"RECOVERY@EXAMPLE.COM", "display_name":"Recovery"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(update.status(), StatusCode::OK);
+
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username='recovery-user'")
+        .fetch_one(&app.state.pool)
+        .await
+        .unwrap();
+    let token = "test-reset-token";
+    sqlx::query(
+        "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+    )
+    .bind(user_id)
+    .bind(linkdock::auth::token::sha256_hex(token.as_bytes()))
+    .bind(linkdock::auth::session::future_iso(1))
+    .execute(&app.state.pool)
+    .await
+    .unwrap();
+
+    let reset = app
+        .client
+        .post(format!("{}/api/app/v1/auth/reset-password", app.base))
+        .json(&serde_json::json!({"token":token, "password":"new-password-123"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(reset.status(), StatusCode::OK);
+
+    let old_session = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("lw_session={session}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(old_session.status(), StatusCode::UNAUTHORIZED);
+    let reused = app
+        .client
+        .post(format!("{}/api/app/v1/auth/reset-password", app.base))
+        .json(&serde_json::json!({"token":token, "password":"another-password"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(reused.status(), StatusCode::BAD_REQUEST);
+    let login = app
+        .client
+        .post(format!("{}/api/app/v1/auth/login", app.base))
+        .json(&serde_json::json!({"username":"recovery-user", "password":"new-password-123"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(login.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_admin_smtp_password_is_encrypted_and_masked() {
+    let app = setup().await;
+    let (session, _) = register_and_login(&app, "smtp-admin", "password123").await;
+    let saved = app
+        .client
+        .put(format!("{}/api/app/v1/admin/smtp", app.base))
+        .header("cookie", format!("lw_session={session}"))
+        .json(&serde_json::json!({
+            "enabled": false, "host":"smtp.example.com", "port":587,
+            "security":"starttls", "username":"mailer", "password":"smtp-secret",
+            "from_email":"dock@example.com", "from_name":"Linkdock"
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(saved.status(), StatusCode::OK);
+    let body: Value = saved.json().await.unwrap();
+    assert_eq!(body["password_configured"], true);
+    assert!(body.get("password").is_none());
+    let encrypted: String =
+        sqlx::query_scalar("SELECT password_encrypted FROM smtp_settings WHERE id=1")
+            .fetch_one(&app.state.pool)
+            .await
+            .unwrap();
+    assert_ne!(encrypted, "smtp-secret");
+}
+
+#[tokio::test]
 async fn test_first_user_setup_token() {
     let app = TestApp::new_with_setup_token(Some("one-time-bootstrap-secret")).await;
 
@@ -106,6 +200,7 @@ async fn test_first_user_setup_token() {
         .post(format!("{}/api/app/v1/auth/register", app.base))
         .json(&serde_json::json!({
             "username": "bootstrap",
+            "email": "bootstrap@example.com",
             "password": "password123",
             "display_name": "Bootstrap",
         }))
@@ -119,6 +214,7 @@ async fn test_first_user_setup_token() {
         .post(format!("{}/api/app/v1/auth/register", app.base))
         .json(&serde_json::json!({
             "username": "bootstrap",
+            "email": "bootstrap@example.com",
             "password": "password123",
             "display_name": "Bootstrap",
             "setup_token": "one-time-bootstrap-secret",

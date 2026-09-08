@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
@@ -8,17 +8,38 @@ import { useToast } from '@/components/Toast'
 
 export function ProfilePage() {
   const { t } = useTranslation()
-  const { me } = useAuth()
+  const { me, refresh } = useAuth()
   const { showError, showSuccess, element } = useToast()
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const { data: passkeys = [] } = useQuery({
     queryKey: ['passkeys'],
     queryFn: () => api.listPasskeys(),
   })
+  useEffect(() => {
+    setEmail(me?.email || '')
+    setDisplayName(me?.display_name || '')
+  }, [me?.email, me?.display_name])
   if (!me) return null
+
+  const saveProfile = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSavingProfile(true)
+    try {
+      await api.updateProfile(email, displayName)
+      await refresh()
+      showSuccess(t('profile.saved'))
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('profile.save'))
+    } finally {
+      setSavingProfile(false)
+    }
+  }
 
   const addPasskey = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -64,7 +85,6 @@ export function ProfilePage() {
   const rows = [
     { label: t('auth.username'), value: me.username },
     { label: t('profile.role'), value: me.tenant_role },
-    { label: t('profile.system_admin'), value: me.is_system_admin ? t('common.yes') : t('common.no') },
   ]
 
   return (
@@ -99,6 +119,21 @@ export function ProfilePage() {
             </div>
           ))}
         </div>
+
+        <form className="card" onSubmit={saveProfile} style={{ marginTop: 'var(--space-md)', display: 'grid', gap: 'var(--space-md)' }}>
+          <div>
+            <label className="label" htmlFor="profile-email">{t('auth.email')}</label>
+            <input id="profile-email" className="input" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            {!me.email ? <p className="passkey-hint">{t('profile.email_recovery_hint')}</p> : null}
+          </div>
+          <div>
+            <label className="label" htmlFor="profile-display-name">{t('auth.display_name')}</label>
+            <input id="profile-display-name" className="input" autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={savingProfile} style={{ justifySelf: 'start' }}>
+            {savingProfile ? t('common.loading') : t('profile.save')}
+          </button>
+        </form>
 
         <section style={{ marginTop: 'var(--space-xl)' }}>
           <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>

@@ -2,7 +2,7 @@ import type {
   AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Collection,
   CollectionNode, LinkWithTags, Link, Tag, AccessToken, AccessTokenCreated,
   SessionInfo, BatchResult, ApiError,
-  PasskeyInfo, PasskeyChallenge, SetupStatus,
+  PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings,
 } from './types'
 
 const BASE = '/api/app/v1'
@@ -36,10 +36,10 @@ class ApiClient {
   setupStatus() {
     return this.request<SetupStatus>('/auth/setup')
   }
-  register(username: string, password: string, display_name: string, setup_token?: string) {
+  register(username: string, email: string, password: string, display_name: string, setup_token?: string) {
     return this.request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, display_name, setup_token }),
+      body: JSON.stringify({ username, email, password, display_name, setup_token }),
     })
   }
   login(username: string, password: string) {
@@ -65,6 +65,28 @@ class ApiClient {
   }
   me() {
     return this.request<MeResponse>('/me')
+  }
+  updateProfile(email: string, display_name: string) {
+    return this.request<{ ok: boolean; email: string }>('/me', {
+      method: 'PUT', body: JSON.stringify({ email, display_name }),
+    })
+  }
+  forgotPassword(email: string) {
+    return this.request<{ ok: boolean }>('/auth/forgot-password', {
+      method: 'POST', body: JSON.stringify({ email }),
+    })
+  }
+  resetPassword(token: string, password: string) {
+    return this.request<{ ok: boolean }>('/auth/reset-password', {
+      method: 'POST', body: JSON.stringify({ token, password }),
+    })
+  }
+  smtpSettings() { return this.request<SmtpSettings>('/admin/smtp') }
+  updateSmtpSettings(settings: SmtpSettings & { password?: string }) {
+    return this.request<SmtpSettings>('/admin/smtp', { method: 'PUT', body: JSON.stringify(settings) })
+  }
+  testSmtp(email: string) {
+    return this.request<{ ok: boolean }>('/admin/smtp/test', { method: 'POST', body: JSON.stringify({ email }) })
   }
 
   // Passkeys

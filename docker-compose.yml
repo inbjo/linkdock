@@ -31,6 +31,7 @@ services:
       DOCK_WEBAUTHN_RP_ID: "${DOCK_WEBAUTHN_RP_ID:-localhost}"
       DOCK_WEBAUTHN_ORIGIN: "${DOCK_WEBAUTHN_ORIGIN:-http://localhost:3000}"
       DOCK_WEBAUTHN_RP_NAME: "${DOCK_WEBAUTHN_RP_NAME:-Linkdock}"
+      DOCK_PUBLIC_URL: "${DOCK_PUBLIC_URL:-http://localhost:3000}"
       DOCK_LOG_FORMAT: "${DOCK_LOG_FORMAT:-json}"
       RUST_LOG: "${RUST_LOG:-info,linkdock=debug}"
     volumes:

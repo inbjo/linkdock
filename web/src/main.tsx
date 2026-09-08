@@ -19,6 +19,8 @@ import { TokensPage } from '@/pages/TokensPage'
 import { SyncPage } from '@/pages/SyncPage'
 import { ImportExportPage } from '@/pages/ImportExportPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +37,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<AppLayout />}>
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/collections/:id" element={<BookmarksPage />} />

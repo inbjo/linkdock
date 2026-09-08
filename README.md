@@ -58,6 +58,7 @@ public HTTPS origin. For the `sina.dev` mirror:
 ```bash
 DOCK_WEBAUTHN_RP_ID=sina.dev
 DOCK_WEBAUTHN_ORIGIN=https://sina.dev
+DOCK_PUBLIC_URL=https://sina.dev
 ```
 
 ### With HTTPS (Caddy Reverse Proxy)
@@ -217,6 +218,7 @@ Authentication: Bearer token (`Authorization: Bearer lw_...`). Invalid tokens re
 | `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain (no scheme or port) |
 | `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |
 | `DOCK_WEBAUTHN_RP_NAME` | `Linkdock` | Service name shown by authenticators |
+| `DOCK_PUBLIC_URL` | `DOCK_WEBAUTHN_ORIGIN` | Public origin used in password-reset email links |
 | `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
 | `DOCK_PORT` | `3000` | Docker compose host port |

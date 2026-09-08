@@ -12,6 +12,7 @@ export function RegisterPage() {
   const { showError, showSuccess } = useToast()
   const { refresh } = useAuth()
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [setupToken, setSetupToken] = useState('')
@@ -36,7 +37,7 @@ export function RegisterPage() {
     }
     setLoading(true)
     try {
-      await api.register(username, password, displayName, setupToken || undefined)
+      await api.register(username, email, password, displayName, setupToken || undefined)
       await refresh()
       showSuccess(t('auth.register_success'))
       nav('/bookmarks')
@@ -137,6 +138,17 @@ export function RegisterPage() {
                 required
                 minLength={2}
                 autoComplete="username"
+              />
+            </div>
+            <div>
+              <label className="label">{t('auth.email')}</label>
+              <input
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
               />
             </div>
             <div>

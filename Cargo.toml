@@ -46,6 +46,8 @@ webauthn-rs = { version = "0.5", features = ["conditional-ui"] }
 webauthn-rs-proto = "0.5"
 reqwest = { version = "0.12", features = ["json", "cookies"], optional = true }
 tempfile = { version = "3", optional = true }
+aes-gcm = "0.10"
+lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1-rustls-tls"] }
 
 [target.x86_64-unknown-linux-musl.dependencies]
 # webauthn-rs uses OpenSSL for certificate and signature handling. Build its

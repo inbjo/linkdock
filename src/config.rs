@@ -12,6 +12,7 @@ pub struct Config {
     pub webauthn_rp_id: String,
     pub webauthn_rp_origin: String,
     pub webauthn_rp_name: String,
+    pub public_url: String,
     pub cors_origins: Vec<String>,
     pub max_upload_mb: usize,
     pub default_page_size: usize,
@@ -82,6 +83,10 @@ impl Config {
             .unwrap_or_else(|_| "http://localhost:3000".to_string());
         let webauthn_rp_name =
             std::env::var("DOCK_WEBAUTHN_RP_NAME").unwrap_or_else(|_| "Linkdock".to_string());
+        let public_url = std::env::var("DOCK_PUBLIC_URL")
+            .unwrap_or_else(|_| webauthn_rp_origin.clone())
+            .trim_end_matches('/')
+            .to_string();
         Self {
             database_url,
             data_dir,
@@ -93,6 +98,7 @@ impl Config {
             webauthn_rp_id,
             webauthn_rp_origin,
             webauthn_rp_name,
+            public_url,
             cors_origins,
             max_upload_mb: 50,
             default_page_size: 50,

@@ -38,6 +38,7 @@ impl TestApp {
             webauthn_rp_id: "localhost".to_string(),
             webauthn_rp_origin: "http://localhost".to_string(),
             webauthn_rp_name: "Linkdock Test".to_string(),
+            public_url: "http://localhost".to_string(),
             cors_origins: vec![],
             max_upload_mb: 50,
             default_page_size: 50,

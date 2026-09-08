@@ -144,6 +144,7 @@ export function LoginPage() {
             </div>
             <div>
               <label className="label">{t('auth.password')}</label>
+              <Link to="/forgot-password" className="auth-forgot-link">{t('auth.forgot_password')}</Link>
               <input
                 className="input"
                 type="password"

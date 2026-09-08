@@ -9,6 +9,7 @@ use subtle::ConstantTimeEq;
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequest {
     pub username: String,
+    pub email: String,
     pub password: String,
     #[serde(default)]
     pub display_name: String,
@@ -34,6 +35,7 @@ pub struct UserInfo {
     pub uuid: String,
     pub username: String,
     pub display_name: String,
+    pub email: Option<String>,
     pub is_system_admin: bool,
 }
 
@@ -58,6 +60,7 @@ impl AuthService {
 
     pub async fn register(state: &AppState, req: RegisterRequest) -> AppResult<AuthResponse> {
         let username = req.username.trim().to_string();
+        let email = crate::services::email::normalize_email(&req.email)?;
         if username.len() < 2 || username.len() > 64 {
             return Err(AppError::Validation("username length must be 2..64".into()));
         }
@@ -93,19 +96,20 @@ impl AuthService {
         let mut tx = state.pool.begin().await?;
 
         let user_row = sqlx::query(
-            r#"INSERT INTO users (uuid, username, password_hash, display_name, is_system_admin)
-               VALUES (?, ?, ?, ?, CASE WHEN NOT EXISTS (SELECT 1 FROM users) THEN 1 ELSE 0 END)
+            r#"INSERT INTO users (uuid, username, email, password_hash, display_name, is_system_admin)
+               VALUES (?, ?, ?, ?, ?, CASE WHEN NOT EXISTS (SELECT 1 FROM users) THEN 1 ELSE 0 END)
                RETURNING id, is_system_admin"#,
         )
         .bind(&user_uuid)
         .bind(&username)
+        .bind(&email)
         .bind(&hash)
         .bind(req.display_name.trim())
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| match e {
             sqlx::Error::Database(db) if db.code() == Some("2067".into()) => {
-                AppError::Conflict("username already taken".into())
+                AppError::Conflict("username or email already taken".into())
             }
             other => AppError::Internal(anyhow::anyhow!(other)),
         })?;
@@ -148,6 +152,7 @@ impl AuthService {
                 uuid: user_uuid,
                 username,
                 display_name: req.display_name.trim().to_string(),
+                email: Some(email),
                 is_system_admin,
             },
             session,
@@ -184,7 +189,7 @@ impl AuthService {
 
     pub async fn complete_login(state: &AppState, user_id: i64) -> AppResult<AuthResponse> {
         let row = sqlx::query(
-            "SELECT id, uuid, username, display_name, is_system_admin, disabled FROM users WHERE id = ?",
+            "SELECT id, uuid, username, display_name, email, is_system_admin, disabled FROM users WHERE id = ?",
         )
         .bind(user_id)
         .fetch_one(&state.pool)
@@ -195,6 +200,7 @@ impl AuthService {
         let user_uuid: String = row.try_get("uuid").unwrap_or_default();
         let username: String = row.try_get("username").unwrap_or_default();
         let display_name: String = row.try_get("display_name").unwrap_or_default();
+        let email: Option<String> = row.try_get("email").unwrap_or(None);
         let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
 
         // Resolve active tenant: first tenant the user is a member of.
@@ -223,6 +229,7 @@ impl AuthService {
                 uuid: user_uuid,
                 username,
                 display_name,
+                email,
                 is_system_admin: is_system_admin != 0,
             },
             session,
@@ -231,7 +238,7 @@ impl AuthService {
 
     pub async fn me(state: &AppState, user: &crate::auth::AuthUser) -> AppResult<UserInfo> {
         let row = sqlx::query(
-            "SELECT id, uuid, username, display_name, is_system_admin FROM users WHERE id = ?",
+            "SELECT id, uuid, username, display_name, email, is_system_admin FROM users WHERE id = ?",
         )
         .bind(user.user_id)
         .fetch_one(&state.pool)
@@ -241,6 +248,7 @@ impl AuthService {
             uuid: row.try_get("uuid").unwrap_or_default(),
             username: row.try_get("username").unwrap_or_default(),
             display_name: row.try_get("display_name").unwrap_or_default(),
+            email: row.try_get("email").unwrap_or(None),
             is_system_admin: row.try_get::<i64, _>("is_system_admin").unwrap_or(0) != 0,
         })
     }

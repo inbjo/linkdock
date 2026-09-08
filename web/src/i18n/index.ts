@@ -18,8 +18,8 @@ function detectInitialLocale(): SupportedLocale {
   if (stored === 'en' || stored === 'zh') return stored
 
   // 2. Browser language
-  const browser = navigator.language.toLowerCase()
-  if (browser.startsWith('zh')) return 'zh'
+  const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language]
+  if (browserLanguages.some((language) => language.toLowerCase().startsWith('zh'))) return 'zh'
 
   // 3. Default
   return 'en'

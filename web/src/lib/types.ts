@@ -3,6 +3,7 @@ export interface User {
   uuid: string
   username: string
   display_name: string
+  email: string | null
   is_system_admin: boolean
 }
 
@@ -18,9 +19,22 @@ export interface SetupStatus {
 export interface MeResponse {
   id: number
   username: string
+  display_name: string
+  email: string | null
   is_system_admin: boolean
   tenant_id: number
   tenant_role: 'owner' | 'admin' | 'editor' | 'viewer'
+}
+
+export interface SmtpSettings {
+  enabled: boolean
+  host: string
+  port: number
+  security: 'starttls' | 'tls' | 'none'
+  username: string
+  password_configured: boolean
+  from_email: string
+  from_name: string
 }
 
 export interface Tenant {

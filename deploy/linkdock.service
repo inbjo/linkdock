@@ -17,6 +17,7 @@ Environment=DOCK_SETUP_TOKEN=__SET_ME__
 # Set these to the public HTTPS host before enabling Passkey login.
 Environment=DOCK_WEBAUTHN_RP_ID=bookmarks.example.com
 Environment=DOCK_WEBAUTHN_ORIGIN=https://bookmarks.example.com
+Environment=DOCK_PUBLIC_URL=https://bookmarks.example.com
 Environment=RUST_LOG=info,linkdock=debug
 Restart=on-failure
 RestartSec=5

@@ -88,9 +88,9 @@ export function ProfilePage() {
   ]
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
       {element}
-      <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
+      <div className="page-container-narrow" style={{ maxWidth: '36rem', margin: '0 auto' }}>
         <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
           {t('settings.profile')}
         </div>

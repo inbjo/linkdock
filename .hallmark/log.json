@@ -1,3 +1,4 @@
 [
+  { "date": "2026-09-08", "macrostructure": "Workbench + Split Marquee", "theme": "Mobbin monochrome", "enrichment": "CSS bookmark rails on auth", "brief": "Linkdock whole-app Mobbin redesign", "scope": "app" },
   { "date": "2026-09-04", "macrostructure": "Workbench", "theme": "Cobalt", "enrichment": "none", "brief": "Linkdock · multi-page app redesign", "scope": "app" }
 ]

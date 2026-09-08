@@ -23,8 +23,8 @@ export function SyncPage() {
   const troubleshooting = [t('sync.help_403'), t('sync.help_redirect'), t('sync.help_root')]
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <div style={{ maxWidth: '40rem', margin: '0 auto' }}>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+      <div className="page-container-narrow" style={{ maxWidth: '40rem', margin: '0 auto' }}>
         <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
           {t('settings.sync')}
         </div>

@@ -107,9 +107,10 @@ export function BookmarksPage() {
   }, [])
 
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
+    <div className="bookmarks-shell" style={{ display: 'flex', height: '100%' }}>
       {/* Left: Collections */}
       <div
+        className="collections-panel"
         style={{
           width: '14rem',
           flexShrink: 0,
@@ -154,7 +155,7 @@ export function BookmarksPage() {
       </div>
 
       {/* Center: Link list */}
-      <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin">
+      <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin bookmarks-main">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
             {canWrite && links && links.length > 0 && (

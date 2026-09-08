@@ -55,9 +55,9 @@ export function TokensPage() {
   }
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <div style={{ maxWidth: '40rem', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-lg)' }}>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+      <div className="page-container-narrow" style={{ maxWidth: '40rem', margin: '0 auto' }}>
+        <div className="token-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-lg)' }}>
           <div>
             <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
               {t('settings.tokens')}
@@ -74,7 +74,7 @@ export function TokensPage() {
           </button>
         </div>
 
-        <div className="card-flat" style={{ marginBottom: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)', alignItems: 'center' }}>
+        <div className="card-flat token-workspace" style={{ marginBottom: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)', alignItems: 'center' }}>
           <div>
             <div className="section-label" style={{ marginBottom: 'var(--space-3xs)' }}>{t('tokens.bound_workspace')}</div>
             <div className="font-display" style={{ fontWeight: 600 }}>{currentWorkspace?.name || '—'}</div>
@@ -82,10 +82,11 @@ export function TokensPage() {
           <span className="badge">{t(`members.${me?.tenant_role || 'viewer'}`)}</span>
         </div>
 
-        <div className="card" style={{ padding: 0 }}>
+        <div className="card token-list" style={{ padding: 0 }}>
           {(tokens || []).map((tok: AccessToken, i: number) => (
             <div
               key={tok.id}
+              className="token-row"
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -95,8 +96,9 @@ export function TokensPage() {
               }}
             >
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="font-display" style={{ fontWeight: 500, fontSize: 'var(--text-sm)' }}>{tok.name}</div>
+                <div className="font-display token-row-title" style={{ fontWeight: 500, fontSize: 'var(--text-sm)' }}>{tok.name}</div>
                 <div
+                  className="token-row-meta"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 'var(--text-xs)',
@@ -107,6 +109,7 @@ export function TokensPage() {
                   {t('tokens.prefix')}: {tok.token_prefix}… · {t('tokens.scopes')}: {tok.scopes}
                 </div>
                 <div
+                  className="token-row-meta"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 'var(--text-xs)',
@@ -118,7 +121,7 @@ export function TokensPage() {
                   {tok.last_used_at ? ` · ${t('tokens.last_used')}: ${new Date(tok.last_used_at).toLocaleDateString()}` : ` · ${t('tokens.last_used')}: ${t('tokens.never')}`}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
+              <div className="token-row-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-2xs)', flexShrink: 0, marginLeft: 'var(--space-sm)' }}>
                 {tok.revoked_at ? (
                   <span className="badge badge-danger">{t('tokens.revoked')}</span>
                 ) : (

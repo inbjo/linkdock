@@ -1,30 +1,30 @@
-# Design — Linkdock
+# Design — Linkdock · Mobbin-derived
 
 A locked design system for this app. Every page redesign reads this file before
 emitting code. Do not regenerate per page — extend or amend this file when the
 system needs to grow.
 
 ## Genre
-modern-minimal
+modern-minimal — gallery-white, monochrome and content-first
 
 ## Macrostructure family
-- Auth pages: Marquee Hero — single bold statement fills viewport
-- App pages: Workbench — product UI is the primary content, guided by function
-- Content/setup pages: Long Document — reads like a memo, continuous prose with inline section heads
+- Auth pages: Split Marquee — inverse editorial statement plus kinetic bookmark rails
+- App pages: Workbench — soft navigation island, generous canvas and function-led content
+- Content/setup pages: Long Document — quiet single-column reading rhythm
 
 ## Theme
-Cobalt — cool engineered paper, one electric cobalt accent.
+Mobbin monochrome — pure gallery canvas, near-black ink, neutral tint ladder and one scarce electric-blue accent.
 
 ### Light
-- `--color-paper`      oklch(98.5% 0.002 250)
-- `--color-paper-2`    oklch(96% 0.003 250)
-- `--color-paper-3`    oklch(93% 0.004 250)
-- `--color-ink`        oklch(22% 0.02 260)
-- `--color-ink-2`      oklch(48% 0.015 260)
-- `--color-rule`       oklch(91% 0.004 250)
-- `--color-accent`     oklch(55% 0.22 255)
-- `--color-accent-ink` oklch(98% 0.01 250)
-- `--color-focus`      oklch(55% 0.22 255)
+- `--color-paper`      oklch(100% 0 0)
+- `--color-paper-2`    oklch(96.5% 0 0)
+- `--color-paper-3`    oklch(94.8% 0 0)
+- `--color-ink`        oklch(19% 0 0)
+- `--color-ink-2`      oklch(52% 0 0)
+- `--color-rule`       oklch(91% 0 0)
+- `--color-accent`     oklch(56% 0.24 260)
+- `--color-accent-ink` oklch(100% 0 0)
+- `--color-focus`      oklch(56% 0.24 260)
 - `--color-danger`     oklch(58% 0.24 27)
 - `--color-success`    oklch(60% 0.17 155)
 
@@ -42,8 +42,8 @@ Cobalt — cool engineered paper, one electric cobalt accent.
 - `--color-success`    oklch(70% 0.17 155)
 
 ## Typography
-- Display: Space Grotesk, weight 500–700, style normal, tracking -0.02em
-- Body: Inter, weight 400–500
+- Display: Hanken Grotesk, variable weight 600–650, style normal
+- Body: Hanken Grotesk, variable weight 300–500
 - Mono: JetBrains Mono, weight 400–500
 - Display tracking: -0.02em
 - Type scale anchor: --text-display = clamp(2rem, 4vw, 3rem)
@@ -62,22 +62,22 @@ Cobalt — cool engineered paper, one electric cobalt accent.
 - Optimistic update + Undo over confirmation dialogs where feasible
 
 ## CTA voice
-- Primary CTA: cobalt-filled pill, white ink, 6px radius, 0.5rem 1rem padding
-- Secondary CTA: outlined pill, ink border, transparent fill, same radius
-- Danger: red-filled pill, same shape
+- Primary CTA: near-black stadium pill with white ink
+- Secondary CTA: neutral-tint stadium pill without shadow
+- Danger: quiet outlined pill until hover
 
 ## Per-page allowances
-- Auth pages: typography only, centered, generous whitespace
-- App pages: function carries the page — no enrichment, tight controls
+- Auth pages: inverse panel may use the bookmark-rail CSS composition
+- App pages: function carries the page — no decorative enrichment, generous controls
 - Content/setup pages: typography only, prose-led
 - Admin: data tables, minimal chrome
 
 ## What pages MUST share
-- The wordmark / logotype: "Linkdock" in Space Grotesk 700
-- The accent colour and its placement (≤ 5% per viewport)
+- The wordmark / logotype: "Linkdock" in Hanken Grotesk 700
+- The accent colour and its placement (≤ 3% per viewport)
 - The display + body + mono fonts
-- The CTA voice (pill shape, 6px radius, padding rhythm)
-- Section heading rhythm: label (mono uppercase) + display heading
+- The CTA voice (stadium shape and near-black primary fill)
+- Section heading rhythm: sentence-case label above a heavy display heading
 
 ## What pages MAY differ on
 - Layout within the page-type family
@@ -90,20 +90,20 @@ Cobalt — cool engineered paper, one electric cobalt accent.
 See `web/src/styles/tokens.css` — the canonical token file.
 
 ### Tailwind v4 @theme
-Mirrored in `web/src/styles/index.css` via `@theme inline`.
+Mirrored in `web/src/styles/mobbin.css` via `@theme inline`.
 
 ### shadcn/ui CSS variables
 ```css
 :root {
-  --background:         98.5% 0.002 250;  /* paper */
-  --foreground:         22% 0.02 260;     /* ink */
-  --primary:            55% 0.22 255;    /* accent */
-  --primary-foreground: 98% 0.01 250;    /* accent-ink */
-  --muted:              96% 0.003 250;   /* paper-2 */
-  --muted-foreground:   48% 0.015 260;   /* ink-2 */
-  --border:             91% 0.004 250;   /* rule */
-  --input:              91% 0.004 250;   /* rule */
-  --ring:               55% 0.22 255;   /* focus */
-  --radius:             6px;
+  --background:         100% 0 0;        /* paper */
+  --foreground:         19% 0 0;         /* ink */
+  --primary:            19% 0 0;         /* near-black CTA */
+  --primary-foreground: 100% 0 0;
+  --muted:              96.5% 0 0;       /* paper-2 */
+  --muted-foreground:   52% 0 0;         /* ink-2 */
+  --border:             91% 0 0;         /* rule */
+  --input:              95.5% 0 0;       /* field */
+  --ring:               56% 0.24 260;    /* electric-blue focus */
+  --radius:             16px;
 }
 ```

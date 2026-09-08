@@ -61,8 +61,8 @@ export function AdminPage() {
   if (!me.is_system_admin) return <Navigate to="/bookmarks" replace />
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+      <div className="page-container" style={{ maxWidth: '56rem', margin: '0 auto' }}>
         <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
           {t('nav.admin')}
         </div>

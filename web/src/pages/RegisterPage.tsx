@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 import { SettingsBar } from '@/components/SettingsBar'
+import { AuthScene } from '@/components/AuthScene'
 
 export function RegisterPage() {
   const { t } = useTranslation()
@@ -49,11 +50,11 @@ export function RegisterPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+    <div className="auth-shell" style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
       <SettingsBar />
 
       {/* Left: brand panel */}
-      <div
+      <div className="auth-brand-panel"
         style={{
           flex: '1 1 50%',
           display: 'flex',
@@ -64,9 +65,9 @@ export function RegisterPage() {
           borderRight: '1px solid var(--color-rule)',
         }}
       >
-        <div style={{ maxWidth: '28rem' }}>
+        <div className="auth-brand-copy" style={{ maxWidth: '28rem' }}>
           <div
-            className="font-display"
+            className="font-display auth-wordmark"
             style={{
               fontSize: 'var(--text-display)',
               fontWeight: 700,
@@ -77,7 +78,7 @@ export function RegisterPage() {
           >
             {t('app.name')}
           </div>
-          <div
+          <div className="auth-tagline"
             style={{
               marginTop: 'var(--space-md)',
               fontSize: 'var(--text-md)',
@@ -89,7 +90,7 @@ export function RegisterPage() {
             {t('sync.intro')}
           </div>
           <div
-            className="font-mono"
+            className="font-mono auth-proof"
             style={{
               marginTop: 'var(--space-xl)',
               fontSize: 'var(--text-xs)',
@@ -100,10 +101,11 @@ export function RegisterPage() {
             Floccus-compatible · Self-hosted · Open source
           </div>
         </div>
+        <AuthScene />
       </div>
 
       {/* Right: form */}
-      <div
+      <div className="auth-form-panel"
         style={{
           flex: '1 1 50%',
           display: 'flex',
@@ -112,7 +114,7 @@ export function RegisterPage() {
           padding: 'var(--space-xl)',
         }}
       >
-        <div style={{ width: '100%', maxWidth: '22rem' }}>
+        <div className="auth-form-card mx-auto w-full" style={{ width: '100%', maxWidth: '22rem' }}>
           <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
             {t('auth.register')}
           </div>

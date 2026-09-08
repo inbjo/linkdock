@@ -1,0 +1,102 @@
+/* Hallmark · tokens.css · theme: Mobbin monochrome · genre: modern-minimal */
+:root {
+  --color-paper: oklch(100% 0 0);
+  --color-paper-2: oklch(96.5% 0 0);
+  --color-paper-3: oklch(94.8% 0 0);
+  --color-field: oklch(95.5% 0 0);
+  --color-ink: oklch(19% 0 0);
+  --color-ink-soft: oklch(25% 0 0);
+  --color-ink-2: oklch(52% 0 0);
+  --color-ink-3: oklch(70% 0 0);
+  --color-rule: oklch(91% 0 0);
+  --color-rule-strong: oklch(84% 0 0);
+  --color-accent: oklch(56% 0.24 260);
+  --color-accent-hover: oklch(49% 0.23 260);
+  --color-accent-ink: oklch(100% 0 0);
+  --color-accent-subtle: oklch(96% 0.035 260);
+  --color-focus: oklch(56% 0.24 260);
+  --color-danger: oklch(55% 0.2 25);
+  --color-danger-hover: oklch(48% 0.19 25);
+  --color-danger-ink: oklch(100% 0 0);
+  --color-success: oklch(38% 0.08 150);
+  --color-warning: oklch(58% 0.13 78);
+  --color-inverse: oklch(19% 0 0);
+  --color-inverse-ink: oklch(98% 0 0);
+  --color-inverse-muted: oklch(72% 0 0);
+
+  --font-display: "Hanken Grotesk", "Noto Sans SC", sans-serif;
+  --font-body: "Hanken Grotesk", "Noto Sans SC", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 5rem;
+  --space-3xl: 7.5rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.5rem;
+  --text-xl: 2rem;
+  --text-2xl: 2.75rem;
+  --text-display: clamp(3rem, 7vw, 6rem);
+  --text-display-s: clamp(2rem, 4vw, 3.5rem);
+  --radius-sm: 1rem;
+  --radius: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-pill: 9999px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-short: 160ms;
+  --dur: 240ms;
+  --dur-long: 520ms;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-lg: 0 24px 80px oklch(0% 0 0 / 0.16);
+  --shadow-drawer: -24px 0 80px oklch(0% 0 0 / 0.12);
+}
+
+html[data-theme="dark"] {
+  --color-paper: oklch(16% 0 0);
+  --color-paper-2: oklch(20% 0 0);
+  --color-paper-3: oklch(24% 0 0);
+  --color-field: oklch(23% 0 0);
+  --color-ink: oklch(96% 0 0);
+  --color-ink-soft: oklch(88% 0 0);
+  --color-ink-2: oklch(71% 0 0);
+  --color-ink-3: oklch(57% 0 0);
+  --color-rule: oklch(27% 0 0);
+  --color-rule-strong: oklch(35% 0 0);
+  --color-accent: oklch(67% 0.2 260);
+  --color-accent-hover: oklch(74% 0.18 260);
+  --color-accent-subtle: oklch(25% 0.055 260);
+  --color-inverse: oklch(96% 0 0);
+  --color-inverse-ink: oklch(16% 0 0);
+  --color-inverse-muted: oklch(42% 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] {
+    --color-paper: oklch(16% 0 0);
+    --color-paper-2: oklch(20% 0 0);
+    --color-paper-3: oklch(24% 0 0);
+    --color-field: oklch(23% 0 0);
+    --color-ink: oklch(96% 0 0);
+    --color-ink-soft: oklch(88% 0 0);
+    --color-ink-2: oklch(71% 0 0);
+    --color-ink-3: oklch(57% 0 0);
+    --color-rule: oklch(27% 0 0);
+    --color-rule-strong: oklch(35% 0 0);
+    --color-accent: oklch(67% 0.2 260);
+    --color-accent-hover: oklch(74% 0.18 260);
+    --color-accent-subtle: oklch(25% 0.055 260);
+    --color-inverse: oklch(96% 0 0);
+    --color-inverse-ink: oklch(16% 0 0);
+    --color-inverse-muted: oklch(42% 0 0);
+  }
+}

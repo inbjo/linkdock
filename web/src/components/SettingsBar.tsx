@@ -8,7 +8,7 @@ export function SettingsBar() {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <div style={{ position: 'fixed', top: 'var(--space-md)', right: 'var(--space-md)', display: 'flex', gap: 'var(--space-2xs)', zIndex: 50 }}>
+    <div className="auth-settings-bar" style={{ position: 'fixed', top: 'var(--space-md)', right: 'var(--space-md)', display: 'flex', gap: 'var(--space-2xs)', zIndex: 50 }}>
       <select
         className="input"
         style={{ width: 'auto', padding: 'var(--space-3xs) var(--space-2xs)', fontSize: 'var(--text-xs)' }}

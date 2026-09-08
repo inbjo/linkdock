@@ -49,8 +49,8 @@ export function MembersPage() {
   const canManage = me.tenant_role === 'owner' || me.tenant_role === 'admin'
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <div style={{ maxWidth: '40rem', margin: '0 auto' }}>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+      <div className="page-container-narrow" style={{ maxWidth: '40rem', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-lg)' }}>
           <div>
             <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>

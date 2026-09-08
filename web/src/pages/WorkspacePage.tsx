@@ -51,8 +51,8 @@ export function WorkspacePage() {
   const canManage = me.tenant_role === 'owner' || me.tenant_role === 'admin'
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin">
-      <div style={{ maxWidth: '36rem', margin: '0 auto' }}>
+    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+      <div className="page-container-narrow" style={{ maxWidth: '36rem', margin: '0 auto' }}>
         <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
           {t('settings.workspace')}
         </div>

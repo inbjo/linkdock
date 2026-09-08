@@ -21,6 +21,7 @@ export function LinkCard({ link, selected, onSelect, onClick, readOnly = false }
 
   return (
     <div
+      className={`link-card${selected ? ' is-selected' : ''}`}
       style={{
         display: 'flex',
         gap: 'var(--space-xs)',

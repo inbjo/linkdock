@@ -49,6 +49,7 @@ export function AppLayout() {
   const navItem = (to: string, label: string) => (
     <NavLink
       to={to}
+      className="app-nav-link"
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -69,9 +70,10 @@ export function AppLayout() {
   )
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
       <aside
+        className="app-sidebar"
         style={{
           width: '15rem',
           flexShrink: 0,
@@ -83,7 +85,7 @@ export function AppLayout() {
         }}
       >
         {/* Brand + workspace selector */}
-        <div style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
+        <div className="app-brand-block" style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
           <div
             className="font-display"
             style={{ fontWeight: 700, fontSize: 'var(--text-md)', letterSpacing: '-0.02em', color: 'var(--color-ink)' }}
@@ -150,7 +152,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin">
+        <nav style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin app-nav">
           <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
             {t('nav.bookmarks')}
           </div>
@@ -158,7 +160,7 @@ export function AppLayout() {
           {navItem('/search', t('nav.search'))}
           {navItem('/trash', t('nav.trash'))}
 
-          <div style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
+          <div className="divider" style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
 
           <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
             {t('nav.settings')}
@@ -172,7 +174,7 @@ export function AppLayout() {
 
           {me.is_system_admin && (
             <>
-              <div style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
+              <div className="divider" style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
               <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
                 {t('nav.admin')}
               </div>
@@ -182,7 +184,7 @@ export function AppLayout() {
         </nav>
 
         {/* Footer: locale + theme + user */}
-        <div style={{ padding: 'var(--space-xs)', borderTop: '1px solid var(--color-rule)' }}>
+        <div className="app-sidebar-footer" style={{ padding: 'var(--space-xs)', borderTop: '1px solid var(--color-rule)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-2xs)', marginBottom: 'var(--space-2xs)' }}>
             <select
               className="input"
@@ -226,7 +228,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto' }} className="scrollbar-thin">
+      <main style={{ flex: 1, overflow: 'auto' }} className="scrollbar-thin app-main min-w-0">
         <Outlet />
       </main>
       {element}

@@ -32,14 +32,10 @@ export function LoginPage() {
     }
   }
 
-  const loginWithPasskey = async () => {
-    if (!username.trim()) {
-      showError(t('auth.passkey_username_required'))
-      return
-    }
+  const loginWithPasskey = async (legacyUsername?: string) => {
     setPasskeyLoading(true)
     try {
-      const challenge = await api.startPasskeyLogin(username)
+      const challenge = await api.startPasskeyLogin(legacyUsername)
       const credential = await getPasskey(challenge.options)
       await api.finishPasskeyLogin(challenge.flow_id, credential)
       await refresh()
@@ -143,7 +139,7 @@ export function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
                 required
-                autoComplete="username"
+                autoComplete="username webauthn"
               />
             </div>
             <div>
@@ -166,7 +162,7 @@ export function LoginPage() {
             className="btn passkey-button"
             type="button"
             disabled={passkeyLoading || !isPasskeySupported()}
-            onClick={loginWithPasskey}
+            onClick={() => loginWithPasskey()}
             style={{ width: '100%' }}
           >
             <span aria-hidden="true" className="passkey-icon">⌁</span>
@@ -174,6 +170,17 @@ export function LoginPage() {
           </button>
           {!isPasskeySupported() ? (
             <p className="passkey-hint">{t('auth.passkey_unsupported')}</p>
+          ) : null}
+          {isPasskeySupported() && username.trim() ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={passkeyLoading}
+              onClick={() => loginWithPasskey(username.trim())}
+              style={{ width: '100%', marginTop: 'var(--space-xs)', justifyContent: 'center' }}
+            >
+              {t('auth.passkey_username_fallback')}
+            </button>
           ) : null}
           <p style={{ marginTop: 'var(--space-lg)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)' }}>
             {t('auth.no_account')}{' '}

@@ -1269,6 +1269,7 @@ dependencies = [
  "url",
  "uuid",
  "webauthn-rs",
+ "webauthn-rs-proto",
 ]
 
 [[package]]

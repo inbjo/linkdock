@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use url::Url;
 use webauthn_rs::prelude::{
-    CreationChallengeResponse, Passkey, PublicKeyCredential, RegisterPublicKeyCredential,
-    RequestChallengeResponse, Webauthn, WebauthnBuilder,
+    AuthenticationResult, CreationChallengeResponse, DiscoverableKey, Passkey, PublicKeyCredential,
+    RegisterPublicKeyCredential, RequestChallengeResponse, Webauthn, WebauthnBuilder,
 };
+use webauthn_rs_proto::ResidentKeyRequirement;
 
 const CHALLENGE_TTL_MINUTES: i64 = 5;
+const MAX_PENDING_CHALLENGES: usize = 1024;
 
 #[derive(Debug, Serialize)]
 pub struct PasskeyInfo {
@@ -36,7 +38,7 @@ pub struct RegisterFinishRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct LoginStartRequest {
-    pub username: String,
+    pub username: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,7 +88,7 @@ impl PasskeyService {
             .map(|credential| credential.cred_id().clone())
             .collect::<Vec<_>>();
         let webauthn = webauthn(state)?;
-        let (options, registration) = webauthn
+        let (mut options, registration) = webauthn
             .start_passkey_registration(
                 user_uuid,
                 &username,
@@ -98,9 +100,13 @@ impl PasskeyService {
                 (!exclude.is_empty()).then_some(exclude),
             )
             .map_err(webauthn_error)?;
+        if let Some(selection) = options.public_key.authenticator_selection.as_mut() {
+            selection.resident_key = Some(ResidentKeyRequirement::Required);
+            selection.require_resident_key = true;
+        }
         let flow_id = store_challenge(
             state,
-            user.user_id,
+            Some(user.user_id),
             WebauthnChallengeState::Registration(registration),
         )
         .await;
@@ -121,6 +127,9 @@ impl PasskeyService {
         let registration = match consume_challenge(state, &req.flow_id, user.user_id).await? {
             WebauthnChallengeState::Registration(registration) => registration,
             WebauthnChallengeState::Authentication(_) => {
+                return Err(AppError::Validation("invalid passkey challenge".into()))
+            }
+            WebauthnChallengeState::DiscoverableAuthentication(_) => {
                 return Err(AppError::Validation("invalid passkey challenge".into()))
             }
         };
@@ -175,8 +184,21 @@ impl PasskeyService {
         state: &AppState,
         req: LoginStartRequest,
     ) -> AppResult<ChallengeResponse<RequestChallengeResponse>> {
+        let Some(username) = req.username.filter(|username| !username.trim().is_empty()) else {
+            let (options, authentication) = webauthn(state)?
+                .start_discoverable_authentication()
+                .map_err(webauthn_error)?;
+            let flow_id = store_challenge(
+                state,
+                None,
+                WebauthnChallengeState::DiscoverableAuthentication(authentication),
+            )
+            .await;
+            return Ok(ChallengeResponse { flow_id, options });
+        };
+
         let row = sqlx::query("SELECT id, disabled FROM users WHERE username = ?")
-            .bind(req.username.trim())
+            .bind(username.trim())
             .fetch_optional(&state.pool)
             .await?;
         let user_id = match row {
@@ -194,7 +216,7 @@ impl PasskeyService {
             .map_err(webauthn_error)?;
         let flow_id = store_challenge(
             state,
-            user_id,
+            Some(user_id),
             WebauthnChallengeState::Authentication(authentication),
         )
         .await;
@@ -205,26 +227,73 @@ impl PasskeyService {
         state: &AppState,
         req: LoginFinishRequest,
     ) -> AppResult<AuthResponse> {
-        let (user_id, authentication) = consume_login_challenge(state, &req.flow_id).await?;
-        let result = webauthn(state)?
-            .finish_passkey_authentication(&req.credential, &authentication)
-            .map_err(webauthn_error)?;
+        let pending = consume_login_challenge(state, &req.flow_id).await?;
+        let webauthn = webauthn(state)?;
+        let (user_id, result) = match pending.state {
+            WebauthnChallengeState::Authentication(authentication) => {
+                let user_id = pending
+                    .user_id
+                    .ok_or_else(|| AppError::Validation("invalid passkey challenge".into()))?;
+                let result = webauthn
+                    .finish_passkey_authentication(&req.credential, &authentication)
+                    .map_err(webauthn_error)?;
+                (user_id, result)
+            }
+            WebauthnChallengeState::DiscoverableAuthentication(authentication) => {
+                let (user_uuid, credential_id) = webauthn
+                    .identify_discoverable_authentication(&req.credential)
+                    .map_err(webauthn_error)?;
+                let user_row = sqlx::query("SELECT id FROM users WHERE uuid = ? AND disabled = 0")
+                    .bind(user_uuid.to_string())
+                    .fetch_optional(&state.pool)
+                    .await?
+                    .ok_or_else(|| AppError::Validation("passkey login failed".into()))?;
+                let user_id: i64 = user_row.try_get("id").unwrap_or_default();
+                let credentials = load_credentials(state, user_id).await?;
+                let credential = credentials
+                    .iter()
+                    .find(|credential| credential.cred_id().as_ref() == credential_id)
+                    .ok_or_else(|| AppError::Validation("passkey login failed".into()))?;
+                let discoverable = [DiscoverableKey::from(credential)];
+                let result = webauthn
+                    .finish_discoverable_authentication(
+                        &req.credential,
+                        authentication,
+                        &discoverable,
+                    )
+                    .map_err(webauthn_error)?;
+                (user_id, result)
+            }
+            WebauthnChallengeState::Registration(_) => {
+                return Err(AppError::Validation("invalid passkey challenge".into()))
+            }
+        };
 
-        let rows = sqlx::query("SELECT id, credential_json FROM passkeys WHERE user_id = ?")
-            .bind(user_id)
-            .fetch_all(&state.pool)
-            .await?;
-        let mut matched = false;
-        for row in rows {
-            let mut passkey: Passkey = serde_json::from_str(
-                &row.try_get::<String, _>("credential_json")
-                    .unwrap_or_default(),
-            )
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-            if passkey.update_credential(&result).is_some() {
-                let credential_json = serde_json::to_string(&passkey)
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-                sqlx::query(
+        update_authenticated_credential(state, user_id, &result).await?;
+        AuthService::complete_login(state, user_id).await
+    }
+}
+
+async fn update_authenticated_credential(
+    state: &AppState,
+    user_id: i64,
+    result: &AuthenticationResult,
+) -> AppResult<()> {
+    let rows = sqlx::query("SELECT id, credential_json FROM passkeys WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_all(&state.pool)
+        .await?;
+    let mut matched = false;
+    for row in rows {
+        let mut passkey: Passkey = serde_json::from_str(
+            &row.try_get::<String, _>("credential_json")
+                .unwrap_or_default(),
+        )
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        if passkey.update_credential(result).is_some() {
+            let credential_json = serde_json::to_string(&passkey)
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+            sqlx::query(
                     "UPDATE passkeys SET credential_json = ?, last_used_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND user_id = ?",
                 )
                 .bind(credential_json)
@@ -232,15 +301,14 @@ impl PasskeyService {
                 .bind(user_id)
                 .execute(&state.pool)
                 .await?;
-                matched = true;
-                break;
-            }
+            matched = true;
+            break;
         }
-        if !matched {
-            return Err(AppError::Validation("passkey login failed".into()));
-        }
-        AuthService::complete_login(state, user_id).await
     }
+    if !matched {
+        return Err(AppError::Validation("passkey login failed".into()));
+    }
+    Ok(())
 }
 
 fn webauthn(state: &AppState) -> AppResult<Webauthn> {
@@ -271,13 +339,22 @@ async fn load_credentials(state: &AppState, user_id: i64) -> AppResult<Vec<Passk
 
 async fn store_challenge(
     state: &AppState,
-    user_id: i64,
+    user_id: Option<i64>,
     challenge: WebauthnChallengeState,
 ) -> String {
     let flow_id = uuid::Uuid::new_v4().to_string();
     let now = tokio::time::Instant::now();
     let mut challenges = state.webauthn_challenges.lock().await;
     challenges.retain(|_, pending| pending.expires_at > now);
+    if challenges.len() >= MAX_PENDING_CHALLENGES {
+        if let Some(oldest) = challenges
+            .iter()
+            .min_by_key(|(_, pending)| pending.expires_at)
+            .map(|(flow_id, _)| flow_id.clone())
+        {
+            challenges.remove(&oldest);
+        }
+    }
     challenges.insert(
         flow_id.clone(),
         WebauthnChallenge {
@@ -300,16 +377,13 @@ async fn consume_challenge(
         .await
         .remove(flow_id)
         .filter(|pending| {
-            pending.user_id == user_id && pending.expires_at > tokio::time::Instant::now()
+            pending.user_id == Some(user_id) && pending.expires_at > tokio::time::Instant::now()
         })
         .ok_or_else(|| AppError::Validation("passkey challenge expired".into()))?;
     Ok(pending.state)
 }
 
-async fn consume_login_challenge(
-    state: &AppState,
-    flow_id: &str,
-) -> AppResult<(i64, webauthn_rs::prelude::PasskeyAuthentication)> {
+async fn consume_login_challenge(state: &AppState, flow_id: &str) -> AppResult<WebauthnChallenge> {
     let pending = state
         .webauthn_challenges
         .lock()
@@ -318,9 +392,8 @@ async fn consume_login_challenge(
         .filter(|pending| pending.expires_at > tokio::time::Instant::now())
         .ok_or_else(|| AppError::Validation("passkey challenge expired".into()))?;
     match pending.state {
-        WebauthnChallengeState::Authentication(authentication) => {
-            Ok((pending.user_id, authentication))
-        }
+        WebauthnChallengeState::Authentication(_)
+        | WebauthnChallengeState::DiscoverableAuthentication(_) => Ok(pending),
         WebauthnChallengeState::Registration(_) => {
             Err(AppError::Validation("invalid passkey challenge".into()))
         }

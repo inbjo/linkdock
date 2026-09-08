@@ -48,10 +48,10 @@ class ApiClient {
       body: JSON.stringify({ username, password }),
     })
   }
-  startPasskeyLogin(username: string) {
+  startPasskeyLogin(username?: string) {
     return this.request<PasskeyChallenge>('/auth/passkey/start', {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify(username ? { username } : {}),
     })
   }
   finishPasskeyLogin(flowId: string, credential: Record<string, unknown>) {

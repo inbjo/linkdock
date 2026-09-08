@@ -150,6 +150,32 @@ async fn test_passkey_registration_start_and_login_privacy() {
     assert!(body["flow_id"].as_str().is_some());
     assert!(body["options"]["publicKey"]["challenge"].as_str().is_some());
     assert_eq!(body["options"]["publicKey"]["rp"]["id"], "localhost");
+    assert_eq!(
+        body["options"]["publicKey"]["authenticatorSelection"]["residentKey"],
+        "required"
+    );
+    assert_eq!(
+        body["options"]["publicKey"]["authenticatorSelection"]["requireResidentKey"],
+        true
+    );
+
+    let discoverable = app
+        .client
+        .post(format!("{}/api/app/v1/auth/passkey/start", app.base))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(discoverable.status(), StatusCode::OK);
+    let discoverable: Value = discoverable.json().await.unwrap();
+    assert!(discoverable["flow_id"].as_str().is_some());
+    assert!(discoverable["options"]["publicKey"]["challenge"]
+        .as_str()
+        .is_some());
+    assert_eq!(
+        discoverable["options"]["publicKey"]["allowCredentials"],
+        serde_json::json!([])
+    );
 
     let no_key = app
         .client

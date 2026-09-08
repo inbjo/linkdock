@@ -96,27 +96,28 @@ impl ImportService {
         // Folder paths are created at root level (parent_id = NULL).
         // Bookmarks with no folder path go into an "Uncategorized" collection,
         // which is created lazily only if such bookmarks actually exist.
-        let (fallback_collection_id, first_level_parent): (Option<i64>, Option<i64>) =
-            match req.target_collection_id {
-                Some(id) => {
-                    let count: i64 = sqlx::query_scalar(
+        let (fallback_collection_id, first_level_parent): (Option<i64>, Option<i64>) = match req
+            .target_collection_id
+        {
+            Some(id) => {
+                let count: i64 = sqlx::query_scalar(
                         "SELECT COUNT(*) FROM collections WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL",
                     )
                     .bind(id)
                     .bind(tenant_id)
                     .fetch_one(&mut *tx)
                     .await?;
-                    if count == 0 {
-                        return Err(AppError::NotFound);
-                    }
-                    (Some(id), Some(id))
+                if count == 0 {
+                    return Err(AppError::NotFound);
                 }
-                None => {
-                    // first_level_parent = None means folders are created at root (parent_id = NULL)
-                    // fallback_collection_id = None means Uncategorized will be created lazily
-                    (None, None)
-                }
-            };
+                (Some(id), Some(id))
+            }
+            None => {
+                // first_level_parent = None means folders are created at root (parent_id = NULL)
+                // fallback_collection_id = None means Uncategorized will be created lazily
+                (None, None)
+            }
+        };
 
         // Cache for folder path -> collection id.
         let mut col_cache: HashMap<String, Option<i64>> = HashMap::new();
@@ -130,13 +131,15 @@ impl ImportService {
         for (i, bm) in req.bookmarks.iter().enumerate() {
             match import_one(
                 &mut tx,
-                tenant_id,
-                user.user_id,
                 bm,
-                &mut col_cache,
-                fallback_collection_id,
-                first_level_parent,
-                &req.duplicate_strategy,
+                ImportContext {
+                    tenant_id,
+                    user_id: user.user_id,
+                    col_cache: &mut col_cache,
+                    fallback_collection_id,
+                    first_level_parent,
+                    duplicate_strategy: &req.duplicate_strategy,
+                },
             )
             .await
             {
@@ -169,16 +172,28 @@ enum ImportOutcome {
     Updated,
 }
 
-async fn import_one(
-    tx: &mut sqlx::SqliteConnection,
+struct ImportContext<'a> {
     tenant_id: i64,
     user_id: i64,
-    bm: &ParsedBookmark,
-    col_cache: &mut HashMap<String, Option<i64>>,
+    col_cache: &'a mut HashMap<String, Option<i64>>,
     fallback_collection_id: Option<i64>,
     first_level_parent: Option<i64>,
-    duplicate_strategy: &str,
+    duplicate_strategy: &'a str,
+}
+
+async fn import_one(
+    tx: &mut sqlx::SqliteConnection,
+    bm: &ParsedBookmark,
+    context: ImportContext<'_>,
 ) -> AppResult<ImportOutcome> {
+    let ImportContext {
+        tenant_id,
+        user_id,
+        col_cache,
+        fallback_collection_id,
+        first_level_parent,
+        duplicate_strategy,
+    } = context;
     // Validate URL.
     let url = bm.url.trim().to_string();
     if url.is_empty() || url.len() > 8000 {
@@ -196,7 +211,9 @@ async fn import_one(
 
     // Resolve collection from folder path.
     // If folder_path is empty, use the fallback collection (target or lazily-created Uncategorized).
-    let collection_id = if bm.folder_path.is_empty() || bm.folder_path.iter().all(|f| f.trim().is_empty()) {
+    let collection_id = if bm.folder_path.is_empty()
+        || bm.folder_path.iter().all(|f| f.trim().is_empty())
+    {
         match fallback_collection_id {
             Some(id) => id,
             None => {
@@ -225,8 +242,15 @@ async fn import_one(
             }
         }
     } else {
-        resolve_collection_path(tx, tenant_id, user_id, &bm.folder_path, col_cache, first_level_parent)
-            .await?
+        resolve_collection_path(
+            tx,
+            tenant_id,
+            user_id,
+            &bm.folder_path,
+            col_cache,
+            first_level_parent,
+        )
+        .await?
     };
 
     // Check for duplicate URL in the same collection.
@@ -619,8 +643,8 @@ fn parse_xbel(content: &str) -> AppResult<Vec<ParsedBookmark>> {
 /// Also checks the current line (index `start`) in case title is inline.
 fn look_ahead_title(lines: &[&str], start: usize, max_lines: usize) -> Option<String> {
     let end = (start + max_lines + 1).min(lines.len());
-    for j in start..end {
-        let trimmed = lines[j].trim();
+    for line in lines.iter().take(end).skip(start) {
+        let trimmed = line.trim();
         if let Some(title) = extract_tag(trimmed, "title") {
             if !title.is_empty() {
                 return Some(decode_html_entities(&title));

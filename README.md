@@ -150,7 +150,7 @@ one-way server-to-browser strategy; owner, admin, and editor roles may use bidir
 | POST | `/auth/register` | Register a new user |
 | GET | `/auth/setup` | Check first-account initialization requirements |
 | POST | `/auth/login` | Login (returns session cookie) |
-| POST | `/auth/passkey/start` | Start Passkey login for a username |
+| POST | `/auth/passkey/start` | Start username-less Passkey login; optional `username` enables legacy-key fallback |
 | POST | `/auth/passkey/finish` | Verify Passkey and create session |
 | POST | `/auth/logout` | Logout |
 | GET | `/me` | Current user info + active tenant |

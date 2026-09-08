@@ -108,6 +108,7 @@ export function ProfilePage() {
             <div>
               <h2 className="font-display">{t('passkeys.title')}</h2>
               <p>{t('passkeys.description')}</p>
+              <p>{t('passkeys.discoverable_hint')}</p>
             </div>
           </div>
 

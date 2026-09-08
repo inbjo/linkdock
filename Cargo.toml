@@ -42,7 +42,8 @@ mime_guess = "2"
 futures = "0.3"
 csv = "1"
 url = "2"
-webauthn-rs = "0.5"
+webauthn-rs = { version = "0.5", features = ["conditional-ui"] }
+webauthn-rs-proto = "0.5"
 reqwest = { version = "0.12", features = ["json", "cookies"], optional = true }
 tempfile = { version = "3", optional = true }
 

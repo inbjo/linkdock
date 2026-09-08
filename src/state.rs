@@ -4,15 +4,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use webauthn_rs::prelude::{PasskeyAuthentication, PasskeyRegistration};
+use webauthn_rs::prelude::{
+    DiscoverableAuthentication, PasskeyAuthentication, PasskeyRegistration,
+};
 
 pub(crate) enum WebauthnChallengeState {
     Registration(PasskeyRegistration),
     Authentication(PasskeyAuthentication),
+    DiscoverableAuthentication(DiscoverableAuthentication),
 }
 
 pub(crate) struct WebauthnChallenge {
-    pub user_id: i64,
+    pub user_id: Option<i64>,
     pub expires_at: Instant,
     pub state: WebauthnChallengeState,
 }

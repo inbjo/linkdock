@@ -123,7 +123,10 @@ function SmtpSection() {
       <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.smtp_title')}</div>
       <form className="card" onSubmit={save} style={{ display: 'grid', gap: 'var(--space-md)' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', fontSize: 'var(--text-sm)' }}>
-          <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+          <span className="checkbox-hit">
+            <input className="ui-checkbox" type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+            <span className="ui-checkbox-mark" aria-hidden="true" />
+          </span>
           {t('admin.smtp_enabled')}
         </label>
         <div className="smtp-grid">

@@ -156,16 +156,20 @@ export function BookmarksPage() {
 
       {/* Center: Link list */}
       <div style={{ flex: 1, overflow: 'auto', padding: 'var(--space-md)' }} className="scrollbar-thin bookmarks-main">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2xs)' }}>
+        <div className="bookmarks-header">
+          <div className="bookmarks-title-group">
             {canWrite && links && links.length > 0 && (
-              <input
-                type="checkbox"
-                checked={links.length > 0 && selectedLinks.size === links.length}
-                onChange={(e) => { if (e.target.checked) selectAll(); else setSelectedLinks(new Set()) }}
-                style={{ flexShrink: 0, accentColor: 'var(--color-accent)', width: '0.875rem', height: '0.875rem' }}
-                title={t('links.select_all')}
-              />
+              <label className="checkbox-hit" title={t('links.select_all')}>
+                <span className="sr-only">{t('links.select_all')}</span>
+                <input
+                  className="ui-checkbox"
+                  type="checkbox"
+                  checked={links.length > 0 && selectedLinks.size === links.length}
+                  onChange={(e) => { if (e.target.checked) selectAll(); else setSelectedLinks(new Set()) }}
+                  aria-label={t('links.select_all')}
+                />
+                <span className="ui-checkbox-mark" aria-hidden="true" />
+              </label>
             )}
             <div>
               <div className="section-label" style={{ marginBottom: 'var(--space-3xs)' }}>
@@ -180,8 +184,8 @@ export function BookmarksPage() {
             </div>
           </div>
           {selectedLinks.size > 0 && (
-            <div style={{ display: 'flex', gap: 'var(--space-2xs)', alignItems: 'center' }}>
-              <span className="badge badge-accent">{t('links.selected', { count: selectedLinks.size })}</span>
+            <div className="bookmarks-selection-tools">
+              <span className="badge bookmarks-selected-count">{t('links.selected', { count: selectedLinks.size })}</span>
               <button className="btn btn-sm" onClick={() => setShowBatchMove(true)}>{t('links.batch_move')}</button>
               <button className="btn btn-sm btn-danger" onClick={() => batchDeleteMut.mutate([...selectedLinks])}>
                 {t('links.batch_delete')}
@@ -197,7 +201,7 @@ export function BookmarksPage() {
             {t('common.loading')}
           </div>
         ) : links && links.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xs)' }}>
+          <div className="bookmarks-list">
             {links.map((link) => (
               <LinkCardWithTags
                 key={link.id}

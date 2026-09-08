@@ -1,4 +1,4 @@
-/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V4
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4
  * genre: modern-minimal · macrostructure: Workbench + Marquee Hero
  * design-system: DESIGN-mobbin.md · designed-as-app
  * contrast: pass (40–41) · nav: N5 sidebar island · footer: none
@@ -239,6 +239,102 @@ a:active {
   background: var(--color-paper);
 }
 
+/* Hallmark · component: navigation tools · genre: modern-minimal · theme: Mobbin monochrome
+ * states: default · hover · focus · active · disabled · loading · error · success
+ * contrast: pass (46–50)
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-sidebar-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5rem) 2.5rem 2.5rem;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin-bottom: var(--space-2xs);
+}
+
+.app-locale-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+}
+
+.app-locale-select {
+  width: 100%;
+  height: 2.5rem;
+  min-width: 0;
+  appearance: none;
+  padding: 0 2rem 0 var(--space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+}
+
+.app-locale-chevron {
+  position: absolute;
+  right: var(--space-xs);
+  color: var(--color-ink-2);
+  pointer-events: none;
+}
+
+.app-locale-select:focus-visible {
+  outline-color: var(--color-focus);
+}
+
+.app-locale-select:active {
+  background: var(--color-paper-3);
+}
+
+.app-locale-select:disabled,
+.app-locale-control[data-state="loading"] .app-locale-select {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.app-locale-control[data-state="error"] .app-locale-select,
+.app-locale-select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.app-locale-control[data-state="success"] .app-locale-select {
+  border-color: var(--color-success);
+}
+
+.app-sidebar-tool {
+  position: relative;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  background: var(--color-paper-2);
+}
+
+.app-sidebar-tool::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+}
+
 .app-main {
   min-width: 0;
   background: var(--color-paper);
@@ -301,21 +397,204 @@ a:active {
   padding: var(--space-lg) !important;
 }
 
+.bookmarks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.bookmarks-title-group,
+.bookmarks-selection-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.bookmarks-title-group {
+  min-width: 0;
+}
+
+.bookmarks-selection-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.bookmarks-selected-count {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.bookmarks-list {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+/* Hallmark · component: checkbox · genre: modern-minimal · theme: Mobbin monochrome
+ * states: default · hover · focus · active · disabled · loading · error · success
+ * contrast: pass (46–50)
+ */
+.checkbox-hit {
+  position: relative;
+  display: inline-grid;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ui-checkbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.ui-checkbox-mark {
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 0.375rem;
+  background: var(--color-paper);
+  color: var(--color-paper);
+  pointer-events: none;
+  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform 100ms var(--ease-out);
+}
+
+.ui-checkbox-mark::after {
+  content: "";
+  width: 0.45rem;
+  height: 0.25rem;
+  margin-top: -0.1rem;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0;
+  transform: rotate(-45deg) scale(0.7);
+}
+
+.ui-checkbox:checked + .ui-checkbox-mark {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.ui-checkbox:checked + .ui-checkbox-mark::after {
+  opacity: 1;
+  transform: rotate(-45deg) scale(1);
+}
+
+.ui-checkbox:focus-visible + .ui-checkbox-mark {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.ui-checkbox:active + .ui-checkbox-mark {
+  transform: scale(0.92);
+}
+
+.ui-checkbox:disabled + .ui-checkbox-mark,
+.checkbox-hit[data-state="loading"] .ui-checkbox-mark {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.ui-checkbox[aria-invalid="true"] + .ui-checkbox-mark,
+.checkbox-hit[data-state="error"] .ui-checkbox-mark {
+  border-color: var(--color-danger);
+}
+
+.checkbox-hit[data-state="success"] .ui-checkbox-mark {
+  border-color: var(--color-success);
+}
+
 .link-card {
-  min-height: 6rem;
-  padding: var(--space-md) !important;
+  display: flex;
+  min-height: 5.25rem;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-sm) !important;
+  border: 1px solid transparent;
   border-color: transparent !important;
   border-radius: var(--radius-lg) !important;
   background: var(--color-paper-2) !important;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition: background-color var(--dur-short) var(--ease-out), outline-color var(--dur-short) var(--ease-out);
 }
 
-.link-card:hover {
-  background: var(--color-paper-3) !important;
+.link-card:focus-within {
+  outline-color: var(--color-focus);
 }
 
 .link-card.is-selected {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 1px;
+  background: var(--color-paper) !important;
+  outline-color: var(--color-ink);
+  outline-width: 1px;
+  outline-offset: 0;
+}
+
+.link-card-checkbox {
+  margin-inline-start: calc(var(--space-2xs) * -1);
+}
+
+.link-card-favicon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 0.25rem;
+}
+
+.link-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.link-card-title,
+.link-card-domain,
+.link-card-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-card-title {
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.link-card-domain {
+  margin-top: var(--space-3xs);
+  color: var(--color-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.link-card-description {
+  margin-top: var(--space-2xs);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-locale-select:hover,
+  .app-sidebar-tool:hover,
+  .link-card:hover {
+    background: var(--color-paper-3) !important;
+  }
+
+  .checkbox-hit:hover .ui-checkbox-mark {
+    border-color: var(--color-ink-2);
+  }
 }
 
 /* Token page */
@@ -612,6 +891,19 @@ a:active {
   .app-main { min-height: 70dvh; }
   .bookmarks-shell { flex-direction: column; }
   .collections-panel { width: 100% !important; max-height: 16rem; }
+  .bookmarks-main { padding: var(--space-sm) !important; }
+  .bookmarks-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .bookmarks-selection-tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .link-card {
+    min-height: 4.75rem;
+    padding-inline: var(--space-xs) !important;
+  }
   .page-shell { padding: var(--space-md) !important; }
   .token-page-header { align-items: flex-start !important; }
   .token-row { align-items: flex-start !important; flex-direction: column; }

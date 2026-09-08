@@ -22,33 +22,21 @@ export function LinkCard({ link, selected, onSelect, onClick, readOnly = false }
   return (
     <div
       className={`link-card${selected ? ' is-selected' : ''}`}
-      style={{
-        display: 'flex',
-        gap: 'var(--space-xs)',
-        padding: 'var(--space-sm)',
-        border: '1px solid var(--color-rule)',
-        borderRadius: 'var(--radius)',
-        background: 'var(--color-paper)',
-        cursor: readOnly ? 'default' : 'pointer',
-        borderColor: selected ? 'var(--color-accent)' : 'var(--color-rule)',
-        boxShadow: selected ? '0 0 0 1px var(--color-accent)' : 'none',
-        transition: 'border-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out)',
-      }}
-      onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = 'var(--color-rule-strong)' }}
-      onMouseLeave={(e) => { if (!selected) e.currentTarget.style.borderColor = 'var(--color-rule)' }}
+      style={{ cursor: readOnly ? 'default' : 'pointer' }}
       onClick={() => { if (!readOnly) onClick(link) }}
     >
       {!readOnly && (
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={(e) => {
-            e.stopPropagation()
-            onSelect(link.id, e.target.checked)
-          }}
-          onClick={(e) => e.stopPropagation()}
-          style={{ marginTop: '0.125rem', flexShrink: 0, accentColor: 'var(--color-accent)' }}
-        />
+        <label className="checkbox-hit link-card-checkbox" onClick={(e) => e.stopPropagation()}>
+          <span className="sr-only">{link.name || domain}</span>
+          <input
+            className="ui-checkbox"
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => onSelect(link.id, e.target.checked)}
+            aria-label={link.name || domain}
+          />
+          <span className="ui-checkbox-mark" aria-hidden="true" />
+        </label>
       )}
       {favicon && (
         <img
@@ -56,54 +44,24 @@ export function LinkCard({ link, selected, onSelect, onClick, readOnly = false }
           alt=""
           width={16}
           height={16}
-          style={{
-            flexShrink: 0,
-            marginTop: '0.125rem',
-            width: '1rem',
-            height: '1rem',
-            objectFit: 'contain',
-            borderRadius: 'var(--radius-sm)',
-          }}
+          className="link-card-favicon"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="link-card-body">
         <div
-          className="font-display"
-          style={{
-            fontWeight: 500,
-            fontSize: 'var(--text-sm)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            color: 'var(--color-ink)',
-          }}
+          className="font-display link-card-title"
         >
           {link.name || domain}
         </div>
         <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-ink-3)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            marginTop: 'var(--space-3xs)',
-          }}
+          className="link-card-domain"
         >
           {domain}
         </div>
         {link.description && (
           <div
-            style={{
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-ink-2)',
-              marginTop: 'var(--space-2xs)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+            className="link-card-description"
           >
             {link.description}
           </div>

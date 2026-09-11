@@ -10,8 +10,9 @@ import { useToast } from '@/components/Toast'
 interface Stats {
   users: number
   tenants: number
-  collections: number
-  links: number
+  documents: number
+  folders: number
+  bookmarks: number
   tags: number
   tokens: number
   sessions: number
@@ -38,7 +39,7 @@ interface AdminTenant {
   created_by: number
   created_at: string
   member_count: number
-  link_count: number
+  bookmark_count: number
 }
 
 interface AuditEntry {
@@ -165,8 +166,9 @@ function StatsSection() {
   const items = [
     { label: t('admin.users'), value: stats.users },
     { label: t('admin.tenants'), value: stats.tenants },
-    { label: t('admin.collections'), value: stats.collections },
-    { label: t('admin.links'), value: stats.links },
+    { label: t('admin.documents'), value: stats.documents },
+    { label: t('admin.folders'), value: stats.folders },
+    { label: t('admin.bookmarks'), value: stats.bookmarks },
     { label: t('admin.tags'), value: stats.tags },
     { label: t('admin.active_tokens'), value: stats.tokens },
     { label: t('admin.active_sessions'), value: stats.sessions },
@@ -293,7 +295,7 @@ function TenantsSection() {
                 <th>{t('admin.name')}</th>
                 <th>{t('admin.slug')}</th>
                 <th>{t('admin.members')}</th>
-                <th>{t('admin.links')}</th>
+                <th>{t('admin.bookmarks')}</th>
                 <th>{t('admin.created')}</th>
               </tr>
             </thead>
@@ -304,7 +306,7 @@ function TenantsSection() {
                   <td className="font-display" style={{ fontWeight: 500 }}>{tnt.name}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-2)' }}>{tnt.slug}</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.member_count}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.link_count}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.bookmark_count}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(tnt.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}

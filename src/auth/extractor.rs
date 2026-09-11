@@ -176,7 +176,7 @@ fn session_cookie(parts: &Parts, config: &crate::config::Config) -> Option<Strin
     let value = header.to_str().ok()?;
     for pair in value.split(';') {
         let pair = pair.trim();
-        if let Some(rest) = pair.strip_prefix("lw_session=") {
+        if let Some(rest) = pair.strip_prefix("linkdock_session=") {
             let token = rest.trim();
             if !token.is_empty() {
                 let _ = config; // cookie name fixed
@@ -187,7 +187,7 @@ fn session_cookie(parts: &Parts, config: &crate::config::Config) -> Option<Strin
     None
 }
 
-async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser> {
+pub(crate) async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser> {
     let hash = crate::auth::token::sha256_hex(token.as_bytes());
     let row = sqlx::query(
         r#"SELECT at.id, at.tenant_id, at.user_id, at.scopes, at.expires_at, at.revoked_at,

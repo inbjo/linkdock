@@ -1,8 +1,6 @@
 pub mod admin;
 pub mod auth;
-pub mod collection;
-pub mod io;
-pub mod link;
+pub mod bookmark;
 pub mod passkey;
 pub mod tag;
 pub mod tenant;
@@ -14,12 +12,10 @@ use axum::Router;
 pub fn router() -> Router<AppState> {
     Router::new()
         .merge(auth::router())
+        .merge(bookmark::router())
         .merge(tenant::router())
-        .merge(collection::router())
-        .merge(link::router())
         .merge(passkey::router())
         .merge(tag::router())
         .merge(token::router())
-        .merge(io::router())
         .nest("/admin", admin::router())
 }

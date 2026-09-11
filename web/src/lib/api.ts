@@ -1,8 +1,8 @@
 import type {
-  AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Collection,
-  CollectionNode, LinkWithTags, Link, Tag, AccessToken, AccessTokenCreated,
-  SessionInfo, BatchResult, ApiError,
+  AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Tag,
+  AccessToken, AccessTokenCreated, SessionInfo, ApiError,
   PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings,
+  SyncDocument, BookmarkTreeNode, BookmarkNodeType,
 } from './types'
 
 const BASE = '/api/app/v1'
@@ -146,80 +146,42 @@ class ApiClient {
     })
   }
 
-  // Collections
-  collectionTree() {
-    return this.request<CollectionNode[]>('/collections/tree')
+  // Canonical XBEL documents and ordered nodes
+  listDocuments() {
+    return this.request<SyncDocument[]>('/documents')
   }
-  listCollections() {
-    return this.request<Collection[]>('/collections')
+  ensureDefaultDocument() {
+    return this.request<SyncDocument>('/documents/default', { method: 'POST' })
   }
-  createCollection(data: { name: string; parent_id?: number | null; description?: string }) {
-    return this.request<Collection>('/collections', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
+  bookmarkTree(documentId: number) {
+    return this.request<BookmarkTreeNode[]>(`/documents/${documentId}/tree`)
   }
-  updateCollection(id: number, data: { name?: string; parent_id?: number | null; description?: string }) {
-    return this.request<Collection>(`/collections/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
+  createNode(data: {
+    document_id: number
+    parent_id?: number | null
+    node_type: BookmarkNodeType
+    title?: string
+    url?: string | null
+    description?: string
+    tags?: string[]
+  }) {
+    return this.request<BookmarkTreeNode>('/nodes', { method: 'POST', body: JSON.stringify(data) })
   }
-  deleteCollection(id: number) {
-    return this.request(`/collections/${id}`, { method: 'DELETE' })
+  updateNode(id: number, data: {
+    parent_id?: number | null
+    title?: string
+    url?: string | null
+    description?: string
+    tags?: string[]
+  }) {
+    return this.request<BookmarkTreeNode>(`/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
-
-  // Links
-  listLinks(collectionId?: number, includeDeleted?: boolean) {
-    const params = new URLSearchParams()
-    if (collectionId) params.set('collection_id', String(collectionId))
-    if (includeDeleted) params.set('include_deleted', 'true')
-    const qs = params.toString()
-    return this.request<Link[]>(`/links${qs ? '?' + qs : ''}`)
+  deleteNode(id: number) {
+    return this.request(`/nodes/${id}`, { method: 'DELETE' })
   }
-  getLink(id: number) {
-    return this.request<LinkWithTags>(`/links/${id}`)
-  }
-  createLink(data: { url: string; name?: string; description?: string; collection_id: number; tags?: string[] }) {
-    return this.request<LinkWithTags>('/links', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-  updateLink(id: number, data: { url?: string; name?: string; description?: string; collection_id?: number; tags?: string[] }) {
-    return this.request<LinkWithTags>(`/links/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
-  deleteLink(id: number) {
-    return this.request(`/links/${id}`, { method: 'DELETE' })
-  }
-  restoreLink(id: number) {
-    return this.request<Link>(`/links/${id}/restore`, { method: 'POST' })
-  }
-  batchMove(linkIds: number[], targetCollectionId: number) {
-    return this.request<BatchResult>('/links/batch/move', {
-      method: 'POST',
-      body: JSON.stringify({ link_ids: linkIds, target_collection_id: targetCollectionId }),
-    })
-  }
-  batchDelete(linkIds: number[], permanent: boolean) {
-    return this.request<BatchResult>('/links/batch/delete', {
-      method: 'POST',
-      body: JSON.stringify({ link_ids: linkIds, permanent }),
-    })
-  }
-  batchRestore(linkIds: number[]) {
-    return this.request<BatchResult>('/links/batch/restore', {
-      method: 'POST',
-      body: JSON.stringify({ link_ids: linkIds }),
-    })
-  }
-  batchTag(linkIds: number[], tags: string[]) {
-    return this.request<BatchResult>('/links/batch/tag', {
-      method: 'POST',
-      body: JSON.stringify({ link_ids: linkIds, tags }),
+  reorderNodes(documentId: number, parentId: number | null, nodeIds: number[]) {
+    return this.request(`/documents/${documentId}/order`, {
+      method: 'PUT', body: JSON.stringify({ parent_id: parentId, node_ids: nodeIds }),
     })
   }
 

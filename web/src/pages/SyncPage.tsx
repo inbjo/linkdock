@@ -7,7 +7,7 @@ export function SyncPage() {
   const { t } = useTranslation()
   const { showSuccess, element } = useToast()
   const { me, tenants } = useAuth()
-  const serverUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const serverUrl = typeof window !== 'undefined' ? `${window.location.origin}/webdav/` : ''
   const currentWorkspace = tenants.find((tenant) => tenant.id === me?.tenant_id)
   const readOnly = me?.tenant_role === 'viewer'
   const [copiedField, setCopiedField] = useState<string | null>(null)

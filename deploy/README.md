@@ -139,8 +139,8 @@ sudo systemctl start linkdock
 ```
 linkdock_users_total 42
 linkdock_tenants_total 7
-linkdock_links_total 15234
-linkdock_collections_total 156
+linkdock_bookmarks_total 15234
+linkdock_folders_total 156
 linkdock_active_sessions 23
 ```
 

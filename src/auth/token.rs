@@ -23,12 +23,12 @@ pub fn sha256_hex(input: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Generate an access token: `lw_<prefix>_<secret>`.
+/// Generate an access token: `ld_<prefix>_<secret>`.
 /// Returns (full_token, prefix, hash).
 pub fn generate_access_token() -> (String, String, String) {
     let prefix = random_b64url(6);
     let secret = random_b64url(24);
-    let full = format!("lw_{}_{}", prefix, secret);
+    let full = format!("ld_{}_{}", prefix, secret);
     let hash = sha256_hex(full.as_bytes());
     (full, prefix, hash)
 }

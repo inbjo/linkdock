@@ -61,49 +61,6 @@ export interface MemberInfo {
   updated_at: string
 }
 
-export interface Collection {
-  id: number
-  uuid: string
-  tenant_id: number
-  parent_id: number | null
-  name: string
-  description: string
-  color: string | null
-  position: number
-  created_by: number
-  deleted_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface CollectionNode {
-  id: number
-  name: string
-  parent_id: number | null
-  description: string
-  color: string | null
-  children: CollectionNode[]
-}
-
-export interface Link {
-  id: number
-  uuid: string
-  tenant_id: number
-  collection_id: number
-  url: string
-  name: string
-  description: string
-  position: number
-  created_by: number
-  deleted_at: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface LinkWithTags extends Link {
-  tags: string[]
-}
-
 export interface Tag {
   id: number
   uuid: string
@@ -152,8 +109,41 @@ export interface PasskeyChallenge {
   options: unknown
 }
 
-export interface BatchResult {
-  affected: number
+export interface SyncDocument {
+  id: number
+  uuid: string
+  tenant_id: number
+  path: string
+  title: string
+  revision: number
+  next_external_id: number
+  updated_unix: number
+  created_by: number
+  created_at: string
+  updated_at: string
+}
+
+export type BookmarkNodeType = 'folder' | 'bookmark' | 'separator'
+
+export interface BookmarkTreeNode {
+  id: number
+  uuid: string
+  document_id: number
+  tenant_id: number
+  parent_id: number | null
+  node_type: BookmarkNodeType
+  external_id: string
+  title: string
+  url: string | null
+  description: string
+  color: string | null
+  position: number
+  created_by: number
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+  tags: string[]
+  children: BookmarkTreeNode[]
 }
 
 export interface ApiError {
@@ -161,11 +151,4 @@ export interface ApiError {
     code: string
     message: string
   }
-}
-
-export interface ParsedBookmark {
-  url: string
-  name: string
-  description: string
-  folder_path: string[]
 }

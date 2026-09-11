@@ -100,7 +100,7 @@ impl TagService {
 
     /// Ensure a tag exists (within a transaction), return its id.
     pub async fn ensure_tag(
-        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        tx: &mut sqlx::SqliteConnection,
         tenant_id: i64,
         name: &str,
     ) -> AppResult<i64> {
@@ -110,7 +110,7 @@ impl TagService {
             sqlx::query_scalar("SELECT id FROM tags WHERE tenant_id = ? AND normalized_name = ?")
                 .bind(tenant_id)
                 .bind(&normalized)
-                .fetch_optional(&mut **tx)
+                .fetch_optional(&mut *tx)
                 .await?;
         if let Some(id) = existing {
             return Ok(id);
@@ -123,7 +123,7 @@ impl TagService {
         .bind(tenant_id)
         .bind(name.trim())
         .bind(&normalized)
-        .fetch_one(&mut **tx)
+        .fetch_one(&mut *tx)
         .await?;
         Ok(id)
     }

@@ -1,11 +1,8 @@
 pub mod audit;
 pub mod auth;
-pub mod collection;
+pub mod bookmark;
 pub mod email;
-pub mod io;
-pub mod link;
 pub mod passkey;
-pub mod search;
 pub mod tag;
 pub mod tenant;
 pub mod token;

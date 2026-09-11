@@ -65,8 +65,9 @@ fn require_admin(user: &AuthUser) -> AppResult<()> {
 struct Stats {
     users: i64,
     tenants: i64,
-    collections: i64,
-    links: i64,
+    documents: i64,
+    folders: i64,
+    bookmarks: i64,
     tags: i64,
     tokens: i64,
     sessions: i64,
@@ -81,13 +82,19 @@ async fn stats(State(state): State<AppState>, auth: AuthContext) -> AppResult<Js
     let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants")
         .fetch_one(&state.pool)
         .await?;
-    let collections: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
-            .fetch_one(&state.pool)
-            .await?;
-    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM links WHERE deleted_at IS NULL")
+    let documents: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sync_documents")
         .fetch_one(&state.pool)
         .await?;
+    let folders: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bookmark_nodes WHERE node_type = 'folder' AND deleted_at IS NULL",
+    )
+    .fetch_one(&state.pool)
+    .await?;
+    let bookmarks: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bookmark_nodes WHERE node_type = 'bookmark' AND deleted_at IS NULL",
+    )
+    .fetch_one(&state.pool)
+    .await?;
     let tags: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tags")
         .fetch_one(&state.pool)
         .await?;
@@ -106,8 +113,9 @@ async fn stats(State(state): State<AppState>, auth: AuthContext) -> AppResult<Js
     Ok(Json(Stats {
         users,
         tenants,
-        collections,
-        links,
+        documents,
+        folders,
+        bookmarks,
         tags,
         tokens,
         sessions,
@@ -167,7 +175,7 @@ struct AdminTenant {
     created_by: i64,
     created_at: String,
     member_count: i64,
-    link_count: i64,
+    bookmark_count: i64,
 }
 
 async fn list_tenants(
@@ -178,7 +186,7 @@ async fn list_tenants(
     let rows = sqlx::query(
         "SELECT t.id, t.uuid, t.name, t.slug, t.created_by, t.created_at,
          (SELECT COUNT(*) FROM tenant_members tm WHERE tm.tenant_id = t.id) as member_count,
-         (SELECT COUNT(*) FROM links l WHERE l.tenant_id = t.id AND l.deleted_at IS NULL) as link_count
+         (SELECT COUNT(*) FROM bookmark_nodes n WHERE n.tenant_id = t.id AND n.node_type = 'bookmark' AND n.deleted_at IS NULL) as bookmark_count
          FROM tenants t ORDER BY t.id",
     )
     .fetch_all(&state.pool)
@@ -194,7 +202,7 @@ async fn list_tenants(
             created_by: r.get("created_by"),
             created_at: r.get("created_at"),
             member_count: r.get("member_count"),
-            link_count: r.get("link_count"),
+            bookmark_count: r.get("bookmark_count"),
         })
         .collect();
     Ok(Json(tenants))

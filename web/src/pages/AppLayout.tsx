@@ -188,8 +188,6 @@ export function AppLayout() {
             {t('nav.bookmarks')}
           </div>
           {navItem('/bookmarks', t('nav.bookmarks'))}
-          {navItem('/search', t('nav.search'))}
-          {navItem('/trash', t('nav.trash'))}
 
           <div className="divider" style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
 
@@ -201,7 +199,6 @@ export function AppLayout() {
           {navItem('/settings/members', t('settings.members'))}
           {navItem('/settings/tokens', t('settings.tokens'))}
           {navItem('/settings/sync', t('settings.sync'))}
-          {navItem('/settings/import-export', t('settings.import_export'))}
 
           {me.is_system_admin && (
             <>

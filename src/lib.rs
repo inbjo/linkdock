@@ -29,16 +29,24 @@ pub fn build_router(state: state::AppState) -> Router {
         .allow_origin(AllowOrigin::mirror_request())
         .allow_methods([
             Method::GET,
+            Method::HEAD,
             Method::POST,
             Method::PUT,
             Method::DELETE,
             Method::OPTIONS,
+            Method::from_bytes(b"MOVE").expect("valid WebDAV method"),
+            Method::from_bytes(b"PROPFIND").expect("valid WebDAV method"),
         ])
         .allow_headers([
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
             header::COOKIE,
             header::ACCEPT,
+            header::CACHE_CONTROL,
+            header::HeaderName::from_static("depth"),
+            header::HeaderName::from_static("destination"),
+            header::HeaderName::from_static("overwrite"),
+            header::HeaderName::from_static("pragma"),
         ])
         .allow_credentials(true);
 
@@ -49,7 +57,7 @@ pub fn build_router(state: state::AppState) -> Router {
         .route("/health/ready", get(health_ready))
         .route("/metrics", get(metrics))
         .nest("/api/app/v1", routes::app::router())
-        .nest("/api/v1", routes::floccus::router())
+        .nest("/webdav", routes::webdav::router())
         .fallback(spa_fallback)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -80,15 +88,18 @@ async fn metrics(State(state): State<state::AppState>) -> String {
         .fetch_one(&state.pool)
         .await
         .unwrap_or(0);
-    let links: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM links WHERE deleted_at IS NULL")
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or(0);
-    let collections: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM collections WHERE deleted_at IS NULL")
-            .fetch_one(&state.pool)
-            .await
-            .unwrap_or(0);
+    let bookmarks: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bookmark_nodes WHERE node_type = 'bookmark' AND deleted_at IS NULL",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+    let folders: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bookmark_nodes WHERE node_type = 'folder' AND deleted_at IS NULL",
+    )
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
     let sessions: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM sessions WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')",
     )
@@ -103,12 +114,12 @@ async fn metrics(State(state): State<state::AppState>) -> String {
          # HELP linkdock_tenants_total Total number of workspaces.\n\
          # TYPE linkdock_tenants_total gauge\n\
          linkdock_tenants_total {tenants}\n\
-         # HELP linkdock_links_total Total number of active bookmarks.\n\
-         # TYPE linkdock_links_total gauge\n\
-         linkdock_links_total {links}\n\
-         # HELP linkdock_collections_total Total number of active collections.\n\
-         # TYPE linkdock_collections_total gauge\n\
-         linkdock_collections_total {collections}\n\
+         # HELP linkdock_bookmarks_total Total number of active bookmarks.\n\
+         # TYPE linkdock_bookmarks_total gauge\n\
+         linkdock_bookmarks_total {bookmarks}\n\
+         # HELP linkdock_folders_total Total number of active folders.\n\
+         # TYPE linkdock_folders_total gauge\n\
+         linkdock_folders_total {folders}\n\
          # HELP linkdock_active_sessions Total number of active sessions.\n\
          # TYPE linkdock_active_sessions gauge\n\
          linkdock_active_sessions {sessions}\n"

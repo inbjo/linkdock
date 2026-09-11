@@ -1,146 +1,54 @@
-# Floccus LinkwardenAdapter 行为契约
+# Floccus WebDAV/XBEL contract
 
-## 目标版本
+Linkdock supports Floccus through its WebDAV adapter only. The former
+Linkwarden-shaped `/api/v1` API is intentionally absent because that adapter does
+not preserve sibling ordering.
 
-- **Floccus**: v5.9.2 (发布于 2026-06-21)
-- **源码**: https://github.com/floccusaddon/floccus/blob/v5.9.2/src/lib/adapters/Linkwarden.ts
-- **适配器引入版本**: floccus v5.3.0
+## Authentication and isolation
 
-## 1. 认证
+- WebDAV uses HTTP Basic authentication.
+- The username is ignored; the password must be a Linkdock access token.
+- Each token is permanently bound to one workspace.
+- Invalid credentials return `401` with a Basic-auth challenge.
+- Every document, node, staging upload, and lock query is scoped by `tenant_id`.
 
-- 请求头: `Authorization: Bearer <token>`，其中 `<token>` 是用户在 Linkdock 创建的 Access Token（floccus 配置中的 `password` 字段）。
-- 浏览器环境: HTTP `403` → `AuthenticationError`；`>= 400` 或 `503` → `HttpError`。
-- Native 环境: HTTP `401` 或 `403` → `AuthenticationError`；`>= 400` 或 `503` → `HttpError`。
-- **结论**: 无效 Token 必须返回 `403`（浏览器路径），以便 Floccus 抛出认证错误。
+## Resource model
 
-## 2. 重定向
+The collection URL is `/webdav/`. A path ending in `.xbel` maps to one
+`sync_documents` row. The default file is `bookmarks.xbel`.
 
-- 默认 `allowRedirects = false`，任何重定向（浏览器 `res.redirected`，native `3xx`）→ `RedirectError`。
-- 反向代理必须由代理层终止 HTTPS，后端不应发出 3xx。
+An XBEL document is not stored as an opaque duplicate blob. Uploads are parsed
+into `bookmark_nodes`, and downloads are serialized from those rows. The web tree
+editor reads and writes the same rows.
 
-## 3. 路由与 JSON 外形
+Supported nodes are `<folder>`, `<bookmark href="…">`, and `<separator/>`.
+`<title>` and `<desc>` are preserved. Stable element IDs are emitted and reused
+on later uploads. Unknown metadata is ignored. Malformed XML, invalid bookmark
+URLs, excessive depth, and excessive node counts are rejected before commit.
 
-### 3.1 GET /api/v1/search
+## Ordering
 
-- 查询参数: `searchQueryString`（可为空字符串）、`cursor`（可选）。
-- 响应:
-```json
-{
-  "data": {
-    "links": [
-      { "id": 10, "name": "Rust", "url": "https://...", "collectionId": 1 }
-    ],
-    "nextCursor": null
-  }
-}
-```
-- `nextCursor` 为 `null` 表示最后一页；否则继续用该值请求。
-- Floccus 会循环分页直到 `nextCursor` 为 null，拉取全部书签。
+Folders, bookmarks, and separators use a single `position` sequence for each
+parent. Serialization sorts by that position, never by node type. Visual reorder
+requests must include every active sibling exactly once.
 
-### 3.2 GET /api/v1/collections
+## WebDAV operations
 
-- 响应:
-```json
-{
-  "response": [
-    { "id": 1, "name": "Floccus", "parentId": null, "ownerId": 1 }
-  ]
-}
-```
-- 返回当前 Token 绑定租户的全部有效 Collection。
+- `GET` and `HEAD` serialize an `.xbel` document.
+- `PROPFIND` reports collections, documents, staging files, and locks.
+- `PUT *.xbel` parses and transactionally replaces the canonical tree.
+- `PUT *.temp` stores token-private staging bytes.
+- `MOVE *.temp -> *.xbel` parses and commits the staged file atomically.
+- `PUT *.lock` acquires or refreshes a five-minute token-owned lock.
+- `DELETE` removes a lock, staging resource, or document as appropriate.
 
-### 3.3 GET /api/v1/collections/:id
+A live lock owned by another token returns `423 Locked`. Session-authenticated
+visual mutations also return `423` while a document has an active WebDAV lock.
 
-- 响应:
-```json
-{
-  "response": { "id": 1, "name": "Floccus", "parentId": null, "ownerId": 1 }
-}
-```
-- 用于 `updateBookmark` / `updateFolder` 前获取完整 Collection 信息。
+## Replacement semantics
 
-### 3.4 POST /api/v1/collections
-
-- 请求体: `{ "name": "Floccus", "parentId": null }`
-- 响应: `{ "response": { "id": 1, "name": "Floccus", "parentId": null, "ownerId": 1 } }`
-- Floccus 用返回的 `id` 作为新文件夹的 server id。
-
-### 3.5 PUT /api/v1/collections/:id
-
-- 请求体: `{ ...原collection, "name": "新名", "parentId": 新父id }`
-- Floccus 先 GET 单项再合并字段后 PUT。
-- 响应: `{ "response": { ... } }`
-
-### 3.6 DELETE /api/v1/collections/:id
-
-- Floccus `removeFolder` 重试最多 3 次；`401` 视为成功（已删除）。
-- 其他 `>= 400`（非 401）重试 3 次后抛出。
-- **结论**: 删除已不存在的 Collection 应返回 `401` 或 `204`/`200`，保持幂等。
-
-### 3.7 POST /api/v1/links
-
-- 请求体:
-```json
-{
-  "url": "https://...",
-  "name": "标题",
-  "collection": { "id": 1 }
-}
-```
-- 响应: `{ "response": { "id": 10, "name": "标题", "url": "https://...", "collectionId": 1 } }`
-- Floccus 用返回的 `id` 作为新书签的 server id。
-
-### 3.8 PUT /api/v1/links/:id
-
-- Floccus 先 `GET /api/v1/collections/:parentId` 取 collection，再发送:
-```json
-{
-  "id": 10,
-  "url": "https://...",
-  "name": "标题",
-  "tags": [],
-  "collection": { "id": 1, "name": "Floccus", "ownerId": 1 }
-}
-```
-- 响应: `{ "response": { "id": 10, ... } }`
-- 不认识但无害的兼容字段应忽略。
-
-### 3.9 DELETE /api/v1/links/:id
-
-- Floccus `removeBookmark`: `404`、`401`、`403` 视为成功（已删除/无权）。
-- 其他 `>= 400` 抛 `HttpError`。
-- **结论**: 删除已不存在的 Link 应返回 `404` 或 `204`/`200`，保持幂等。
-
-## 4. getBookmarksTree 行为
-
-1. 分页拉取全部 Link（`searchQueryString=''`，循环直到 `nextCursor == null`）。
-2. 拉取全部 Collection。
-3. 查找 `name === serverFolder && parentId == null` 的根 Collection。
-   - 注意: `parentId == null` 是松散比较，`null` 和 `undefined` 都匹配。
-4. 若不存在，`POST /api/v1/collections { name: serverFolder }` 创建。
-5. 递归构建树:
-   - 子 Collection: `String(col.parentId) === String(parent.id)`
-   - 书签: `String(link.collectionId) === String(collection.id)`
-   - **ID 比较使用字符串**，所以 ID 必须是 JSON number 但比较时转为 string。
-
-## 5. 能力声明
-
-- `preserveOrder: false` — Floccus Linkwarden 模式不保证书签顺序同步。
-- `isAtomic: false`
-- `acceptsBookmark`: 接受 `http:`、`https:`、`ftp:`、`javascript:` 协议。
-
-## 6. CORS / 预检
-
-- Floccus 是浏览器扩展，会从 `moz-extension://` 或 `chrome-extension://` origin 发起请求。
-- 服务端必须处理 `OPTIONS` 预检并返回允许的 CORS 头。
-- `Authorization` 头会触发预检，需在 `Access-Control-Allow-Headers` 中允许。
-
-## 7. 兼容性测试要点
-
-- 无效 Token → `403`。
-- 服务端根目录不存在时自动创建。
-- 同 URL 多份书签不互相覆盖。
-- 跨 Collection 移动。
-- 嵌套目录创建、改名、移动、删除。
-- cursor 分页无漏项无重复。
-- 删除幂等（404/401/403 不报错）。
+An upload is fully parsed and validated first. In one SQLite transaction Linkdock
+then resolves the document, matches nodes by stable external ID, upserts their
+content and exact position, soft-deletes absent nodes, increments the document
+revision, and commits the complete tree. If parsing or validation fails, none of
+the existing tree is changed.

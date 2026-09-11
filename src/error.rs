@@ -17,7 +17,9 @@ pub enum AppError {
     Validation(String),
     #[error("rate limited")]
     RateLimited,
-    #[error("circular collection reference")]
+    #[error("resource locked")]
+    Locked,
+    #[error("circular bookmark tree reference")]
     CircularRef,
     #[error("internal error")]
     Internal(#[from] anyhow::Error),
@@ -32,6 +34,7 @@ impl AppError {
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Validation(_) => StatusCode::BAD_REQUEST,
             AppError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
+            AppError::Locked => StatusCode::LOCKED,
             AppError::CircularRef => StatusCode::BAD_REQUEST,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -45,6 +48,7 @@ impl AppError {
             AppError::Conflict(_) => "conflict",
             AppError::Validation(_) => "validation",
             AppError::RateLimited => "rate_limited",
+            AppError::Locked => "locked",
             AppError::CircularRef => "circular_ref",
             AppError::Internal(_) => "internal",
         }

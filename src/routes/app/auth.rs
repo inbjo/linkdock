@@ -208,7 +208,7 @@ async fn reset_password(
 
 pub fn build_session_cookie(token: &str, config: &crate::config::Config) -> String {
     let mut cookie = format!(
-        "lw_session={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
+        "linkdock_session={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
         token,
         config.session_ttl_hours * 3600
     );
@@ -219,7 +219,7 @@ pub fn build_session_cookie(token: &str, config: &crate::config::Config) -> Stri
 }
 
 pub fn clear_session_cookie(config: &crate::config::Config) -> String {
-    let mut cookie = "lw_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0".to_string();
+    let mut cookie = "linkdock_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0".to_string();
     if config.cookie_secure {
         cookie.push_str("; Secure");
     }
@@ -231,7 +231,7 @@ pub fn extract_session_cookie(headers: &axum::http::HeaderMap) -> Option<String>
     let value = header.to_str().ok()?;
     for pair in value.split(';') {
         let pair = pair.trim();
-        if let Some(rest) = pair.strip_prefix("lw_session=") {
+        if let Some(rest) = pair.strip_prefix("linkdock_session=") {
             let token = rest.trim();
             if !token.is_empty() {
                 return Some(token.to_string());

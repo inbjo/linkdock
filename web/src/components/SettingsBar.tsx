@@ -21,7 +21,7 @@ export function SettingsBar() {
         ))}
       </select>
       <button
-        className="btn btn-sm btn-icon"
+        className="auth-theme-toggle"
         onClick={toggleTheme}
         title={t('settings.theme')}
         aria-label={t('settings.theme')}

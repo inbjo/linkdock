@@ -770,6 +770,32 @@ a:active {
   outline-offset: 2px;
 }
 
+.auth-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  font-size: var(--text-sm);
+  line-height: 1;
+  color: var(--color-ink-2);
+  cursor: pointer;
+  transition: background var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out);
+}
+.auth-theme-toggle:hover {
+  background: var(--color-paper-3);
+  border-color: var(--color-rule-strong);
+}
+.auth-theme-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .auth-scene {
   position: absolute;
   inset: auto -9rem 2rem 32%;

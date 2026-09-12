@@ -79,7 +79,7 @@ export function AppLayout() {
           overflow: 'hidden',
         }}
       >
-        {/* Brand + workspace selector */}
+        {/* Brand */}
         <div className="app-brand-block" style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
           <div className="app-brand-header">
             <div

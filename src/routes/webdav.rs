@@ -16,9 +16,15 @@ use crate::state::AppState;
 const LOCK_TTL_SECONDS: i64 = 5 * 60;
 
 pub fn router() -> Router<AppState> {
+    // Routes are declared with the full `/webdav` prefix and merged into the
+    // application router (rather than nested) so that the collection URL
+    // `/webdav/` (with trailing slash, as used by Floccus) is matched directly.
+    // axum 0.8 `nest` maps an inner `/` route to the prefix without a trailing
+    // slash, which would let `/webdav/` fall through to the SPA fallback.
     Router::new()
-        .route("/", any(handle_root))
-        .route("/{*path}", any(handle))
+        .route("/webdav", any(handle_root))
+        .route("/webdav/", any(handle_root))
+        .route("/webdav/{*path}", any(handle))
 }
 
 async fn handle_root(State(state): State<AppState>, req: Request<Body>) -> Response<Body> {

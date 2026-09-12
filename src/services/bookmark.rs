@@ -588,10 +588,7 @@ fn parse_xbel(input: &str) -> AppResult<ParsedDocument> {
                 if !inside_xbel {
                     return Err(AppError::Validation("title outside XBEL root".into()));
                 }
-                let text = reader
-                    .read_text(QName(b"title"))
-                    .map_err(xml_error)?
-                    .into_owned();
+                let text = element_text(&mut reader, QName(b"title"))?;
                 if let Some(node) = stack.last_mut() {
                     node.title = text;
                 } else {
@@ -602,10 +599,7 @@ fn parse_xbel(input: &str) -> AppResult<ParsedDocument> {
                 if !inside_xbel {
                     return Err(AppError::Validation("description outside XBEL root".into()));
                 }
-                let text = reader
-                    .read_text(QName(b"desc"))
-                    .map_err(xml_error)?
-                    .into_owned();
+                let text = element_text(&mut reader, QName(b"desc"))?;
                 if let Some(node) = stack.last_mut() {
                     node.description = text;
                 }
@@ -640,6 +634,15 @@ fn parse_xbel(input: &str) -> AppResult<ParsedDocument> {
         title: document_title,
         nodes: roots,
     })
+}
+
+/// Reads the text content of an element up to its matching end tag, decoding
+/// the byte encoding and unescaping XML predefined entities (`&`, `<`,
+/// `>`, `"`, `'`) and character references.
+fn element_text(reader: &mut Reader<&[u8]>, end: QName) -> AppResult<String> {
+    let raw = reader.read_text(end).map_err(xml_error)?;
+    let unescaped = quick_xml::escape::unescape(&raw).map_err(|e| xml_error(e.into()))?;
+    Ok(unescaped.into_owned())
 }
 
 fn parsed_element(

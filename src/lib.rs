@@ -57,7 +57,7 @@ pub fn build_router(state: state::AppState) -> Router {
         .route("/health/ready", get(health_ready))
         .route("/metrics", get(metrics))
         .nest("/api/app/v1", routes::app::router())
-        .nest("/webdav", routes::webdav::router())
+        .merge(routes::webdav::router())
         .fallback(spa_fallback)
         .layer(cors)
         .layer(TraceLayer::new_for_http())

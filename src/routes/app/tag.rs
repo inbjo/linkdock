@@ -16,7 +16,7 @@ async fn list_tags(
     State(state): State<AppState>,
     auth: AuthContext,
 ) -> AppResult<Json<Vec<crate::domain::tag::Tag>>> {
-    let tags = TagService::list(&state, auth.0.tenant_id).await?;
+    let tags = TagService::list(&state, auth.0.user_id).await?;
     Ok(Json(tags))
 }
 

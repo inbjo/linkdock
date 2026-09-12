@@ -9,7 +9,6 @@ import { useToast } from '@/components/Toast'
 
 interface Stats {
   users: number
-  tenants: number
   documents: number
   folders: number
   bookmarks: number
@@ -28,23 +27,11 @@ interface AdminUser {
   is_system_admin: boolean
   disabled: boolean
   created_at: string
-  tenant_count: number
-}
-
-interface AdminTenant {
-  id: number
-  uuid: string
-  name: string
-  slug: string
-  created_by: number
-  created_at: string
-  member_count: number
-  bookmark_count: number
+  document_count: number
 }
 
 interface AuditEntry {
   id: number
-  tenant_id: number | null
   user_id: number | null
   action: string
   resource_type: string | null
@@ -76,7 +63,6 @@ export function AdminPage() {
         <StatsSection />
         <SmtpSection />
         <UsersSection />
-        <TenantsSection />
         <AuditSection />
       </div>
     </div>
@@ -165,7 +151,6 @@ function StatsSection() {
 
   const items = [
     { label: t('admin.users'), value: stats.users },
-    { label: t('admin.tenants'), value: stats.tenants },
     { label: t('admin.documents'), value: stats.documents },
     { label: t('admin.folders'), value: stats.folders },
     { label: t('admin.bookmarks'), value: stats.bookmarks },
@@ -245,7 +230,7 @@ function UsersSection() {
                 <th>{t('auth.email')}</th>
                 <th>{t('admin.admin_flag')}</th>
                 <th>{t('admin.disabled')}</th>
-                <th>{t('admin.tenants')}</th>
+                <th>{t('admin.documents')}</th>
                 <th>{t('admin.created')}</th>
               </tr>
             </thead>
@@ -258,56 +243,8 @@ function UsersSection() {
                   <td style={{ color: 'var(--color-ink-2)' }}>{u.email || '—'}</td>
                   <td>{u.is_system_admin ? <span className="badge badge-accent">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
                   <td>{u.disabled ? <span className="badge badge-danger">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{u.tenant_count}</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{u.document_count}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TenantsSection() {
-  const { t } = useTranslation()
-  const { data: tenants, isLoading } = useQuery<AdminTenant[]>({
-    queryKey: ['admin', 'tenants'],
-    queryFn: async () => {
-      const resp = await fetch('/api/app/v1/admin/tenants', { credentials: 'same-origin' })
-      if (!resp.ok) throw new Error('Failed')
-      return resp.json()
-    },
-  })
-
-  return (
-    <div style={{ marginBottom: 'var(--space-xl)' }}>
-      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.tenants')}</div>
-      {isLoading ? (
-        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
-      ) : (
-        <div style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto' }} className="scrollbar-thin">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('admin.id')}</th>
-                <th>{t('admin.name')}</th>
-                <th>{t('admin.slug')}</th>
-                <th>{t('admin.members')}</th>
-                <th>{t('admin.bookmarks')}</th>
-                <th>{t('admin.created')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(tenants || []).map((tnt) => (
-                <tr key={tnt.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{tnt.id}</td>
-                  <td className="font-display" style={{ fontWeight: 500 }}>{tnt.name}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-2)' }}>{tnt.slug}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.member_count}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{tnt.bookmark_count}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(tnt.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -349,7 +286,6 @@ function AuditSection() {
                 <th>{t('admin.action')}</th>
                 <th>{t('admin.resource')}</th>
                 <th>{t('admin.user')}</th>
-                <th>{t('admin.tenant')}</th>
                 <th>{t('admin.ip')}</th>
               </tr>
             </thead>
@@ -361,7 +297,6 @@ function AuditSection() {
                   <td className="font-display" style={{ fontWeight: 500 }}>{e.action}</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{e.resource_type}{e.resource_id ? `:${e.resource_id}` : ''}</td>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{e.user_id ?? '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.tenant_id ?? '—'}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{e.ip_address ?? '—'}</td>
                 </tr>
               ))}

@@ -4,5 +4,4 @@ pub mod bookmark;
 pub mod email;
 pub mod passkey;
 pub mod tag;
-pub mod tenant;
 pub mod token;

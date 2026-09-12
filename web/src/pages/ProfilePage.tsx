@@ -84,7 +84,6 @@ export function ProfilePage() {
 
   const rows = [
     { label: t('auth.username'), value: me.username },
-    { label: t('profile.role'), value: me.tenant_role },
   ]
 
   return (

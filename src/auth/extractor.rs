@@ -2,51 +2,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use serde::{Deserialize, Serialize};
 use sqlx::Row;
-
-/// Resolved role in the active tenant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TenantRole {
-    Owner,
-    Admin,
-    Editor,
-    Viewer,
-}
-
-impl TenantRole {
-    pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "owner" => Some(Self::Owner),
-            "admin" => Some(Self::Admin),
-            "editor" | "member" => Some(Self::Editor),
-            "viewer" => Some(Self::Viewer),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Owner => "owner",
-            Self::Admin => "admin",
-            Self::Editor => "editor",
-            Self::Viewer => "viewer",
-        }
-    }
-
-    pub fn can_manage_members(&self) -> bool {
-        matches!(self, Self::Owner | Self::Admin)
-    }
-
-    pub fn can_manage_tokens(&self) -> bool {
-        matches!(self, Self::Owner | Self::Admin)
-    }
-
-    pub fn can_write(&self) -> bool {
-        !matches!(self, Self::Viewer)
-    }
-}
 
 /// Authenticated user context resolved from session cookie or bearer token.
 #[derive(Debug, Clone)]
@@ -54,8 +10,6 @@ pub struct AuthUser {
     pub user_id: i64,
     pub username: String,
     pub is_system_admin: bool,
-    pub tenant_id: i64,
-    pub tenant_role: TenantRole,
     /// Whether this request was authenticated via access token (Floccus path).
     pub via_token: bool,
     /// Access token id if via_token.
@@ -71,23 +25,7 @@ impl AuthUser {
                 .token_scopes
                 .as_deref()
                 .is_some_and(|scopes| has_scope(scopes, "bookmarks:write"));
-        if self.tenant_role.can_write() && token_can_write {
-            Ok(())
-        } else {
-            Err(AppError::Forbidden)
-        }
-    }
-
-    pub fn require_manage_members(&self) -> AppResult<()> {
-        if self.tenant_role.can_manage_members() {
-            Ok(())
-        } else {
-            Err(AppError::Forbidden)
-        }
-    }
-
-    pub fn require_manage_tokens(&self) -> AppResult<()> {
-        if self.tenant_role.can_manage_tokens() {
+        if token_can_write {
             Ok(())
         } else {
             Err(AppError::Forbidden)
@@ -112,8 +50,7 @@ impl AuthUser {
 }
 
 /// Extractor that resolves an authenticated user from either a session cookie
-/// or a Bearer access token. The active tenant is resolved from the session's
-/// active_tenant_id or the token's bound tenant_id.
+/// or a Bearer access token.
 #[derive(Debug, Clone)]
 pub struct AuthContext(pub AuthUser);
 
@@ -190,12 +127,10 @@ fn session_cookie(parts: &Parts, config: &crate::config::Config) -> Option<Strin
 pub(crate) async fn resolve_token_auth(token: &str, state: &AppState) -> AppResult<AuthUser> {
     let hash = crate::auth::token::sha256_hex(token.as_bytes());
     let row = sqlx::query(
-        r#"SELECT at.id, at.tenant_id, at.user_id, at.scopes, at.expires_at, at.revoked_at,
-                  u.username, u.is_system_admin, u.disabled,
-                  tm.role
+        r#"SELECT at.id, at.user_id, at.scopes, at.expires_at, at.revoked_at,
+                  u.username, u.is_system_admin, u.disabled
            FROM access_tokens at
            JOIN users u ON u.id = at.user_id
-           JOIN tenant_members tm ON tm.tenant_id = at.tenant_id AND tm.user_id = at.user_id
            WHERE at.token_hash = ?"#,
     )
     .bind(&hash)
@@ -223,12 +158,9 @@ pub(crate) async fn resolve_token_auth(token: &str, state: &AppState) -> AppResu
         }
     }
     let token_id: i64 = row.try_get("id").unwrap_or(0);
-    let tenant_id: i64 = row.try_get("tenant_id").unwrap_or(0);
     let user_id: i64 = row.try_get("user_id").unwrap_or(0);
     let username: String = row.try_get("username").unwrap_or_default();
     let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
-    let role_str: String = row.try_get("role").unwrap_or_default();
-    let role = TenantRole::parse(&role_str).ok_or(AppError::Forbidden)?;
     let scopes: String = row.try_get("scopes").unwrap_or_default();
     if !has_scope(&scopes, "bookmarks:read") {
         return Err(AppError::Forbidden);
@@ -245,8 +177,6 @@ pub(crate) async fn resolve_token_auth(token: &str, state: &AppState) -> AppResu
         user_id,
         username,
         is_system_admin: is_system_admin != 0,
-        tenant_id,
-        tenant_role: role,
         via_token: true,
         token_id: Some(token_id),
         token_scopes: Some(scopes),
@@ -256,12 +186,10 @@ pub(crate) async fn resolve_token_auth(token: &str, state: &AppState) -> AppResu
 async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUser> {
     let hash = crate::auth::token::hash_session_token(token);
     let row = sqlx::query(
-        r#"SELECT s.id, s.user_id, s.active_tenant_id, s.expires_at,
-                  u.username, u.is_system_admin, u.disabled,
-                  tm.role
+        r#"SELECT s.id, s.user_id, s.expires_at,
+                  u.username, u.is_system_admin, u.disabled
            FROM sessions s
            JOIN users u ON u.id = s.user_id
-           JOIN tenant_members tm ON tm.tenant_id = s.active_tenant_id AND tm.user_id = s.user_id
            WHERE s.session_hash = ?"#,
     )
     .bind(&hash)
@@ -283,11 +211,8 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
         return Err(AppError::Forbidden);
     }
     let user_id: i64 = row.try_get("user_id").unwrap_or(0);
-    let tenant_id: i64 = row.try_get("active_tenant_id").unwrap_or(0);
     let username: String = row.try_get("username").unwrap_or_default();
     let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
-    let role_str: String = row.try_get("role").unwrap_or_default();
-    let role = TenantRole::parse(&role_str).ok_or(AppError::Forbidden)?;
 
     // Update last_used_at.
     let session_id: i64 = row.try_get("id").unwrap_or(0);
@@ -301,8 +226,6 @@ async fn resolve_session_auth(token: &str, state: &AppState) -> AppResult<AuthUs
         user_id,
         username,
         is_system_admin: is_system_admin != 0,
-        tenant_id,
-        tenant_role: role,
         via_token: false,
         token_id: None,
         token_scopes: None,

@@ -12,8 +12,6 @@ import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { BookmarksPage } from '@/pages/BookmarksPage'
 import { ProfilePage } from '@/pages/ProfilePage'
-import { WorkspacePage } from '@/pages/WorkspacePage'
-import { MembersPage } from '@/pages/MembersPage'
 import { TokensPage } from '@/pages/TokensPage'
 import { SyncPage } from '@/pages/SyncPage'
 import { AdminPage } from '@/pages/AdminPage'
@@ -40,8 +38,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route element={<AppLayout />}>
               <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/settings/profile" element={<ProfilePage />} />
-              <Route path="/settings/workspace" element={<WorkspacePage />} />
-              <Route path="/settings/members" element={<MembersPage />} />
               <Route path="/settings/tokens" element={<TokensPage />} />
               <Route path="/settings/sync" element={<SyncPage />} />
               <Route path="/admin" element={<AdminPage />} />

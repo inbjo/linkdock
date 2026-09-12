@@ -3,26 +3,23 @@ import { Outlet, NavLink, useLocation, useNavigate, Navigate } from 'react-route
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/hooks/useTheme'
-import { api } from '@/lib/api'
 import { useToast } from '@/components/Toast'
 import { availableLocales, changeLocale, type SupportedLocale } from '@/i18n'
 
 export function AppLayout() {
   const { t, i18n } = useTranslation()
-  const { me, tenants, loading, logout, refresh } = useAuth()
+  const { me, loading, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { showError, showSuccess, element } = useToast()
+  const { element } = useToast()
   const nav = useNavigate()
   const location = useLocation()
   const mainRef = useRef<HTMLElement>(null)
-  const [tenantOpen, setTenantOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 })
     window.scrollTo({ top: 0 })
     setMobileNavOpen(false)
-    setTenantOpen(false)
   }, [location.pathname])
 
   if (loading) {
@@ -38,22 +35,9 @@ export function AppLayout() {
     return <Navigate to="/login" replace />
   }
 
-  const currentTenant = tenants.find((tnt) => tnt.id === me.tenant_id)
-
   const handleLogout = async () => {
     await logout()
     nav('/login')
-  }
-
-  const switchTenant = async (id: number) => {
-    try {
-      await api.selectTenant(id)
-      await refresh()
-      setTenantOpen(false)
-      showSuccess(t('workspace.switched'))
-    } catch (err) {
-      showError(err instanceof Error ? err.message : t('common.error'))
-    }
   }
 
   const navItem = (to: string, label: string) => (
@@ -123,63 +107,6 @@ export function AppLayout() {
               )}
             </button>
           </div>
-          <div className="app-workspace-switcher" style={{ position: 'relative', marginTop: 'var(--space-sm)' }}>
-            <button
-              className="btn btn-sm"
-              style={{ width: '100%', justifyContent: 'space-between', fontWeight: 400 }}
-              onClick={() => setTenantOpen(!tenantOpen)}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentTenant?.name || t('workspace.select')}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-ink-3)' }}>
-                {tenantOpen ? '−' : '+'}
-              </span>
-            </button>
-            {tenantOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  marginTop: 'var(--space-2xs)',
-                  padding: 'var(--space-2xs)',
-                  background: 'var(--color-paper)',
-                  border: '1px solid var(--color-rule)',
-                  borderRadius: 'var(--radius)',
-                  boxShadow: 'var(--shadow-lg)',
-                  zIndex: 10,
-                  maxHeight: '16rem',
-                  overflow: 'auto',
-                }}
-                className="scrollbar-thin"
-              >
-                {tenants.map((tnt) => (
-                  <div
-                    key={tnt.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: 'var(--space-2xs) var(--space-xs)',
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                      fontSize: 'var(--text-sm)',
-                      background: tnt.id === me.tenant_id ? 'var(--color-accent-subtle)' : 'transparent',
-                      transition: 'background var(--dur-short) var(--ease-out)',
-                    }}
-                    onMouseEnter={(e) => { if (tnt.id !== me.tenant_id) e.currentTarget.style.background = 'var(--color-paper-3)' }}
-                    onMouseLeave={(e) => { if (tnt.id !== me.tenant_id) e.currentTarget.style.background = 'transparent' }}
-                    onClick={() => switchTenant(tnt.id)}
-                  >
-                    <span>{tnt.name}</span>
-                    <span className="badge" style={{ marginLeft: 'var(--space-2xs)' }}>{tnt.role}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Nav */}
@@ -195,8 +122,6 @@ export function AppLayout() {
             {t('nav.settings')}
           </div>
           {navItem('/settings/profile', t('settings.profile'))}
-          {navItem('/settings/workspace', t('settings.workspace'))}
-          {navItem('/settings/members', t('settings.members'))}
           {navItem('/settings/tokens', t('settings.tokens'))}
           {navItem('/settings/sync', t('settings.sync'))}
 

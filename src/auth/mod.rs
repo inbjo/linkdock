@@ -4,4 +4,4 @@ pub mod password;
 pub mod session;
 pub mod token;
 
-pub use extractor::{AuthContext, AuthUser, AuthWriter, TenantRole};
+pub use extractor::{AuthContext, AuthUser, AuthWriter};

@@ -84,7 +84,7 @@ async fn metrics(State(state): State<state::AppState>) -> String {
         .fetch_one(&state.pool)
         .await
         .unwrap_or(0);
-    let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants")
+    let documents: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sync_documents")
         .fetch_one(&state.pool)
         .await
         .unwrap_or(0);
@@ -111,9 +111,9 @@ async fn metrics(State(state): State<state::AppState>) -> String {
         "# HELP linkdock_users_total Total number of registered users.\n\
          # TYPE linkdock_users_total gauge\n\
          linkdock_users_total {users}\n\
-         # HELP linkdock_tenants_total Total number of workspaces.\n\
-         # TYPE linkdock_tenants_total gauge\n\
-         linkdock_tenants_total {tenants}\n\
+         # HELP linkdock_documents_total Total number of XBEL documents.\n\
+         # TYPE linkdock_documents_total gauge\n\
+         linkdock_documents_total {documents}\n\
          # HELP linkdock_bookmarks_total Total number of active bookmarks.\n\
          # TYPE linkdock_bookmarks_total gauge\n\
          linkdock_bookmarks_total {bookmarks}\n\

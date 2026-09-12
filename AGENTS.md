@@ -24,8 +24,10 @@ Linux is the only supported release target.
 - WebDAV uploads are parsed and committed transactionally; XBEL downloads are
   serialized from the canonical tree.
 - The Linkwarden-shaped `/api/v1` compatibility API is intentionally unsupported.
-- `tenant_id` always comes from the session or access token.
-- All tenant data queries must include `tenant_id`.
+- All resources (documents, nodes, tags, tokens, audit, WebDAV staging/locks)
+  are owned directly by `user_id`.
+- `user_id` always comes from the session or access token.
+- All data queries must include `user_id` scoping.
 - Access tokens are SHA-256 hashed and shown only once.
 - Active WebDAV locks block competing sync and visual mutations.
 

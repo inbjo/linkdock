@@ -102,7 +102,7 @@ async fn get_resource(
     if path.ends_with(".temp") {
         return get_staging(state, user, path, head_only).await;
     }
-    match BookmarkService::serialize_xbel(state, user.tenant_id, path).await {
+    match BookmarkService::serialize_xbel(state, user.user_id, path).await {
         Ok((content, updated_at)) => file_response(
             "application/xml; charset=utf-8",
             content.len(),
@@ -122,9 +122,9 @@ async fn get_staging(
 ) -> Response<Body> {
     let row = match sqlx::query(
         r#"SELECT content, content_type, updated_at FROM webdav_staging
-           WHERE tenant_id = ? AND path = ? AND owner_token_id = ?"#,
+           WHERE user_id = ? AND path = ? AND owner_token_id = ?"#,
     )
-    .bind(user.tenant_id)
+    .bind(user.user_id)
     .bind(path)
     .bind(user.token_id.unwrap_or_default())
     .fetch_optional(&state.pool)
@@ -151,21 +151,20 @@ async fn get_lock(
     document_path: &str,
     head_only: bool,
 ) -> Response<Body> {
-    let row =
-        match sqlx::query("SELECT updated_at FROM sync_locks WHERE tenant_id = ? AND path = ?")
-            .bind(user.tenant_id)
-            .bind(document_path)
-            .fetch_optional(&state.pool)
-            .await
-        {
-            Ok(Some(row)) => row,
-            Ok(None) => return status(StatusCode::NOT_FOUND),
-            Err(error) => return database_error(error),
-        };
+    let row = match sqlx::query("SELECT updated_at FROM sync_locks WHERE user_id = ? AND path = ?")
+        .bind(user.user_id)
+        .bind(document_path)
+        .fetch_optional(&state.pool)
+        .await
+    {
+        Ok(Some(row)) => row,
+        Ok(None) => return status(StatusCode::NOT_FOUND),
+        Err(error) => return database_error(error),
+    };
     let updated_at: i64 = row.get("updated_at");
     if lock_expired(updated_at) {
-        let _ = sqlx::query("DELETE FROM sync_locks WHERE tenant_id = ? AND path = ?")
-            .bind(user.tenant_id)
+        let _ = sqlx::query("DELETE FROM sync_locks WHERE user_id = ? AND path = ?")
+            .bind(user.user_id)
             .bind(document_path)
             .execute(&state.pool)
             .await;
@@ -246,14 +245,14 @@ async fn put_resource(
         }
         let result = sqlx::query(
             r#"INSERT INTO webdav_staging
-               (tenant_id, path, owner_token_id, content, content_type, updated_at)
+               (user_id, path, owner_token_id, content, content_type, updated_at)
                VALUES (?, ?, ?, ?, ?, ?)
-               ON CONFLICT(tenant_id, path, owner_token_id) DO UPDATE SET
+               ON CONFLICT(user_id, path, owner_token_id) DO UPDATE SET
                  content = excluded.content,
                  content_type = excluded.content_type,
                  updated_at = excluded.updated_at"#,
         )
-        .bind(user.tenant_id)
+        .bind(user.user_id)
         .bind(path)
         .bind(token_id)
         .bind(content.as_ref())
@@ -285,14 +284,14 @@ async fn put_lock(
     token_id: i64,
 ) -> Response<Body> {
     match sqlx::query(
-        r#"INSERT INTO sync_locks (tenant_id, path, owner_token_id, updated_at)
+        r#"INSERT INTO sync_locks (user_id, path, owner_token_id, updated_at)
            VALUES (?, ?, ?, ?)
-           ON CONFLICT(tenant_id, path) DO UPDATE SET
+           ON CONFLICT(user_id, path) DO UPDATE SET
              owner_token_id = excluded.owner_token_id, updated_at = excluded.updated_at
            WHERE sync_locks.owner_token_id = excluded.owner_token_id
               OR sync_locks.updated_at < ?"#,
     )
-    .bind(user.tenant_id)
+    .bind(user.user_id)
     .bind(document_path)
     .bind(token_id)
     .bind(unix_now())
@@ -313,10 +312,10 @@ async fn delete_resource(state: &AppState, user: &AuthUser, path: &str) -> Respo
     let token_id = user.token_id.unwrap_or_default();
     if let Some(document_path) = path.strip_suffix(".lock") {
         let result = sqlx::query(
-            r#"DELETE FROM sync_locks WHERE tenant_id = ? AND path = ?
+            r#"DELETE FROM sync_locks WHERE user_id = ? AND path = ?
                AND (owner_token_id = ? OR updated_at < ?)"#,
         )
-        .bind(user.tenant_id)
+        .bind(user.user_id)
         .bind(document_path)
         .bind(token_id)
         .bind(unix_now() - LOCK_TTL_SECONDS)
@@ -330,9 +329,9 @@ async fn delete_resource(state: &AppState, user: &AuthUser, path: &str) -> Respo
     }
     if path.ends_with(".temp") {
         return match sqlx::query(
-            "DELETE FROM webdav_staging WHERE tenant_id = ? AND path = ? AND owner_token_id = ?",
+            "DELETE FROM webdav_staging WHERE user_id = ? AND path = ? AND owner_token_id = ?",
         )
-        .bind(user.tenant_id)
+        .bind(user.user_id)
         .bind(path)
         .bind(token_id)
         .execute(&state.pool)
@@ -346,8 +345,8 @@ async fn delete_resource(state: &AppState, user: &AuthUser, path: &str) -> Respo
     if !owns_lock(state, user, path, token_id).await {
         return status(StatusCode::LOCKED);
     }
-    match sqlx::query("DELETE FROM sync_documents WHERE tenant_id = ? AND path = ?")
-        .bind(user.tenant_id)
+    match sqlx::query("DELETE FROM sync_documents WHERE user_id = ? AND path = ?")
+        .bind(user.user_id)
         .bind(path)
         .execute(&state.pool)
         .await
@@ -382,9 +381,9 @@ async fn move_resource(
     }
     let content: Vec<u8> = match sqlx::query_scalar(
         r#"SELECT content FROM webdav_staging
-           WHERE tenant_id = ? AND path = ? AND owner_token_id = ?"#,
+           WHERE user_id = ? AND path = ? AND owner_token_id = ?"#,
     )
-    .bind(user.tenant_id)
+    .bind(user.user_id)
     .bind(source)
     .bind(token_id)
     .fetch_optional(&state.pool)
@@ -400,9 +399,9 @@ async fn move_resource(
         return error.into_response();
     }
     if let Err(error) = sqlx::query(
-        "DELETE FROM webdav_staging WHERE tenant_id = ? AND path = ? AND owner_token_id = ?",
+        "DELETE FROM webdav_staging WHERE user_id = ? AND path = ? AND owner_token_id = ?",
     )
-    .bind(user.tenant_id)
+    .bind(user.user_id)
     .bind(source)
     .bind(token_id)
     .execute(&state.pool)
@@ -415,9 +414,9 @@ async fn move_resource(
 
 async fn owns_lock(state: &AppState, user: &AuthUser, path: &str, token_id: i64) -> bool {
     match sqlx::query(
-        "SELECT owner_token_id, updated_at FROM sync_locks WHERE tenant_id = ? AND path = ?",
+        "SELECT owner_token_id, updated_at FROM sync_locks WHERE user_id = ? AND path = ?",
     )
-    .bind(user.tenant_id)
+    .bind(user.user_id)
     .bind(path)
     .fetch_optional(&state.pool)
     .await

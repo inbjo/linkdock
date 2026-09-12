@@ -12,7 +12,6 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/stats", get(stats))
         .route("/users", get(list_users))
-        .route("/tenants", get(list_tenants))
         .route("/audit", get(list_audit))
         .route("/smtp", get(smtp_settings).put(update_smtp_settings))
         .route("/smtp/test", post(test_smtp))
@@ -64,7 +63,6 @@ fn require_admin(user: &AuthUser) -> AppResult<()> {
 #[derive(Serialize)]
 struct Stats {
     users: i64,
-    tenants: i64,
     documents: i64,
     folders: i64,
     bookmarks: i64,
@@ -77,9 +75,6 @@ struct Stats {
 async fn stats(State(state): State<AppState>, auth: AuthContext) -> AppResult<Json<Stats>> {
     require_admin(&auth.0)?;
     let users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
-        .fetch_one(&state.pool)
-        .await?;
-    let tenants: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tenants")
         .fetch_one(&state.pool)
         .await?;
     let documents: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sync_documents")
@@ -112,7 +107,6 @@ async fn stats(State(state): State<AppState>, auth: AuthContext) -> AppResult<Js
         .await?;
     Ok(Json(Stats {
         users,
-        tenants,
         documents,
         folders,
         bookmarks,
@@ -133,7 +127,7 @@ struct AdminUser {
     is_system_admin: bool,
     disabled: bool,
     created_at: String,
-    tenant_count: i64,
+    document_count: i64,
 }
 
 async fn list_users(
@@ -143,7 +137,7 @@ async fn list_users(
     require_admin(&auth.0)?;
     let rows = sqlx::query(
         "SELECT u.id, u.uuid, u.username, u.display_name, u.email, u.is_system_admin, u.disabled, u.created_at,
-         (SELECT COUNT(*) FROM tenant_members tm WHERE tm.user_id = u.id) as tenant_count
+         (SELECT COUNT(*) FROM sync_documents d WHERE d.user_id = u.id) as document_count
          FROM users u ORDER BY u.id",
     )
     .fetch_all(&state.pool)
@@ -160,52 +154,10 @@ async fn list_users(
             is_system_admin: r.get::<i64, _>("is_system_admin") != 0,
             disabled: r.get::<i64, _>("disabled") != 0,
             created_at: r.get("created_at"),
-            tenant_count: r.get("tenant_count"),
+            document_count: r.get("document_count"),
         })
         .collect();
     Ok(Json(users))
-}
-
-#[derive(Serialize)]
-struct AdminTenant {
-    id: i64,
-    uuid: String,
-    name: String,
-    slug: String,
-    created_by: i64,
-    created_at: String,
-    member_count: i64,
-    bookmark_count: i64,
-}
-
-async fn list_tenants(
-    State(state): State<AppState>,
-    auth: AuthContext,
-) -> AppResult<Json<Vec<AdminTenant>>> {
-    require_admin(&auth.0)?;
-    let rows = sqlx::query(
-        "SELECT t.id, t.uuid, t.name, t.slug, t.created_by, t.created_at,
-         (SELECT COUNT(*) FROM tenant_members tm WHERE tm.tenant_id = t.id) as member_count,
-         (SELECT COUNT(*) FROM bookmark_nodes n WHERE n.tenant_id = t.id AND n.node_type = 'bookmark' AND n.deleted_at IS NULL) as bookmark_count
-         FROM tenants t ORDER BY t.id",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-
-    let tenants = rows
-        .into_iter()
-        .map(|r| AdminTenant {
-            id: r.get("id"),
-            uuid: r.get("uuid"),
-            name: r.get("name"),
-            slug: r.get("slug"),
-            created_by: r.get("created_by"),
-            created_at: r.get("created_at"),
-            member_count: r.get("member_count"),
-            bookmark_count: r.get("bookmark_count"),
-        })
-        .collect();
-    Ok(Json(tenants))
 }
 
 #[derive(serde::Deserialize)]
@@ -214,8 +166,6 @@ struct AuditQuery {
     limit: i64,
     #[serde(default)]
     offset: i64,
-    #[serde(default)]
-    tenant_id: Option<i64>,
 }
 
 fn default_limit() -> i64 {
@@ -228,10 +178,6 @@ async fn list_audit(
     Query(q): Query<AuditQuery>,
 ) -> AppResult<Json<Vec<crate::services::audit::AuditEntry>>> {
     require_admin(&auth.0)?;
-    let entries = if let Some(tid) = q.tenant_id {
-        AuditService::list_tenant(&state, tid, q.limit, q.offset).await?
-    } else {
-        AuditService::list_all(&state, q.limit, q.offset).await?
-    };
+    let entries = AuditService::list_all(&state, q.limit, q.offset).await?;
     Ok(Json(entries))
 }

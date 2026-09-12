@@ -11,17 +11,16 @@ export function TokensPage() {
   const { t } = useTranslation()
   const { showError, showSuccess, element } = useToast()
   const qc = useQueryClient()
-  const { me, tenants } = useAuth()
+  const { me } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [name, setName] = useState('')
   const [accessMode, setAccessMode] = useState<'read' | 'write'>('write')
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const currentWorkspace = tenants.find((tenant) => tenant.id === me?.tenant_id)
-  const canWrite = me?.tenant_role !== 'viewer'
+  const canWrite = true
   const { data: tokens } = useQuery({
-    queryKey: ['tokens', me?.tenant_id],
+    queryKey: ['tokens', me?.id],
     queryFn: () => api.listTokens(),
     enabled: !!me,
   })
@@ -35,14 +34,14 @@ export function TokensPage() {
       setCreatedToken(data.plaintext)
       setName('')
       setShowCreate(false)
-      qc.invalidateQueries({ queryKey: ['tokens', me?.tenant_id] })
+      qc.invalidateQueries({ queryKey: ['tokens', me?.id] })
     },
     onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
   const revokeMut = useMutation({
     mutationFn: (id: number) => api.revokeToken(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens', me?.tenant_id] }); showSuccess(t('tokens.revoked')) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tokens', me?.id] }); showSuccess(t('tokens.revoked')) },
     onError: (e) => showError(e instanceof Error ? e.message : t('common.error')),
   })
 
@@ -72,14 +71,6 @@ export function TokensPage() {
           <button className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>
             + {t('tokens.new')}
           </button>
-        </div>
-
-        <div className="card-flat token-workspace" style={{ marginBottom: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)', alignItems: 'center' }}>
-          <div>
-            <div className="section-label" style={{ marginBottom: 'var(--space-3xs)' }}>{t('tokens.bound_workspace')}</div>
-            <div className="font-display" style={{ fontWeight: 600 }}>{currentWorkspace?.name || '—'}</div>
-          </div>
-          <span className="badge">{t(`members.${me?.tenant_role || 'viewer'}`)}</span>
         </div>
 
         <div className="card token-list" style={{ padding: 0 }}>
@@ -164,7 +155,7 @@ export function TokensPage() {
               <option value="read">{t('tokens.read_only')}</option>
             </select>
             <div style={{ marginTop: 'var(--space-3xs)', color: 'var(--color-ink-3)', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-              {canWrite ? t('tokens.binding_hint') : t('tokens.viewer_hint')}
+              {t('tokens.binding_hint')}
             </div>
           </div>
           <button className="btn btn-primary" onClick={() => createMut.mutate()} disabled={!name.trim() || createMut.isPending}>

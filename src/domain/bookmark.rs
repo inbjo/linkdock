@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct SyncDocument {
     pub id: i64,
     pub uuid: String,
-    pub tenant_id: i64,
+    pub user_id: i64,
     pub path: String,
     pub title: String,
     pub revision: i64,
@@ -20,7 +20,7 @@ pub struct BookmarkNode {
     pub id: i64,
     pub uuid: String,
     pub document_id: i64,
-    pub tenant_id: i64,
+    pub user_id: i64,
     pub parent_id: Option<i64>,
     pub node_type: String,
     pub external_id: String,

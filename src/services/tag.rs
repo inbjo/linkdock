@@ -17,11 +17,11 @@ pub struct UpdateTagInput {
 pub struct TagService;
 
 impl TagService {
-    pub async fn list(state: &AppState, tenant_id: i64) -> AppResult<Vec<Tag>> {
+    pub async fn list(state: &AppState, user_id: i64) -> AppResult<Vec<Tag>> {
         let tags = sqlx::query_as::<_, Tag>(
-            "SELECT * FROM tags WHERE tenant_id = ? ORDER BY normalized_name",
+            "SELECT * FROM tags WHERE user_id = ? ORDER BY normalized_name",
         )
-        .bind(tenant_id)
+        .bind(user_id)
         .fetch_all(&state.pool)
         .await?;
         Ok(tags)
@@ -36,11 +36,11 @@ impl TagService {
         let normalized = normalize(&name);
         let uuid_str = uuid::Uuid::new_v4().to_string();
         let tag = sqlx::query_as::<_, Tag>(
-            r#"INSERT INTO tags (uuid, tenant_id, name, normalized_name) VALUES (?, ?, ?, ?)
+            r#"INSERT INTO tags (uuid, user_id, name, normalized_name) VALUES (?, ?, ?, ?)
                RETURNING *"#,
         )
         .bind(&uuid_str)
-        .bind(user.tenant_id)
+        .bind(user.user_id)
         .bind(&name)
         .bind(&normalized)
         .fetch_one(&state.pool)
@@ -67,13 +67,13 @@ impl TagService {
         }
         let normalized = normalize(&name);
         let tag = sqlx::query_as::<_, Tag>(
-            r#"UPDATE tags SET name = ?, normalized_name = ? WHERE id = ? AND tenant_id = ?
+            r#"UPDATE tags SET name = ?, normalized_name = ? WHERE id = ? AND user_id = ?
                RETURNING *"#,
         )
         .bind(&name)
         .bind(&normalized)
         .bind(id)
-        .bind(user.tenant_id)
+        .bind(user.user_id)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| match e {
@@ -87,9 +87,9 @@ impl TagService {
 
     pub async fn delete(state: &AppState, user: &AuthUser, id: i64) -> AppResult<()> {
         user.require_write()?;
-        let res = sqlx::query("DELETE FROM tags WHERE id = ? AND tenant_id = ?")
+        let res = sqlx::query("DELETE FROM tags WHERE id = ? AND user_id = ?")
             .bind(id)
-            .bind(user.tenant_id)
+            .bind(user.user_id)
             .execute(&state.pool)
             .await?;
         if res.rows_affected() == 0 {
@@ -101,14 +101,14 @@ impl TagService {
     /// Ensure a tag exists (within a transaction), return its id.
     pub async fn ensure_tag(
         tx: &mut sqlx::SqliteConnection,
-        tenant_id: i64,
+        user_id: i64,
         name: &str,
     ) -> AppResult<i64> {
         let normalized = normalize(name);
         // Try to find existing.
         let existing: Option<i64> =
-            sqlx::query_scalar("SELECT id FROM tags WHERE tenant_id = ? AND normalized_name = ?")
-                .bind(tenant_id)
+            sqlx::query_scalar("SELECT id FROM tags WHERE user_id = ? AND normalized_name = ?")
+                .bind(user_id)
                 .bind(&normalized)
                 .fetch_optional(&mut *tx)
                 .await?;
@@ -117,10 +117,10 @@ impl TagService {
         }
         let uuid_str = uuid::Uuid::new_v4().to_string();
         let id: i64 = sqlx::query_scalar(
-            "INSERT INTO tags (uuid, tenant_id, name, normalized_name) VALUES (?, ?, ?, ?) RETURNING id",
+            "INSERT INTO tags (uuid, user_id, name, normalized_name) VALUES (?, ?, ?, ?) RETURNING id",
         )
         .bind(&uuid_str)
-        .bind(tenant_id)
+        .bind(user_id)
         .bind(name.trim())
         .bind(&normalized)
         .fetch_one(&mut *tx)

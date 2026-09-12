@@ -22,8 +22,6 @@ export interface MeResponse {
   display_name: string
   email: string | null
   is_system_admin: boolean
-  tenant_id: number
-  tenant_role: 'owner' | 'admin' | 'editor' | 'viewer'
 }
 
 export interface SmtpSettings {
@@ -37,34 +35,10 @@ export interface SmtpSettings {
   from_name: string
 }
 
-export interface Tenant {
-  id: number
-  uuid: string
-  name: string
-  slug: string
-  created_by: number
-  created_at: string
-  updated_at: string
-}
-
-export interface TenantWithRole extends Tenant {
-  role: string
-}
-
-export interface MemberInfo {
-  user_id: number
-  username: string
-  display_name: string
-  uuid: string
-  role: string
-  created_at: string
-  updated_at: string
-}
-
 export interface Tag {
   id: number
   uuid: string
-  tenant_id: number
+  user_id: number
   name: string
   normalized_name: string
   created_at: string
@@ -73,7 +47,6 @@ export interface Tag {
 export interface AccessToken {
   id: number
   uuid: string
-  tenant_id: number
   user_id: number
   name: string
   token_prefix: string
@@ -90,7 +63,6 @@ export interface AccessTokenCreated extends AccessToken {
 
 export interface SessionInfo {
   id: number
-  tenant_id: number
   expires_at: string
   last_used_at: string
   created_at: string
@@ -112,7 +84,7 @@ export interface PasskeyChallenge {
 export interface SyncDocument {
   id: number
   uuid: string
-  tenant_id: number
+  user_id: number
   path: string
   title: string
   revision: number
@@ -129,7 +101,7 @@ export interface BookmarkTreeNode {
   id: number
   uuid: string
   document_id: number
-  tenant_id: number
+  user_id: number
   parent_id: number | null
   node_type: BookmarkNodeType
   external_id: string

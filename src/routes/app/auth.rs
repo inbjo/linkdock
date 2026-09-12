@@ -80,8 +80,6 @@ async fn me(
         "display_name": profile.get::<String, _>("display_name"),
         "email": profile.get::<Option<String>, _>("email"),
         "is_system_admin": user.is_system_admin,
-        "tenant_id": user.tenant_id,
-        "tenant_role": user.tenant_role.as_str(),
     })))
 }
 

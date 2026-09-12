@@ -25,7 +25,7 @@ async fn list_documents(
     auth: AuthContext,
 ) -> AppResult<Json<Vec<SyncDocument>>> {
     Ok(Json(
-        BookmarkService::list_documents(&state, auth.0.tenant_id).await?,
+        BookmarkService::list_documents(&state, auth.0.user_id).await?,
     ))
 }
 
@@ -44,7 +44,7 @@ async fn tree(
     Path(id): Path<i64>,
 ) -> AppResult<Json<Vec<BookmarkTreeNode>>> {
     Ok(Json(
-        BookmarkService::tree(&state, auth.0.tenant_id, id).await?,
+        BookmarkService::tree(&state, auth.0.user_id, id).await?,
     ))
 }
 

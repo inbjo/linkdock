@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct AccessToken {
     pub id: i64,
     pub uuid: String,
-    pub tenant_id: i64,
     pub user_id: i64,
     pub name: String,
     pub token_prefix: String,

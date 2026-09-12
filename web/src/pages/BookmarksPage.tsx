@@ -16,12 +16,12 @@ export function BookmarksPage() {
   const { me } = useAuth()
   const { showError, showSuccess, element } = useToast()
   const queryClient = useQueryClient()
-  const canWrite = me?.tenant_role !== 'viewer'
+  const canWrite = true
   const [documentId, setDocumentId] = useState<number | null>(null)
   const [editor, setEditor] = useState<EditorState | null>(null)
 
   const documents = useQuery({
-    queryKey: ['documents', me?.tenant_id],
+    queryKey: ['documents', me?.id],
     queryFn: () => api.listDocuments(),
   })
   useEffect(() => {
@@ -29,7 +29,7 @@ export function BookmarksPage() {
   }, [documentId, documents.data])
 
   const tree = useQuery({
-    queryKey: ['bookmark-tree', me?.tenant_id, documentId],
+    queryKey: ['bookmark-tree', me?.id, documentId],
     queryFn: () => api.bookmarkTree(documentId!),
     enabled: documentId !== null,
   })

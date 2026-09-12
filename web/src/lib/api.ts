@@ -1,5 +1,5 @@
 import type {
-  AuthResponse, MeResponse, TenantWithRole, Tenant, MemberInfo, Tag,
+  AuthResponse, MeResponse, Tag,
   AccessToken, AccessTokenCreated, SessionInfo, ApiError,
   PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings,
   SyncDocument, BookmarkTreeNode, BookmarkNodeType,
@@ -104,46 +104,6 @@ class ApiClient {
   }
   deletePasskey(id: number) {
     return this.request(`/passkeys/${id}`, { method: 'DELETE' })
-  }
-
-  // Tenants
-  listTenants() {
-    return this.request<TenantWithRole[]>('/tenants')
-  }
-  createTenant(name: string, slug?: string) {
-    return this.request<Tenant>('/tenants', {
-      method: 'POST',
-      body: JSON.stringify({ name, slug }),
-    })
-  }
-  updateTenant(id: number, data: { name?: string; slug?: string }) {
-    return this.request<Tenant>(`/tenants/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    })
-  }
-  selectTenant(id: number) {
-    return this.request(`/tenants/${id}/select`, { method: 'POST' })
-  }
-  listMembers(tenantId: number) {
-    return this.request<MemberInfo[]>(`/tenants/${tenantId}/members`)
-  }
-  addMember(tenantId: number, username: string, role: string) {
-    return this.request<MemberInfo>(`/tenants/${tenantId}/members`, {
-      method: 'POST',
-      body: JSON.stringify({ username, role }),
-    })
-  }
-  updateMember(tenantId: number, userId: number, role: string) {
-    return this.request<MemberInfo>(`/tenants/${tenantId}/members/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ role }),
-    })
-  }
-  removeMember(tenantId: number, userId: number) {
-    return this.request(`/tenants/${tenantId}/members/${userId}`, {
-      method: 'DELETE',
-    })
   }
 
   // Canonical XBEL documents and ordered nodes

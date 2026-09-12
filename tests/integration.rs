@@ -384,10 +384,10 @@ async fn malformed_xbel_never_replaces_the_existing_tree() {
 }
 
 #[tokio::test]
-async fn webdav_documents_are_tenant_isolated() {
+async fn webdav_documents_are_user_isolated() {
     let app = setup().await;
-    let (session_a, _) = register(&app, "tenant-a").await;
-    let (session_b, _) = register(&app, "tenant-b").await;
+    let (session_a, _) = register(&app, "user-a").await;
+    let (session_b, _) = register(&app, "user-b").await;
     let token_a = token(&app, &session_a, "a").await;
     let token_b = token(&app, &session_b, "b").await;
     let xbel = r#"<?xml version="1.0"?><xbel><bookmark id="1" href="https://private.example"><title>Private</title></bookmark></xbel>"#;

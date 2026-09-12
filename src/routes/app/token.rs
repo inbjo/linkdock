@@ -45,7 +45,7 @@ async fn list_sessions(
     auth: AuthContext,
 ) -> AppResult<Json<Vec<serde_json::Value>>> {
     let rows = sqlx::query(
-        r#"SELECT id, active_tenant_id, expires_at, last_used_at, created_at
+        r#"SELECT id, expires_at, last_used_at, created_at
            FROM sessions WHERE user_id = ? ORDER BY created_at DESC"#,
     )
     .bind(auth.0.user_id)
@@ -56,7 +56,6 @@ async fn list_sessions(
         .map(|r| {
             serde_json::json!({
                 "id": r.try_get::<i64, _>("id").unwrap_or(0),
-                "tenant_id": r.try_get::<i64, _>("active_tenant_id").unwrap_or(0),
                 "expires_at": r.try_get::<String, _>("expires_at").unwrap_or_default(),
                 "last_used_at": r.try_get::<String, _>("last_used_at").unwrap_or_default(),
                 "created_at": r.try_get::<String, _>("created_at").unwrap_or_default(),

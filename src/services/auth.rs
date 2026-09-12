@@ -116,35 +116,9 @@ impl AuthService {
         let user_id: i64 = user_row.try_get("id").unwrap_or(0);
         let is_system_admin = user_row.try_get::<i64, _>("is_system_admin").unwrap_or(0) != 0;
 
-        // Create personal workspace.
-        let tenant_uuid = uuid::Uuid::new_v4().to_string();
-        let slug = slugify(&username);
-        let tenant_row = sqlx::query(
-            "INSERT INTO tenants (uuid, name, slug, created_by) VALUES (?, ?, ?, ?) RETURNING id",
-        )
-        .bind(&tenant_uuid)
-        .bind(format!("{}'s workspace", username))
-        .bind(&slug)
-        .bind(user_id)
-        .fetch_one(&mut *tx)
-        .await?;
-        let tenant_id: i64 = tenant_row.try_get("id").unwrap_or(0);
-
-        sqlx::query("INSERT INTO tenant_members (tenant_id, user_id, role) VALUES (?, ?, 'owner')")
-            .bind(tenant_id)
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-
-        sqlx::query("UPDATE users SET preferred_tenant_id = ? WHERE id = ?")
-            .bind(tenant_id)
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-
         tx.commit().await?;
 
-        let (session, _sid) = SessionService::create(state, user_id, tenant_id).await?;
+        let (session, _sid) = SessionService::create(state, user_id).await?;
 
         Ok(AuthResponse {
             user: UserInfo {
@@ -203,25 +177,7 @@ impl AuthService {
         let email: Option<String> = row.try_get("email").unwrap_or(None);
         let is_system_admin: i64 = row.try_get("is_system_admin").unwrap_or(0);
 
-        // Resolve active tenant: first tenant the user is a member of.
-        let tenant_row = sqlx::query(
-            r#"SELECT tm.tenant_id
-               FROM tenant_members tm
-               JOIN users u ON u.id = tm.user_id
-               WHERE tm.user_id = ?
-               ORDER BY CASE WHEN tm.tenant_id = u.preferred_tenant_id THEN 0 ELSE 1 END,
-                        tm.tenant_id
-               LIMIT 1"#,
-        )
-        .bind(user_id)
-        .fetch_optional(&state.pool)
-        .await?;
-        let tenant_id: i64 = match tenant_row {
-            Some(r) => r.try_get("tenant_id").unwrap_or(0),
-            None => return Err(AppError::Internal(anyhow::anyhow!("user has no tenant"))),
-        };
-
-        let (session, _sid) = SessionService::create(state, user_id, tenant_id).await?;
+        let (session, _sid) = SessionService::create(state, user_id).await?;
 
         Ok(AuthResponse {
             user: UserInfo {

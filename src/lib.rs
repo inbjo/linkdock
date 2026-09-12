@@ -158,7 +158,8 @@ async fn spa_fallback(State(state): State<state::AppState>, req: Request<Body>) 
         let html = match crate::services::site::SiteSettingsService::get(&state).await {
             Ok(settings) => {
                 let html = String::from_utf8_lossy(&index);
-                crate::services::site::SiteSettingsService::inject_tdk(&html, &settings).into_bytes()
+                crate::services::site::SiteSettingsService::inject_tdk(&html, &settings)
+                    .into_bytes()
             }
             Err(_) => index,
         };

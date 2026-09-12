@@ -59,7 +59,9 @@ async fn site_settings(
     auth: AuthContext,
 ) -> AppResult<Json<crate::services::site::SiteSettings>> {
     require_admin(&auth.0)?;
-    Ok(Json(crate::services::site::SiteSettingsService::get(&state).await?))
+    Ok(Json(
+        crate::services::site::SiteSettingsService::get(&state).await?,
+    ))
 }
 
 async fn update_site_settings(

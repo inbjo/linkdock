@@ -5,7 +5,6 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 import { SettingsBar } from '@/components/SettingsBar'
-import { AuthScene } from '@/components/AuthScene'
 
 export function RegisterPage() {
   const { t } = useTranslation()
@@ -50,155 +49,108 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-shell" style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+    <div className="auth-page min-h-dvh w-full overflow-x-clip flex flex-col items-center justify-center px-6 py-12 relative">
       <SettingsBar />
 
-      {/* Left: brand panel */}
-      <div className="auth-brand-panel"
-        style={{
-          flex: '1 1 50%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: 'var(--space-2xl)',
-          background: 'var(--color-paper-2)',
-          borderRight: '1px solid var(--color-rule)',
-        }}
-      >
-        <div className="auth-brand-copy" style={{ maxWidth: '28rem' }}>
-          <div
-            className="font-display auth-wordmark"
-            style={{
-              fontSize: 'var(--text-display)',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.05,
-              color: 'var(--color-ink)',
-            }}
-          >
-            {t('app.name')}
-          </div>
-          <div className="auth-tagline"
-            style={{
-              marginTop: 'var(--space-md)',
-              fontSize: 'var(--text-md)',
-              color: 'var(--color-ink-2)',
-              lineHeight: 1.6,
-              maxWidth: '24rem',
-            }}
-          >
-            {t('sync.intro')}
-          </div>
-          <div
-            className="font-mono auth-proof"
-            style={{
-              marginTop: 'var(--space-xl)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-ink-3)',
-              letterSpacing: '0.04em',
-            }}
-          >
-            Floccus-compatible · Self-hosted · Open source
-          </div>
-        </div>
-        <AuthScene />
-      </div>
+      <div className="w-full max-w-sm flex flex-col items-center">
+        {/* Wordmark */}
+        <Link to="/" className="font-display text-2xl font-semibold tracking-tight text-[var(--color-ink)] no-underline mb-12 select-none">
+          {t('app.name')}
+        </Link>
 
-      {/* Right: form */}
-      <div className="auth-form-panel"
-        style={{
-          flex: '1 1 50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--space-xl)',
-        }}
-      >
-        <div className="auth-form-card mx-auto w-full" style={{ width: '100%', maxWidth: '22rem' }}>
-          <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
-            {t('auth.register')}
+        {/* Form */}
+        <form onSubmit={submit} className="w-full flex flex-col gap-4">
+          {isFirstUser && (
+            <div className="w-full px-4 py-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-sm text-[var(--color-ink-2)] leading-relaxed">
+              {t('auth.first_user_admin')}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+              {t('auth.username')}
+            </label>
+            <input
+              className="auth-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              required
+              minLength={2}
+              autoComplete="username"
+            />
           </div>
-          <h1
-            className="font-display"
-            style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
-          >
-            {t('auth.register_title')}
-          </h1>
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {isFirstUser && (
-              <div className="card-flat" style={{ fontSize: 'var(--text-sm)', lineHeight: 1.55, color: 'var(--color-ink-2)' }}>
-                {t('auth.first_user_admin')}
-              </div>
-            )}
-            <div>
-              <label className="label">{t('auth.username')}</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+              {t('auth.email')}
+            </label>
+            <input
+              className="auth-input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+              {t('auth.password')}
+            </label>
+            <input
+              className="auth-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+              {t('auth.display_name')}
+            </label>
+            <input
+              className="auth-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              autoComplete="name"
+            />
+          </div>
+          {requiresSetupToken && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+                {t('auth.setup_token')}
+              </label>
               <input
-                className="input"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoFocus
-                required
-                minLength={2}
-                autoComplete="username"
-              />
-            </div>
-            <div>
-              <label className="label">{t('auth.email')}</label>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <label className="label">{t('auth.password')}</label>
-              <input
-                className="input"
+                className="auth-input"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={setupToken}
+                onChange={(e) => setSetupToken(e.target.value)}
                 required
-                minLength={8}
-                autoComplete="new-password"
+                autoComplete="one-time-code"
               />
+              <p className="text-xs text-[var(--color-ink-3)] leading-relaxed mt-0.5">
+                {t('auth.setup_token_hint')}
+              </p>
             </div>
-            <div>
-              <label className="label">{t('auth.display_name')}</label>
-              <input
-                className="input"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                autoComplete="name"
-              />
-            </div>
-            {requiresSetupToken && (
-              <div>
-                <label className="label">{t('auth.setup_token')}</label>
-                <input
-                  className="input"
-                  type="password"
-                  value={setupToken}
-                  onChange={(e) => setSetupToken(e.target.value)}
-                  required
-                  autoComplete="one-time-code"
-                />
-                <div style={{ marginTop: 'var(--space-3xs)', color: 'var(--color-ink-3)', fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
-                  {t('auth.setup_token_hint')}
-                </div>
-              </div>
-            )}
-            <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-              {loading ? t('common.loading') : t('auth.register')}
-            </button>
-          </form>
-          <p style={{ marginTop: 'var(--space-lg)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)' }}>
-            {t('auth.have_account')}{' '}
-            <Link to="/login" style={{ fontWeight: 500 }}>{t('auth.login')}</Link>
-          </p>
-        </div>
+          )}
+          <button
+            className="auth-btn-primary"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? t('common.loading') : t('auth.register')}
+          </button>
+        </form>
+
+        {/* Login link */}
+        <p className="mt-10 text-sm text-[var(--color-ink-2)] text-center">
+          {t('auth.have_account')}{' '}
+          <Link to="/login" className="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-150 no-underline">
+            {t('auth.login')}
+          </Link>
+        </p>
       </div>
     </div>
   )

@@ -35,6 +35,13 @@ export interface SmtpSettings {
   from_name: string
 }
 
+export interface SiteSettings {
+  site_name: string
+  site_title: string
+  site_description: string
+  site_keywords: string
+}
+
 export interface Tag {
   id: number
   uuid: string

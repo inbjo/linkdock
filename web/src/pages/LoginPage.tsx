@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 import { SettingsBar } from '@/components/SettingsBar'
 import { getPasskey, isPasskeySupported } from '@/lib/webauthn'
-import { AuthScene } from '@/components/AuthScene'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -56,140 +55,96 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-shell" style={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+    <div className="auth-page min-h-dvh w-full overflow-x-clip flex flex-col items-center justify-center px-6 py-12 relative">
       {element}
       <SettingsBar />
 
-      {/* Left: brand panel */}
-      <div
-        className="auth-brand-panel"
-        style={{
-          flex: '1 1 50%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: 'var(--space-2xl)',
-          background: 'var(--color-paper-2)',
-          borderRight: '1px solid var(--color-rule)',
-        }}
-      >
-        <div className="auth-brand-copy" style={{ maxWidth: '28rem' }}>
-          <div
-            className="font-display auth-wordmark"
-            style={{
-              fontSize: 'var(--text-display)',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.05,
-              color: 'var(--color-ink)',
-            }}
-          >
-            {t('app.name')}
-          </div>
-          <div className="auth-tagline"
-            style={{
-              marginTop: 'var(--space-md)',
-              fontSize: 'var(--text-md)',
-              color: 'var(--color-ink-2)',
-              lineHeight: 1.6,
-              maxWidth: '24rem',
-            }}
-          >
-            {t('sync.intro')}
-          </div>
-          <div
-            className="font-mono auth-proof"
-            style={{
-              marginTop: 'var(--space-xl)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-ink-3)',
-              letterSpacing: '0.04em',
-            }}
-          >
-            Floccus-compatible · Self-hosted · Open source
-          </div>
-        </div>
-        <AuthScene />
-      </div>
+      <div className="w-full max-w-sm flex flex-col items-center">
+        {/* Wordmark */}
+        <Link to="/" className="auth-wordmark-link font-display text-2xl font-semibold tracking-tight text-[var(--color-ink)] no-underline mb-12 select-none">
+          {t('app.name')}
+        </Link>
 
-      {/* Right: form */}
-      <div className="auth-form-panel"
-        style={{
-          flex: '1 1 50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'var(--space-xl)',
-        }}
-      >
-        <div className="auth-form-card mx-auto w-full" style={{ width: '100%', maxWidth: '22rem' }}>
-          <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
-            {t('auth.login')}
+        {/* Form */}
+        <form onSubmit={submit} className="w-full flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+              {t('auth.username')}
+            </label>
+            <input
+              className="auth-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              required
+              autoComplete="username webauthn"
+            />
           </div>
-          <h1
-            className="font-display"
-            style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
-          >
-            {t('auth.login_title')}
-          </h1>
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            <div>
-              <label className="label">{t('auth.username')}</label>
-              <input
-                className="input"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoFocus
-                required
-                autoComplete="username webauthn"
-              />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
+                {t('auth.password')}
+              </label>
+              <Link to="/forgot-password" className="text-xs text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-150 no-underline font-medium">
+                {t('auth.forgot_password')}
+              </Link>
             </div>
-            <div>
-              <label className="label">{t('auth.password')}</label>
-              <Link to="/forgot-password" className="auth-forgot-link">{t('auth.forgot_password')}</Link>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-              {loading ? t('common.loading') : t('auth.login')}
-            </button>
-          </form>
-          <div className="auth-divider"><span>{t('auth.or')}</span></div>
+            <input
+              className="auth-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </div>
           <button
-            className="btn passkey-button"
-            type="button"
-            disabled={passkeyLoading || !isPasskeySupported()}
-            onClick={() => loginWithPasskey()}
-            style={{ width: '100%' }}
+            className="auth-btn-primary"
+            type="submit"
+            disabled={loading}
           >
-            <span aria-hidden="true" className="passkey-icon">⌁</span>
-            {passkeyLoading ? t('common.loading') : t('auth.passkey_login')}
+            {loading ? t('common.loading') : t('auth.login')}
           </button>
-          {!isPasskeySupported() ? (
-            <p className="passkey-hint">{t('auth.passkey_unsupported')}</p>
-          ) : null}
-          {isPasskeySupported() && username.trim() ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={passkeyLoading}
-              onClick={() => loginWithPasskey(username.trim())}
-              style={{ width: '100%', marginTop: 'var(--space-xs)', justifyContent: 'center' }}
-            >
-              {t('auth.passkey_username_fallback')}
-            </button>
-          ) : null}
-          <p style={{ marginTop: 'var(--space-lg)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-2)' }}>
-            {t('auth.no_account')}{' '}
-            <Link to="/register" style={{ fontWeight: 500 }}>{t('auth.register')}</Link>
-          </p>
+        </form>
+
+        {/* Divider */}
+        <div className="w-full flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[var(--color-rule)]" />
+          <span className="text-xs text-[var(--color-ink-3)] font-mono uppercase tracking-wider">{t('auth.or')}</span>
+          <div className="flex-1 h-px bg-[var(--color-rule)]" />
         </div>
+
+        {/* Passkey */}
+        <button
+          className="auth-btn-passkey w-full"
+          type="button"
+          disabled={passkeyLoading || !isPasskeySupported()}
+          onClick={() => loginWithPasskey()}
+        >
+          <span aria-hidden="true" className="text-base leading-none">⌁</span>
+          {passkeyLoading ? t('common.loading') : t('auth.passkey_login')}
+        </button>
+        {!isPasskeySupported() ? (
+          <p className="mt-3 text-xs text-[var(--color-ink-3)] text-center leading-relaxed">{t('auth.passkey_unsupported')}</p>
+        ) : null}
+        {isPasskeySupported() && username.trim() ? (
+          <button
+            type="button"
+            className="auth-btn-ghost w-full mt-2"
+            disabled={passkeyLoading}
+            onClick={() => loginWithPasskey(username.trim())}
+          >
+            {t('auth.passkey_username_fallback')}
+          </button>
+        ) : null}
+
+        {/* Register link */}
+        <p className="mt-10 text-sm text-[var(--color-ink-2)] text-center">
+          {t('auth.no_account')}{' '}
+          <Link to="/register" className="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-150 no-underline">
+            {t('auth.register')}
+          </Link>
+        </p>
       </div>
     </div>
   )

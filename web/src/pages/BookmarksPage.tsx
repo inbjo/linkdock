@@ -76,22 +76,20 @@ export function BookmarksPage() {
     reorder.mutate({ parentId: siblings[index].parent_id, ids })
   }
 
-  // Reorder a sibling list after a drag-and-drop within the same parent.
   const dropReorder = (parentId: number | null, ids: number[]) => {
     reorder.mutate({ parentId, ids })
   }
-  // Move a node to a new parent (appended at the end), then the tree refreshes.
   const dropMove = (id: number, parentId: number | null) => {
     moveNode.mutate({ id, parentId })
   }
 
   return (
-    <div className="tree-workspace page-shell">
+    <div className="page-shell tree-workspace">
       <header className="tree-hero">
-        <div>
-          <div className="section-label">{t('tree.eyebrow')}</div>
-          <h1 className="font-display tree-title">{currentDocument?.title || t('tree.title')}</h1>
-          <p className="tree-subtitle">{t('tree.subtitle')}</p>
+        <div className="min-w-0">
+          <div className="page-eyebrow">{t('tree.eyebrow')}</div>
+          <h1 className="font-display page-title">{currentDocument?.title || t('tree.title')}</h1>
+          <p className="page-subtitle">{t('tree.subtitle')}</p>
         </div>
         <div className="tree-toolbar">
           {documents.data && documents.data.length > 0 && (
@@ -188,8 +186,6 @@ export function BookmarksPage() {
   )
 }
 
-// Module-level drag state shared across TreeLevel instances so a node can be
-// dragged from one sibling list and dropped into another (or into a folder).
 let draggedNodeId: number | null = null
 
 function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, onMove, onDropReorder, onDropMove }: {
@@ -205,13 +201,10 @@ function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, 
   onDropMove: (id: number, parentId: number | null) => void
 }) {
   const { t } = useTranslation()
-  // Folders start collapsed; the user expands the ones they want to inspect.
   const [collapsed, setCollapsed] = useState<Set<number>>(
     () => new Set(nodes.filter((node) => node.node_type === 'folder' && node.children.length > 0).map((node) => node.id)),
   )
-  // Drop position indicator: 'before' | 'after' a node index, or null.
   const [dropTarget, setDropTarget] = useState<{ index: number; pos: 'before' | 'after' } | null>(null)
-  // Folder highlighted as a move-into target.
   const [dropFolder, setDropFolder] = useState<number | null>(null)
 
   const toggle = (id: number) =>
@@ -234,7 +227,6 @@ function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, 
     setDropFolder(null)
   }
 
-  // Dropping onto a row: determine before/after based on cursor Y vs midpoint.
   const handleRowDragOver = (e: React.DragEvent, index: number) => {
     if (!canWrite || draggedNodeId === null) return
     e.preventDefault()
@@ -253,7 +245,6 @@ function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, 
     setDropFolder(null)
     if (dragged === null || dragged === target.id) return
 
-    // If dropping onto a folder row, move into the folder instead of reordering.
     if (target.node_type === 'folder' && dropTarget?.pos === 'after' && e.clientY > e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height * 0.65) {
       onDropMove(dragged, target.id)
       return
@@ -267,25 +258,19 @@ function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, 
     } else {
       insertAt = index
     }
-    // If the dragged node was before the insertion point in this list, removing
-    // it shifts the target index down by one.
     if (draggedStillSibling && index < insertAt) insertAt -= 1
     if (insertAt < 0) insertAt = 0
     if (insertAt > ids.length) insertAt = ids.length
     ids.splice(insertAt, 0, dragged)
 
-    // Same parent → reorder; different parent → move then reorder.
     const draggedNode = nodes.find((n) => n.id === dragged)
     if (draggedNode && draggedNode.parent_id === parentId) {
       onDropReorder(parentId, ids)
     } else {
       onDropMove(dragged, parentId)
-      // After the move the node lands at the end; a follow-up reorder would be
-      // ideal but the tree refresh re-renders, so we keep it simple.
     }
   }
 
-  // Dropping onto a folder header (when collapsed) → move into folder.
   const handleFolderDragOver = (e: React.DragEvent, id: number) => {
     if (!canWrite || draggedNodeId === null) return
     e.preventDefault()
@@ -458,5 +443,5 @@ function collectFolders(nodes: BookmarkTreeNode[]): BookmarkTreeNode[] {
 }
 
 function countNodes(nodes: BookmarkTreeNode[]): number {
-  return nodes.reduce((count, node) => count + 1 + countNodes(node.children), 0)
+  return nodes.reduce((sum, node) => sum + 1 + countNodes(node.children), 0)
 }

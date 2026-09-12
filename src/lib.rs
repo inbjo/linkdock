@@ -126,7 +126,7 @@ async fn metrics(State(state): State<state::AppState>) -> String {
     )
 }
 
-async fn spa_fallback(req: Request<Body>) -> Response {
+async fn spa_fallback(State(state): State<state::AppState>, req: Request<Body>) -> Response {
     let path = req.uri().path();
 
     if path.starts_with("/api/") {
@@ -155,11 +155,18 @@ async fn spa_fallback(req: Request<Body>) -> Response {
     }
 
     if let Some(index) = web_assets::serve_index() {
+        let html = match crate::services::site::SiteSettingsService::get(&state).await {
+            Ok(settings) => {
+                let html = String::from_utf8_lossy(&index);
+                crate::services::site::SiteSettingsService::inject_tdk(&html, &settings).into_bytes()
+            }
+            Err(_) => index,
+        };
         return Response::builder()
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
             .header(header::CACHE_CONTROL, "no-cache")
-            .body(Body::from(index))
+            .body(Body::from(html))
             .unwrap();
     }
 

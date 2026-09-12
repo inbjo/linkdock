@@ -15,6 +15,7 @@ pub fn router() -> Router<AppState> {
         .route("/audit", get(list_audit))
         .route("/smtp", get(smtp_settings).put(update_smtp_settings))
         .route("/smtp/test", post(test_smtp))
+        .route("/site", get(site_settings).put(update_site_settings))
 }
 
 async fn smtp_settings(
@@ -51,6 +52,25 @@ async fn test_smtp(
     require_admin(&auth.0)?;
     crate::services::email::EmailService::send_test(&state, &req.email).await?;
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn site_settings(
+    State(state): State<AppState>,
+    auth: AuthContext,
+) -> AppResult<Json<crate::services::site::SiteSettings>> {
+    require_admin(&auth.0)?;
+    Ok(Json(crate::services::site::SiteSettingsService::get(&state).await?))
+}
+
+async fn update_site_settings(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    Json(req): Json<crate::services::site::UpdateSiteSettings>,
+) -> AppResult<Json<crate::services::site::SiteSettings>> {
+    require_admin(&auth.0)?;
+    Ok(Json(
+        crate::services::site::SiteSettingsService::update(&state, req).await?,
+    ))
 }
 
 fn require_admin(user: &AuthUser) -> AppResult<()> {

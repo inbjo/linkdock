@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/hooks/useAuth'
 import { Navigate } from 'react-router-dom'
 import { api } from '@/lib/api'
-import type { SmtpSettings } from '@/lib/types'
+import type { SmtpSettings, SiteSettings } from '@/lib/types'
 import { useToast } from '@/components/Toast'
 
 interface Stats {
@@ -49,18 +49,12 @@ export function AdminPage() {
   if (!me.is_system_admin) return <Navigate to="/bookmarks" replace />
 
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
-      <div className="page-container" style={{ maxWidth: '56rem', margin: '0 auto' }}>
-        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
-          {t('nav.admin')}
-        </div>
-        <h1
-          className="font-display"
-          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
-        >
-          {t('admin.title')}
-        </h1>
+    <div className="page-shell scrollbar-thin">
+      <div className="page-container mx-auto">
+        <div className="page-eyebrow">{t('nav.admin')}</div>
+        <h1 className="font-display page-title">{t('admin.title')}</h1>
         <StatsSection />
+        <SiteSettingsSection />
         <SmtpSection />
         <UsersSection />
         <AuditSection />
@@ -72,6 +66,64 @@ export function AdminPage() {
 const emptySmtp: SmtpSettings = {
   enabled: false, host: '', port: 587, security: 'starttls', username: '',
   password_configured: false, from_email: '', from_name: 'Linkdock',
+}
+
+const defaultSiteSettings: SiteSettings = {
+  site_name: 'Linkdock',
+  site_title: 'Linkdock',
+  site_description: 'Self-hosted bookmark manager with WebDAV/XBEL sync.',
+  site_keywords: '',
+}
+
+function SiteSettingsSection() {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const { showError, showSuccess, element } = useToast()
+  const { data } = useQuery({ queryKey: ['admin', 'site'], queryFn: () => api.siteSettings() })
+  const [form, setForm] = useState<SiteSettings>(defaultSiteSettings)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { if (data) setForm(data) }, [data])
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault(); setSaving(true)
+    try {
+      const updated = await api.updateSiteSettings(form)
+      setForm(updated)
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'site'] })
+      showSuccess(t('admin.site_saved'))
+    } catch (err) { showError(err instanceof Error ? err.message : t('admin.site_save_failed')) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <section className="admin-section">
+      {element}
+      <div className="page-eyebrow">{t('admin.site_title_label')}</div>
+      <form className="card admin-site-form" onSubmit={save}>
+        <div>
+          <label className="label">{t('admin.site_name')}</label>
+          <input className="input" required value={form.site_name} onChange={(e) => setForm({ ...form, site_name: e.target.value })} />
+          <div className="modal-hint">{t('admin.site_name_hint')}</div>
+        </div>
+        <div>
+          <label className="label">{t('admin.site_browser_title')}</label>
+          <input className="input" required value={form.site_title} onChange={(e) => setForm({ ...form, site_title: e.target.value })} />
+          <div className="modal-hint">{t('admin.site_browser_title_hint')}</div>
+        </div>
+        <div>
+          <label className="label">{t('admin.site_description')}</label>
+          <textarea className="input" rows={3} value={form.site_description} onChange={(e) => setForm({ ...form, site_description: e.target.value })} />
+          <div className="modal-hint">{t('admin.site_description_hint')}</div>
+        </div>
+        <div>
+          <label className="label">{t('admin.site_keywords')}</label>
+          <input className="input" value={form.site_keywords} onChange={(e) => setForm({ ...form, site_keywords: e.target.value })} placeholder="bookmarks, sync, webdav" />
+          <div className="modal-hint">{t('admin.site_keywords_hint')}</div>
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? t('common.loading') : t('admin.site_save')}</button>
+      </form>
+    </section>
+  )
 }
 
 function SmtpSection() {
@@ -105,11 +157,11 @@ function SmtpSection() {
   }
 
   return (
-    <section style={{ marginBottom: 'var(--space-xl)' }}>
+    <section className="admin-section">
       {element}
-      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.smtp_title')}</div>
-      <form className="card" onSubmit={save} style={{ display: 'grid', gap: 'var(--space-md)' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', fontSize: 'var(--text-sm)' }}>
+      <div className="page-eyebrow">{t('admin.smtp_title')}</div>
+      <form className="card admin-smtp-form" onSubmit={save}>
+        <label className="admin-smtp-toggle">
           <span className="checkbox-hit">
             <input className="ui-checkbox" type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
             <span className="ui-checkbox-mark" aria-hidden="true" />
@@ -125,7 +177,7 @@ function SmtpSection() {
           <div><label className="label">{t('admin.smtp_from_email')}</label><input className="input" type="email" required value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} /></div>
           <div><label className="label">{t('admin.smtp_from_name')}</label><input className="input" required value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} /></div>
         </div>
-        <button className="btn btn-primary" type="submit" disabled={saving} style={{ justifySelf: 'start' }}>{saving ? t('common.loading') : t('admin.smtp_save')}</button>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? t('common.loading') : t('admin.smtp_save')}</button>
         <div className="smtp-test-row">
           <input className="input" type="email" required value={testEmail} placeholder={t('admin.smtp_test_email')} onChange={(e) => setTestEmail(e.target.value)} />
           <button className="btn" type="button" disabled={testing || !testEmail} onClick={test}>{testing ? t('common.loading') : t('admin.smtp_test')}</button>
@@ -146,7 +198,7 @@ function StatsSection() {
     },
   })
 
-  if (isLoading) return <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-lg)' }}>{t('common.loading')}</div>
+  if (isLoading) return <div className="admin-loading">{t('common.loading')}</div>
   if (!stats) return null
 
   const items = [
@@ -161,42 +213,11 @@ function StatsSection() {
   ]
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 1fr))',
-        gap: 'var(--space-2xs)',
-        marginBottom: 'var(--space-xl)',
-      }}
-    >
+    <div className="admin-stats-grid">
       {items.map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: 'var(--space-sm)',
-            border: '1px solid var(--color-rule)',
-            borderRadius: 'var(--radius)',
-            background: 'var(--color-paper)',
-          }}
-        >
-          <div
-            className="font-display"
-            style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.02em' }}
-          >
-            {item.value.toLocaleString()}
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
-              color: 'var(--color-ink-3)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              marginTop: 'var(--space-3xs)',
-            }}
-          >
-            {item.label}
-          </div>
+        <div key={item.label} className="admin-stat-card">
+          <div className="font-display admin-stat-value">{item.value.toLocaleString()}</div>
+          <div className="admin-stat-label">{item.label}</div>
         </div>
       ))}
     </div>
@@ -215,12 +236,12 @@ function UsersSection() {
   })
 
   return (
-    <div style={{ marginBottom: 'var(--space-xl)' }}>
-      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>{t('admin.users')}</div>
+    <div className="admin-section">
+      <div className="page-eyebrow">{t('admin.users')}</div>
       {isLoading ? (
-        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
+        <div className="admin-loading">{t('common.loading')}</div>
       ) : (
-        <div style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto' }} className="scrollbar-thin">
+        <div className="admin-table-wrap scrollbar-thin">
           <table className="table">
             <thead>
               <tr>
@@ -237,14 +258,14 @@ function UsersSection() {
             <tbody>
               {(users || []).map((u) => (
                 <tr key={u.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{u.id}</td>
-                  <td className="font-display" style={{ fontWeight: 500 }}>{u.username}</td>
-                  <td style={{ color: 'var(--color-ink-2)' }}>{u.display_name}</td>
-                  <td style={{ color: 'var(--color-ink-2)' }}>{u.email || '—'}</td>
-                  <td>{u.is_system_admin ? <span className="badge badge-accent">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
-                  <td>{u.disabled ? <span className="badge badge-danger">✓</span> : <span style={{ color: 'var(--color-ink-3)' }}>—</span>}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{u.document_count}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="admin-cell-mono">{u.id}</td>
+                  <td className="font-display admin-cell-strong">{u.username}</td>
+                  <td className="admin-cell-muted">{u.display_name}</td>
+                  <td className="admin-cell-muted">{u.email || '—'}</td>
+                  <td>{u.is_system_admin ? <span className="badge badge-accent">✓</span> : <span className="admin-cell-faint">—</span>}</td>
+                  <td>{u.disabled ? <span className="badge badge-danger">✓</span> : <span className="admin-cell-faint">—</span>}</td>
+                  <td className="admin-cell-mono">{u.document_count}</td>
+                  <td className="admin-cell-mono">{new Date(u.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -267,18 +288,13 @@ function AuditSection() {
   })
 
   return (
-    <div>
-      <div className="section-label" style={{ marginBottom: 'var(--space-sm)' }}>
-        {t('admin.audit_log')} · {t('admin.last_50')}
-      </div>
+    <div className="admin-section">
+      <div className="page-eyebrow">{t('admin.audit_log')} · {t('admin.last_50')}</div>
       {isLoading ? (
-        <div style={{ color: 'var(--color-ink-3)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)' }}>{t('common.loading')}</div>
+        <div className="admin-loading">{t('common.loading')}</div>
       ) : (
-        <div
-          style={{ border: '1px solid var(--color-rule)', borderRadius: 'var(--radius)', overflow: 'auto', maxHeight: '24rem' }}
-          className="scrollbar-thin"
-        >
-          <table className="table" style={{ fontSize: 'var(--text-xs)' }}>
+        <div className="admin-table-wrap admin-audit-wrap scrollbar-thin">
+          <table className="table admin-audit-table">
             <thead>
               <tr>
                 <th>{t('admin.id')}</th>
@@ -292,12 +308,12 @@ function AuditSection() {
             <tbody>
               {(entries || []).map((e) => (
                 <tr key={e.id}>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{e.id}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{new Date(e.created_at).toLocaleString()}</td>
-                  <td className="font-display" style={{ fontWeight: 500 }}>{e.action}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.resource_type}{e.resource_id ? `:${e.resource_id}` : ''}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)' }}>{e.user_id ?? '—'}</td>
-                  <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-3)' }}>{e.ip_address ?? '—'}</td>
+                  <td className="admin-cell-mono">{e.id}</td>
+                  <td className="admin-cell-mono">{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="font-display admin-cell-strong">{e.action}</td>
+                  <td className="admin-cell-mono">{e.resource_type}{e.resource_id ? `:${e.resource_id}` : ''}</td>
+                  <td className="admin-cell-mono">{e.user_id ?? '—'}</td>
+                  <td className="admin-cell-mono">{e.ip_address ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

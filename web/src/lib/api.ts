@@ -1,7 +1,7 @@
 import type {
   AuthResponse, MeResponse, Tag,
   AccessToken, AccessTokenCreated, SessionInfo, ApiError,
-  PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings,
+  PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings, SiteSettings,
   SyncDocument, BookmarkTreeNode, BookmarkNodeType,
 } from './types'
 
@@ -87,6 +87,10 @@ class ApiClient {
   }
   testSmtp(email: string) {
     return this.request<{ ok: boolean }>('/admin/smtp/test', { method: 'POST', body: JSON.stringify({ email }) })
+  }
+  siteSettings() { return this.request<SiteSettings>('/admin/site') }
+  updateSiteSettings(settings: SiteSettings) {
+    return this.request<SiteSettings>('/admin/site', { method: 'PUT', body: JSON.stringify(settings) })
   }
 
   // Passkeys

@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Bookmark shape -->
+  <path d="M196 128 C196 116 206 106 218 106 L294 106 C306 106 316 116 316 128 L316 406 C316 418 302 424 293 416 L262 390 C258 387 252 387 248 390 L217 416 C208 424 196 418 196 406 Z" fill="white" opacity="0.95"/>
+  <!-- Dock link line -->
+  <path d="M232 200 L232 360 M280 200 L280 360" stroke="#4F46E5" stroke-width="6" stroke-linecap="round" opacity="0.4"/>
+  <!-- Sync arrows -->
+  <path d="M232 240 A48 48 0 0 1 280 240" stroke="#4F46E5" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M280 320 A48 48 0 0 1 232 320" stroke="#4F46E5" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M276 232 L282 240 L274 240" stroke="#4F46E5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M236 328 L230 320 L238 320" stroke="#4F46E5" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

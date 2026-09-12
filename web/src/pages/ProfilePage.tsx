@@ -82,69 +82,43 @@ export function ProfilePage() {
     }
   }
 
-  const rows = [
-    { label: t('auth.username'), value: me.username },
-  ]
-
   return (
-    <div style={{ padding: 'var(--space-lg)', height: '100%', overflow: 'auto' }} className="scrollbar-thin page-shell">
+    <div className="page-shell scrollbar-thin">
       {element}
-      <div className="page-container-narrow" style={{ maxWidth: '36rem', margin: '0 auto' }}>
-        <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
-          {t('settings.profile')}
-        </div>
-        <h1
-          className="font-display"
-          style={{ fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 'var(--space-lg)' }}
-        >
-          {t('profile.title')}
-        </h1>
-        <div className="card" style={{ padding: 0 }}>
-          {rows.map((row, i) => (
-            <div
-              key={row.label}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: 'var(--space-sm) var(--space-md)',
-                borderBottom: i < rows.length - 1 ? '1px solid var(--color-rule)' : 'none',
-              }}
-            >
-              <span className="label" style={{ margin: 0 }}>{row.label}</span>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}>
-                {row.value}
-              </span>
-            </div>
-          ))}
+      <div className="page-container-narrow mx-auto">
+        <div className="page-eyebrow">{t('settings.profile')}</div>
+        <h1 className="font-display page-title">{t('profile.title')}</h1>
+
+        {/* Account info */}
+        <div className="card profile-info-card">
+          <div className="profile-info-row">
+            <span className="label">{t('auth.username')}</span>
+            <span className="profile-info-value">{me.username}</span>
+          </div>
         </div>
 
-        <form className="card" onSubmit={saveProfile} style={{ marginTop: 'var(--space-md)', display: 'grid', gap: 'var(--space-md)' }}>
+        {/* Profile form */}
+        <form className="card profile-form" onSubmit={saveProfile}>
           <div>
             <label className="label" htmlFor="profile-email">{t('auth.email')}</label>
             <input id="profile-email" className="input" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            {!me.email ? <p className="passkey-hint">{t('profile.email_recovery_hint')}</p> : null}
+            {!me.email ? <p className="profile-hint">{t('profile.email_recovery_hint')}</p> : null}
           </div>
           <div>
             <label className="label" htmlFor="profile-display-name">{t('auth.display_name')}</label>
             <input id="profile-display-name" className="input" autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </div>
-          <button className="btn btn-primary" type="submit" disabled={savingProfile} style={{ justifySelf: 'start' }}>
+          <button className="btn btn-primary" type="submit" disabled={savingProfile}>
             {savingProfile ? t('common.loading') : t('profile.save')}
           </button>
         </form>
 
-        <section style={{ marginTop: 'var(--space-xl)' }}>
-          <div className="section-label" style={{ marginBottom: 'var(--space-2xs)' }}>
-            {t('passkeys.security')}
-          </div>
-          <div className="profile-section-heading">
-            <div>
-              <h2 className="font-display">{t('passkeys.title')}</h2>
-              <p>{t('passkeys.description')}</p>
-              <p>{t('passkeys.discoverable_hint')}</p>
-            </div>
-          </div>
+        {/* Passkeys */}
+        <section className="profile-section">
+          <div className="page-eyebrow">{t('passkeys.security')}</div>
+          <h2 className="font-display page-subtitle">{t('passkeys.title')}</h2>
+          <p className="profile-section-desc">{t('passkeys.description')}</p>
+          <p className="profile-section-desc">{t('passkeys.discoverable_hint')}</p>
 
           <div className="card passkey-card">
             {passkeys.length > 0 ? (
@@ -183,7 +157,7 @@ export function ProfilePage() {
             )}
 
             <form className="passkey-add" onSubmit={addPasskey}>
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <label className="label" htmlFor="passkey-name">{t('passkeys.name')}</label>
                 <input
                   id="passkey-name"
@@ -203,7 +177,7 @@ export function ProfilePage() {
               </button>
             </form>
             {!isPasskeySupported() ? (
-              <p className="passkey-hint">{t('auth.passkey_unsupported')}</p>
+              <p className="profile-hint">{t('auth.passkey_unsupported')}</p>
             ) : null}
           </div>
         </section>

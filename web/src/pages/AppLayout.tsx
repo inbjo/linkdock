@@ -24,10 +24,8 @@ export function AppLayout() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-sm)', color: 'var(--color-ink-3)' }}>
-          {t('common.loading')}
-        </div>
+      <div className="flex items-center justify-center h-screen text-[var(--color-ink-3)] font-mono text-sm">
+        {t('common.loading')}
       </div>
     )
   }
@@ -44,20 +42,6 @@ export function AppLayout() {
     <NavLink
       to={to}
       className="app-nav-link"
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        padding: 'var(--space-2xs) var(--space-xs)',
-        borderRadius: 'var(--radius)',
-        fontSize: 'var(--text-sm)',
-        fontWeight: isActive ? 500 : 400,
-        color: isActive ? 'var(--color-accent)' : 'var(--color-ink-2)',
-        background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
-        textDecoration: 'none',
-        transition: 'background var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out)',
-      })}
-      onMouseEnter={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink)' }}
-      onMouseLeave={(e) => { if (!e.currentTarget.style.background.includes('accent-subtle')) e.currentTarget.style.color = 'var(--color-ink-2)' }}
       onClick={() => setMobileNavOpen(false)}
     >
       {label}
@@ -65,31 +49,15 @@ export function AppLayout() {
   )
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="app-shell flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside
-        className={`app-sidebar${mobileNavOpen ? ' is-mobile-open' : ''}`}
-        style={{
-          width: '15rem',
-          flexShrink: 0,
-          borderRight: '1px solid var(--color-rule)',
-          background: 'var(--color-paper-2)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
+      <aside className={`app-sidebar${mobileNavOpen ? ' is-mobile-open' : ''}`}>
         {/* Brand */}
-        <div className="app-brand-block" style={{ padding: 'var(--space-md)', borderBottom: '1px solid var(--color-rule)' }}>
+        <div className="app-brand-block">
           <div className="app-brand-header">
-            <div
-              className="font-display"
-              style={{ fontWeight: 700, fontSize: 'var(--text-md)', letterSpacing: '-0.02em', color: 'var(--color-ink)' }}
-            >
-              {t('app.name')}
-            </div>
+            <div className="font-display app-brand-name">{t('app.name')}</div>
             <button
-              className="btn btn-icon app-mobile-toggle"
+              className="app-mobile-toggle"
               type="button"
               aria-label={mobileNavOpen ? t('common.close') : t('common.menu')}
               aria-expanded={mobileNavOpen}
@@ -110,34 +78,28 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav id="app-navigation" style={{ flex: 1, overflow: 'auto', padding: 'var(--space-xs)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3xs)' }} className="scrollbar-thin app-nav">
-          <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
-            {t('nav.bookmarks')}
-          </div>
+        <nav id="app-navigation" className="app-nav scrollbar-thin">
+          <div className="app-nav-section">{t('nav.bookmarks')}</div>
           {navItem('/bookmarks', t('nav.bookmarks'))}
 
-          <div className="divider" style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
+          <div className="app-nav-divider" />
 
-          <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
-            {t('nav.settings')}
-          </div>
+          <div className="app-nav-section">{t('nav.settings')}</div>
           {navItem('/settings/profile', t('settings.profile'))}
           {navItem('/settings/tokens', t('settings.tokens'))}
           {navItem('/settings/sync', t('settings.sync'))}
 
           {me.is_system_admin && (
             <>
-              <div className="divider" style={{ height: '1px', background: 'var(--color-rule)', margin: 'var(--space-xs) var(--space-2xs)' }} />
-              <div className="section-label" style={{ padding: '0 var(--space-2xs)', marginBottom: 'var(--space-3xs)' }}>
-                {t('nav.admin')}
-              </div>
+              <div className="app-nav-divider" />
+              <div className="app-nav-section">{t('nav.admin')}</div>
               {navItem('/admin', t('nav.admin'))}
             </>
           )}
         </nav>
 
         {/* Footer: locale + theme + user */}
-        <div className="app-sidebar-footer" style={{ padding: 'var(--space-xs)', borderTop: '1px solid var(--color-rule)' }}>
+        <div className="app-sidebar-footer">
           <div className="app-sidebar-tools">
             <label className="app-locale-control" title={t('settings.language')}>
               <span className="sr-only">{t('settings.language')}</span>
@@ -156,7 +118,7 @@ export function AppLayout() {
               </svg>
             </label>
             <button
-              className="btn btn-icon app-sidebar-tool"
+              className="app-sidebar-tool"
               onClick={toggleTheme}
               title={t('settings.theme')}
               aria-label={t('settings.theme')}
@@ -164,7 +126,7 @@ export function AppLayout() {
               {theme === 'dark' ? '☀' : theme === 'light' ? '☾' : '◐'}
             </button>
             <a
-              className="btn btn-icon app-sidebar-tool"
+              className="app-sidebar-tool"
               href="https://github.com/inbjo/linkdock"
               target="_blank"
               rel="noreferrer"
@@ -176,21 +138,9 @@ export function AppLayout() {
               </svg>
             </a>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: 'var(--space-2xs) var(--space-xs)',
-              fontSize: 'var(--text-xs)',
-            }}
-          >
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-ink-2)' }}>{me.username}</span>
-            <button
-              className="btn btn-sm btn-ghost"
-              style={{ fontSize: 'var(--text-xs)', padding: 'var(--space-3xs) var(--space-2xs)' }}
-              onClick={handleLogout}
-            >
+          <div className="app-user-row">
+            <span className="app-user-name">{me.username}</span>
+            <button className="app-logout-btn" onClick={handleLogout}>
               {t('auth.logout')}
             </button>
           </div>
@@ -198,7 +148,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <main ref={mainRef} style={{ flex: 1, overflow: 'auto' }} className="scrollbar-thin app-main min-w-0">
+      <main ref={mainRef} className="app-main scrollbar-thin min-w-0 flex-1 overflow-auto">
         <Outlet />
       </main>
       {element}

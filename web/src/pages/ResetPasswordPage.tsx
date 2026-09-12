@@ -30,22 +30,55 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="auth-shell auth-centered">
-      {element}<SettingsBar />
-      <main className="card auth-recovery-card">
-        <div className="section-label">{t('auth.account_recovery')}</div>
-        <h1 className="font-display">{t('auth.choose_new_password')}</h1>
+    <div className="auth-page min-h-dvh w-full overflow-x-clip flex flex-col items-center justify-center px-6 py-12 relative">
+      {element}
+      <SettingsBar />
+
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <Link to="/" className="font-display text-2xl font-semibold tracking-tight text-[var(--color-ink)] no-underline mb-12 select-none">
+          {t('app.name')}
+        </Link>
+
+        <div className="w-full mb-8">
+          <h1 className="font-display text-xl font-semibold tracking-tight text-[var(--color-ink)] leading-tight">
+            {t('auth.choose_new_password')}
+          </h1>
+        </div>
+
         {token ? (
-          <form onSubmit={submit} className="auth-recovery-form">
-            <div>
-              <label className="label" htmlFor="reset-password">{t('auth.new_password')}</label>
-              <input id="reset-password" className="input" type="password" minLength={8} required autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+          <form onSubmit={submit} className="w-full flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide" htmlFor="reset-password">
+                {t('auth.new_password')}
+              </label>
+              <input
+                id="reset-password"
+                className="auth-input"
+                type="password"
+                minLength={8}
+                required
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+              />
             </div>
-            <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? t('common.loading') : t('auth.reset_password')}</button>
+            <button className="auth-btn-primary" type="submit" disabled={loading}>
+              {loading ? t('common.loading') : t('auth.reset_password')}
+            </button>
           </form>
-        ) : <div className="card-flat auth-recovery-message">{t('auth.invalid_reset_link')}</div>}
-        <Link to="/login" className="auth-back-link">← {t('auth.back_to_login')}</Link>
-      </main>
+        ) : (
+          <div className="w-full px-4 py-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper-2)] text-sm text-[var(--color-ink-2)] leading-relaxed">
+            {t('auth.invalid_reset_link')}
+          </div>
+        )}
+
+        <p className="mt-8 text-sm text-[var(--color-ink-2)] text-center">
+          <Link to="/login" className="font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-150 no-underline">
+            ← {t('auth.back_to_login')}
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }

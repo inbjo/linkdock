@@ -698,6 +698,17 @@ html[data-theme="auto"] .badge-danger {
 }
 .tree-toggle:hover { background: var(--color-paper-2); border-color: var(--color-rule-strong); }
 .tree-toggle:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tree-row[draggable="true"] { cursor: grab; }
+.tree-row[draggable="true"]:active { cursor: grabbing; }
+.tree-row.dragging { opacity: 0.4; }
+.tree-row-drop-target { outline: 2px dashed var(--color-accent); outline-offset: -2px; background: var(--color-accent-subtle) !important; }
+.tree-drop-line {
+  height: 2px;
+  margin: 0 var(--space-sm);
+  background: var(--color-accent);
+  border-radius: 1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
 .tree-index { font-family: var(--font-mono); font-size: .65rem; color: var(--color-ink-3); letter-spacing: .08em; }
 .tree-glyph { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border: 1px solid var(--color-rule); border-radius: 50%; color: var(--color-accent); font-family: var(--font-mono); }
 .tree-node-copy { min-width: 0; display: grid; gap: .1rem; }

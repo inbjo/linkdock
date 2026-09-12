@@ -61,6 +61,12 @@ export function BookmarksPage() {
     onSuccess: refreshTree,
     onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
   })
+  const moveNode = useMutation({
+    mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
+      api.updateNode(id, { parent_id: parentId }),
+    onSuccess: refreshTree,
+    onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
+  })
 
   const move = (siblings: BookmarkTreeNode[], index: number, direction: -1 | 1) => {
     const target = index + direction
@@ -68,6 +74,15 @@ export function BookmarksPage() {
     const ids = siblings.map((node) => node.id)
     ;[ids[index], ids[target]] = [ids[target], ids[index]]
     reorder.mutate({ parentId: siblings[index].parent_id, ids })
+  }
+
+  // Reorder a sibling list after a drag-and-drop within the same parent.
+  const dropReorder = (parentId: number | null, ids: number[]) => {
+    reorder.mutate({ parentId, ids })
+  }
+  // Move a node to a new parent (appended at the end), then the tree refreshes.
+  const dropMove = (id: number, parentId: number | null) => {
+    moveNode.mutate({ id, parentId })
   }
 
   return (
@@ -120,6 +135,7 @@ export function BookmarksPage() {
             <TreeLevel
               nodes={tree.data}
               depth={0}
+              parentId={null}
               canWrite={canWrite}
               onAdd={(parentId) => setEditor({ mode: 'create', parentId, node: null })}
               onEdit={(node) => setEditor({ mode: 'edit', parentId: node.parent_id, node })}
@@ -129,6 +145,8 @@ export function BookmarksPage() {
                 }
               }}
               onMove={move}
+              onDropReorder={dropReorder}
+              onDropMove={dropMove}
             />
           </div>
         ) : (
@@ -170,20 +188,32 @@ export function BookmarksPage() {
   )
 }
 
-function TreeLevel({ nodes, depth, canWrite, onAdd, onEdit, onDelete, onMove }: {
+// Module-level drag state shared across TreeLevel instances so a node can be
+// dragged from one sibling list and dropped into another (or into a folder).
+let draggedNodeId: number | null = null
+
+function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, onMove, onDropReorder, onDropMove }: {
   nodes: BookmarkTreeNode[]
   depth: number
+  parentId: number | null
   canWrite: boolean
   onAdd: (parentId: number) => void
   onEdit: (node: BookmarkTreeNode) => void
   onDelete: (node: BookmarkTreeNode) => void
   onMove: (siblings: BookmarkTreeNode[], index: number, direction: -1 | 1) => void
+  onDropReorder: (parentId: number | null, ids: number[]) => void
+  onDropMove: (id: number, parentId: number | null) => void
 }) {
   const { t } = useTranslation()
   // Folders start collapsed; the user expands the ones they want to inspect.
   const [collapsed, setCollapsed] = useState<Set<number>>(
     () => new Set(nodes.filter((node) => node.node_type === 'folder' && node.children.length > 0).map((node) => node.id)),
   )
+  // Drop position indicator: 'before' | 'after' a node index, or null.
+  const [dropTarget, setDropTarget] = useState<{ index: number; pos: 'before' | 'after' } | null>(null)
+  // Folder highlighted as a move-into target.
+  const [dropFolder, setDropFolder] = useState<number | null>(null)
+
   const toggle = (id: number) =>
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -192,28 +222,127 @@ function TreeLevel({ nodes, depth, canWrite, onAdd, onEdit, onDelete, onMove }: 
       return next
     })
 
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    if (!canWrite) return
+    draggedNodeId = id
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(id))
+  }
+  const handleDragEnd = () => {
+    draggedNodeId = null
+    setDropTarget(null)
+    setDropFolder(null)
+  }
+
+  // Dropping onto a row: determine before/after based on cursor Y vs midpoint.
+  const handleRowDragOver = (e: React.DragEvent, index: number) => {
+    if (!canWrite || draggedNodeId === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    setDropTarget({ index, pos })
+    setDropFolder(null)
+  }
+  const handleRowDrop = (e: React.DragEvent, index: number) => {
+    if (!canWrite || draggedNodeId === null) return
+    e.preventDefault()
+    const target = nodes[index]
+    const dragged = draggedNodeId
+    setDropTarget(null)
+    setDropFolder(null)
+    if (dragged === null || dragged === target.id) return
+
+    // If dropping onto a folder row, move into the folder instead of reordering.
+    if (target.node_type === 'folder' && dropTarget?.pos === 'after' && e.clientY > e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height * 0.65) {
+      onDropMove(dragged, target.id)
+      return
+    }
+
+    const ids = nodes.map((n) => n.id).filter((id) => id !== dragged)
+    const draggedStillSibling = nodes.some((n) => n.id === dragged)
+    let insertAt: number
+    if (dropTarget) {
+      insertAt = dropTarget.pos === 'before' ? index : index + 1
+    } else {
+      insertAt = index
+    }
+    // If the dragged node was before the insertion point in this list, removing
+    // it shifts the target index down by one.
+    if (draggedStillSibling && index < insertAt) insertAt -= 1
+    if (insertAt < 0) insertAt = 0
+    if (insertAt > ids.length) insertAt = ids.length
+    ids.splice(insertAt, 0, dragged)
+
+    // Same parent → reorder; different parent → move then reorder.
+    const draggedNode = nodes.find((n) => n.id === dragged)
+    if (draggedNode && draggedNode.parent_id === parentId) {
+      onDropReorder(parentId, ids)
+    } else {
+      onDropMove(dragged, parentId)
+      // After the move the node lands at the end; a follow-up reorder would be
+      // ideal but the tree refresh re-renders, so we keep it simple.
+    }
+  }
+
+  // Dropping onto a folder header (when collapsed) → move into folder.
+  const handleFolderDragOver = (e: React.DragEvent, id: number) => {
+    if (!canWrite || draggedNodeId === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDropFolder(id)
+    setDropTarget(null)
+  }
+  const handleFolderDrop = (e: React.DragEvent, id: number) => {
+    if (!canWrite || draggedNodeId === null) return
+    e.preventDefault()
+    setDropFolder(null)
+    if (draggedNodeId !== null && draggedNodeId !== id) onDropMove(draggedNodeId, id)
+  }
+
   return (
     <div className="tree-level" role="group">
       {nodes.map((node, index) => {
         const isFolder = node.node_type === 'folder'
         const hasChildren = node.children.length > 0
         const isCollapsed = collapsed.has(node.id)
+        const isDropBefore = dropTarget?.index === index && dropTarget?.pos === 'before'
+        const isDropAfter = dropTarget?.index === index && dropTarget?.pos === 'after'
+        const isDropFolder = dropFolder === node.id
         return (
           <div className="tree-branch" key={node.id}>
-            <div className={`tree-row tree-row-${node.node_type}`} style={{ '--tree-depth': depth } as CSSProperties} role="treeitem" aria-expanded={isFolder ? !isCollapsed : undefined}>
+            {isDropBefore && <div className="tree-drop-line" />}
+            <div
+              className={`tree-row tree-row-${node.node_type}${isDropFolder ? ' tree-row-drop-target' : ''}`}
+              style={{ '--tree-depth': depth } as CSSProperties}
+              role="treeitem"
+              aria-expanded={isFolder ? !isCollapsed : undefined}
+              draggable={canWrite}
+              onDragStart={(e) => handleDragStart(e, node.id)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleRowDragOver(e, index)}
+              onDrop={(e) => handleRowDrop(e, index)}
+            >
               <span className="tree-index">{String(index + 1).padStart(2, '0')}</span>
               {isFolder && hasChildren ? (
                 <button
                   type="button"
                   className="tree-toggle"
                   onClick={() => toggle(node.id)}
+                  onDragOver={(e) => handleFolderDragOver(e, node.id)}
+                  onDrop={(e) => handleFolderDrop(e, node.id)}
                   aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
                   title={isCollapsed ? t('tree.expand') : t('tree.collapse')}
                 >
                   {isCollapsed ? '▸' : '▾'}
                 </button>
               ) : (
-                <span className="tree-glyph" aria-hidden="true">
+                <span
+                  className="tree-glyph"
+                  aria-hidden="true"
+                  onDragOver={isFolder ? (e) => handleFolderDragOver(e, node.id) : undefined}
+                  onDrop={isFolder ? (e) => handleFolderDrop(e, node.id) : undefined}
+                >
                   {isFolder ? '⌑' : node.node_type === 'bookmark' ? '↗' : '—'}
                 </span>
               )}
@@ -242,13 +371,17 @@ function TreeLevel({ nodes, depth, canWrite, onAdd, onEdit, onDelete, onMove }: 
               <TreeLevel
                 nodes={node.children}
                 depth={depth + 1}
+                parentId={node.id}
                 canWrite={canWrite}
                 onAdd={onAdd}
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMove={onMove}
+                onDropReorder={onDropReorder}
+                onDropMove={onDropMove}
               />
             )}
+            {isDropAfter && <div className="tree-drop-line" />}
           </div>
         )
       })}

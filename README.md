@@ -10,17 +10,19 @@ mixed order is preserved between devices and remains editable in the web UI.
 
 ## Features
 
-- WebDAV/XBEL synchronization for Floccus
-- Exact folder, bookmark, and separator ordering
+- WebDAV/XBEL synchronization compatible with Floccus
+- Exact folder, bookmark, and separator ordering across devices
 - Visual XBEL tree editor backed by the same SQLite data
-- Multiple XBEL documents per workspace
-- Multi-workspace accounts with owner, admin, editor, and viewer roles
-- Hashed, revocable access tokens bound to a workspace
-- Passkeys, session management, administration, metrics, and structured logs
+- Drag-and-drop reordering and cross-folder moves
+- Multiple XBEL documents per user account
+- Multi-user registration with user data isolation
+- Hashed, revocable access tokens with read/write or read-only scopes
+- Passkey (WebAuthn) login and registration
+- Password recovery via configurable SMTP
+- Admin dashboard: statistics, user management, SMTP settings, audit log
+- Configurable site metadata (title, description, keywords) and favicon
 - Embedded frontend in a single Linux binary
-
-Linkwarden compatibility and the `/api/v1` Linkwarden-shaped API are deliberately
-not included. Linkwarden's Floccus adapter cannot represent bookmark order.
+- Light/dark theme with OKLCH color tokens
 
 ## Quick start
 
@@ -36,7 +38,7 @@ registered; the first account becomes the system administrator.
 
 ## Floccus setup
 
-Create one access token for each workspace/profile, then configure Floccus as:
+Create one access token for your account, then configure Floccus as:
 
 - Sync method: **WebDAV**
 - Server URL: `https://your-domain.example/webdav/`
@@ -91,6 +93,11 @@ DOCK_DATA_DIR=./data DOCK_LISTEN=0.0.0.0:3000 cargo run --release
 | `PUT` | `/api/app/v1/documents/{id}/order` | Replace one sibling order |
 | `POST` | `/api/app/v1/nodes` | Create a tree node |
 | `PUT/DELETE` | `/api/app/v1/nodes/{id}` | Edit or remove a subtree |
+| `GET/PUT` | `/api/app/v1/admin/site` | Site metadata (TDK) |
+| `GET/PUT` | `/api/app/v1/admin/smtp` | SMTP settings |
+| `GET` | `/api/app/v1/admin/stats` | Instance statistics |
+| `GET` | `/api/app/v1/admin/users` | User listing (admin) |
+| `GET` | `/api/app/v1/admin/audit` | Audit log (admin) |
 
 Web management APIs use the session cookie. WebDAV uses HTTP Basic auth: the
 username is ignored and the access token is the password.
@@ -117,7 +124,7 @@ Passkey deployments can additionally set `DOCK_WEBAUTHN_RP_ID`,
 `sync_documents` identifies each XBEL file. `bookmark_nodes` stores folders,
 bookmarks, and separators in one table with a shared `parent_id` and `position`.
 Stable XBEL IDs allow uploads to update existing rows and retain web metadata such
-as tags. Replacing a document happens in one SQLite transaction. Tenant identity
+as tags. Replacing a document happens in one SQLite transaction. User identity
 always comes from a server-side session or access token, never from request data.
 
 ## Deployment
@@ -128,4 +135,4 @@ Windows packaging or runtime support is maintained.
 
 ## License
 
-AGPL-3.0
+MIT

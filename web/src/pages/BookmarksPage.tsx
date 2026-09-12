@@ -180,49 +180,78 @@ function TreeLevel({ nodes, depth, canWrite, onAdd, onEdit, onDelete, onMove }: 
   onMove: (siblings: BookmarkTreeNode[], index: number, direction: -1 | 1) => void
 }) {
   const { t } = useTranslation()
+  // Folders start collapsed; the user expands the ones they want to inspect.
+  const [collapsed, setCollapsed] = useState<Set<number>>(
+    () => new Set(nodes.filter((node) => node.node_type === 'folder' && node.children.length > 0).map((node) => node.id)),
+  )
+  const toggle = (id: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   return (
     <div className="tree-level" role="group">
-      {nodes.map((node, index) => (
-        <div className="tree-branch" key={node.id}>
-          <div className={`tree-row tree-row-${node.node_type}`} style={{ '--tree-depth': depth } as CSSProperties} role="treeitem">
-            <span className="tree-index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="tree-glyph" aria-hidden="true">
-              {node.node_type === 'folder' ? '⌑' : node.node_type === 'bookmark' ? '↗' : '—'}
-            </span>
-            <div className="tree-node-copy">
-              {node.node_type === 'bookmark' && node.url ? (
-                <a href={node.url} target="_blank" rel="noreferrer" className="tree-node-title">{node.title || node.url}</a>
+      {nodes.map((node, index) => {
+        const isFolder = node.node_type === 'folder'
+        const hasChildren = node.children.length > 0
+        const isCollapsed = collapsed.has(node.id)
+        return (
+          <div className="tree-branch" key={node.id}>
+            <div className={`tree-row tree-row-${node.node_type}`} style={{ '--tree-depth': depth } as CSSProperties} role="treeitem" aria-expanded={isFolder ? !isCollapsed : undefined}>
+              <span className="tree-index">{String(index + 1).padStart(2, '0')}</span>
+              {isFolder && hasChildren ? (
+                <button
+                  type="button"
+                  className="tree-toggle"
+                  onClick={() => toggle(node.id)}
+                  aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
+                  title={isCollapsed ? t('tree.expand') : t('tree.collapse')}
+                >
+                  {isCollapsed ? '▸' : '▾'}
+                </button>
               ) : (
-                <span className="tree-node-title">{node.title || t('tree.separator')}</span>
+                <span className="tree-glyph" aria-hidden="true">
+                  {isFolder ? '⌑' : node.node_type === 'bookmark' ? '↗' : '—'}
+                </span>
               )}
-              {node.node_type === 'bookmark' && <span className="tree-node-url">{node.url}</span>}
-              {node.tags.length > 0 && (
-                <span className="tree-node-tags">{node.tags.map((tag) => `#${tag}`).join(' ')}</span>
+              <div className="tree-node-copy">
+                {node.node_type === 'bookmark' && node.url ? (
+                  <a href={node.url} target="_blank" rel="noreferrer" className="tree-node-title">{node.title || node.url}</a>
+                ) : (
+                  <span className="tree-node-title">{node.title || t('tree.separator')}</span>
+                )}
+                {node.node_type === 'bookmark' && <span className="tree-node-url">{node.url}</span>}
+                {node.tags.length > 0 && (
+                  <span className="tree-node-tags">{node.tags.map((tag) => `#${tag}`).join(' ')}</span>
+                )}
+              </div>
+              {canWrite && (
+                <div className="tree-row-actions">
+                  <button className="btn btn-sm btn-ghost" onClick={() => onMove(nodes, index, -1)} disabled={index === 0} aria-label={t('tree.move_up')}>↑</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => onMove(nodes, index, 1)} disabled={index === nodes.length - 1} aria-label={t('tree.move_down')}>↓</button>
+                  {isFolder && <button className="btn btn-sm btn-ghost" onClick={() => onAdd(node.id)}>＋</button>}
+                  {node.node_type !== 'separator' && <button className="btn btn-sm btn-ghost" onClick={() => onEdit(node)}>{t('common.edit')}</button>}
+                  <button className="btn btn-sm btn-ghost tree-danger" onClick={() => onDelete(node)}>{t('common.delete')}</button>
+                </div>
               )}
             </div>
-            {canWrite && (
-              <div className="tree-row-actions">
-                <button className="btn btn-sm btn-ghost" onClick={() => onMove(nodes, index, -1)} disabled={index === 0} aria-label={t('tree.move_up')}>↑</button>
-                <button className="btn btn-sm btn-ghost" onClick={() => onMove(nodes, index, 1)} disabled={index === nodes.length - 1} aria-label={t('tree.move_down')}>↓</button>
-                {node.node_type === 'folder' && <button className="btn btn-sm btn-ghost" onClick={() => onAdd(node.id)}>＋</button>}
-                {node.node_type !== 'separator' && <button className="btn btn-sm btn-ghost" onClick={() => onEdit(node)}>{t('common.edit')}</button>}
-                <button className="btn btn-sm btn-ghost tree-danger" onClick={() => onDelete(node)}>{t('common.delete')}</button>
-              </div>
+            {isFolder && hasChildren && !isCollapsed && (
+              <TreeLevel
+                nodes={node.children}
+                depth={depth + 1}
+                canWrite={canWrite}
+                onAdd={onAdd}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMove={onMove}
+              />
             )}
           </div>
-          {node.children.length > 0 && (
-            <TreeLevel
-              nodes={node.children}
-              depth={depth + 1}
-              canWrite={canWrite}
-              onAdd={onAdd}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onMove={onMove}
-            />
-          )}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

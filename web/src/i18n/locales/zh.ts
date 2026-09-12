@@ -320,6 +320,8 @@ export const zh: Translation = {
     tags: '标签',
     move_up: '上移',
     move_down: '下移',
+    expand: '展开文件夹',
+    collapse: '折叠文件夹',
     delete_confirm: '删除“{{name}}”及其全部子节点？',
     deleted: '节点已删除',
   },

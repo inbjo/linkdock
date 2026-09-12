@@ -10,11 +10,11 @@ export function SettingsBar() {
   return (
     <div className="auth-settings-bar" style={{ position: 'fixed', top: 'var(--space-md)', right: 'var(--space-md)', display: 'flex', gap: 'var(--space-2xs)', zIndex: 50 }}>
       <select
-        className="input"
-        style={{ width: 'auto', padding: 'var(--space-3xs) var(--space-2xs)', fontSize: 'var(--text-xs)' }}
+        className="auth-settings-select"
         value={i18n.language}
         onChange={(e) => changeLocale(e.target.value as SupportedLocale)}
         title={t('settings.language')}
+        aria-label={t('settings.language')}
       >
         {availableLocales.map((l) => (
           <option key={l.code} value={l.code}>{l.label}</option>

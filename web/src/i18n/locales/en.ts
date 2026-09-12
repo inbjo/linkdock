@@ -318,6 +318,8 @@ export const en = {
     tags: 'Tags',
     move_up: 'Move up',
     move_down: 'Move down',
+    expand: 'Expand folder',
+    collapse: 'Collapse folder',
     delete_confirm: 'Delete “{{name}}” and all of its children?',
     deleted: 'Tree item deleted',
   },

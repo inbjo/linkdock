@@ -26,6 +26,48 @@ async fn register(app: &TestApp, username: &str) -> (String, Value) {
     (session, response.json().await.unwrap())
 }
 
+async fn login(app: &TestApp, identifier: &str, password: &str) -> reqwest::Response {
+    app.client
+        .post(format!("{}/api/app/v1/auth/login", app.base))
+        .json(&serde_json::json!({
+            "username": identifier,
+            "password": password,
+        }))
+        .send()
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn password_login_accepts_username_or_email() {
+    let app = setup().await;
+    register(&app, "email-login-a").await;
+    register(&app, "email-login-b").await;
+
+    let response = login(&app, "EMAIL-LOGIN-A@EXAMPLE.COM", "password123").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.json::<Value>().await.unwrap()["user"]["username"],
+        "email-login-a"
+    );
+    assert_eq!(
+        login(&app, "email-login-a", "password123").await.status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        login(&app, "email-login-b@example.com", "wrong-password")
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        login(&app, "unknown@example.com", "password123")
+            .await
+            .status(),
+        StatusCode::BAD_REQUEST
+    );
+}
+
 async fn token(app: &TestApp, session: &str, name: &str) -> String {
     let response = app
         .client
@@ -63,6 +105,125 @@ async fn health_and_registration_work() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.json::<Value>().await.unwrap()["username"], "owner");
+}
+
+#[tokio::test]
+async fn password_change_is_session_only_and_user_scoped() {
+    let app = setup().await;
+    let (session_a, _) = register(&app, "password-a").await;
+    let (session_b, _) = register(&app, "password-b").await;
+    let other_session_a_response = login(&app, "password-a", "password123").await;
+    assert_eq!(other_session_a_response.status(), StatusCode::OK);
+    let other_session_a = other_session_a_response
+        .cookies()
+        .next()
+        .unwrap()
+        .value()
+        .to_string();
+    let access_token_a = token(&app, &session_a, "password-client").await;
+    let endpoint = format!("{}/api/app/v1/me/password", app.base);
+
+    let response = reqwest::Client::new()
+        .put(&endpoint)
+        .json(&serde_json::json!({
+            "current_password": "password123",
+            "new_password": "new-password-456",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let response = app
+        .client
+        .put(&endpoint)
+        .bearer_auth(&access_token_a)
+        .json(&serde_json::json!({
+            "current_password": "password123",
+            "new_password": "new-password-456",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let response = app
+        .client
+        .put(&endpoint)
+        .header("cookie", format!("linkdock_session={session_a}"))
+        .json(&serde_json::json!({
+            "user_id": 2,
+            "current_password": "password123",
+            "new_password": "new-password-456",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    let response = app
+        .client
+        .put(&endpoint)
+        .header("cookie", format!("linkdock_session={session_a}"))
+        .json(&serde_json::json!({
+            "current_password": "wrong-password",
+            "new_password": "new-password-456",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let response = app
+        .client
+        .put(&endpoint)
+        .header("cookie", format!("linkdock_session={session_a}"))
+        .json(&serde_json::json!({
+            "current_password": "password123",
+            "new_password": "new-password-456",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("linkdock_session={session_a}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("linkdock_session={other_session_a}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    assert_eq!(
+        login(&app, "password-a", "password123").await.status(),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        login(&app, "password-a", "new-password-456").await.status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        login(&app, "password-b", "password123").await.status(),
+        StatusCode::OK
+    );
+    let response = app
+        .client
+        .get(format!("{}/api/app/v1/me", app.base))
+        .header("cookie", format!("linkdock_session={session_b}"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]

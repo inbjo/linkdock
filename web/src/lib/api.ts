@@ -42,16 +42,16 @@ class ApiClient {
       body: JSON.stringify({ username, email, password, display_name, setup_token }),
     })
   }
-  login(username: string, password: string) {
+  login(identifier: string, password: string) {
     return this.request<AuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: identifier, password }),
     })
   }
-  startPasskeyLogin(username?: string) {
+  startPasskeyLogin(identifier?: string) {
     return this.request<PasskeyChallenge>('/auth/passkey/start', {
       method: 'POST',
-      body: JSON.stringify(username ? { username } : {}),
+      body: JSON.stringify(identifier ? { username: identifier } : {}),
     })
   }
   finishPasskeyLogin(flowId: string, credential: Record<string, unknown>) {
@@ -69,6 +69,11 @@ class ApiClient {
   updateProfile(email: string, display_name: string) {
     return this.request<{ ok: boolean; email: string }>('/me', {
       method: 'PUT', body: JSON.stringify({ email, display_name }),
+    })
+  }
+  changePassword(current_password: string, new_password: string) {
+    return this.request<{ ok: boolean }>('/me/password', {
+      method: 'PUT', body: JSON.stringify({ current_password, new_password }),
     })
   }
   forgotPassword(email: string) {

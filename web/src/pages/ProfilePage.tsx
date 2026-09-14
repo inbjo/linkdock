@@ -15,6 +15,10 @@ export function ProfilePage() {
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const { data: passkeys = [] } = useQuery({
@@ -68,6 +72,24 @@ export function ProfilePage() {
     }
   }
 
+  const changePassword = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (newPassword.length < 8) return showError(t('auth.password_too_short'))
+    if (newPassword !== confirmPassword) return showError(t('profile.password_mismatch'))
+    setChangingPassword(true)
+    try {
+      await api.changePassword(currentPassword, newPassword)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      showSuccess(t('profile.password_changed'))
+    } catch (err) {
+      showError(err instanceof Error ? err.message : t('profile.change_password'))
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
   const deletePasskey = async (id: number) => {
     if (!confirm(t('passkeys.delete_confirm'))) return
     setDeletingId(id)
@@ -112,6 +134,32 @@ export function ProfilePage() {
             {savingProfile ? t('common.loading') : t('profile.save')}
           </button>
         </form>
+
+        {/* Password */}
+        <section className="profile-section">
+          <div className="page-eyebrow">{t('passkeys.security')}</div>
+          <h2 className="font-display page-subtitle">{t('profile.password_title')}</h2>
+          <p className="profile-section-desc">{t('profile.password_description')}</p>
+          <form className="card profile-form" onSubmit={changePassword}>
+            <div>
+              <label className="label" htmlFor="current-password">{t('profile.current_password')}</label>
+              <input id="current-password" className="input" type="password" required autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+            </div>
+            <div className="profile-password-grid">
+              <div>
+                <label className="label" htmlFor="new-password">{t('profile.new_password')}</label>
+                <input id="new-password" className="input" type="password" required minLength={8} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="confirm-password">{t('profile.confirm_password')}</label>
+                <input id="confirm-password" className="input" type="password" required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              </div>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={changingPassword}>
+              {changingPassword ? t('common.loading') : t('profile.change_password')}
+            </button>
+          </form>
+        </section>
 
         {/* Passkeys */}
         <section className="profile-section">

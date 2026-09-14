@@ -134,10 +134,12 @@ impl AuthService {
     }
 
     pub async fn login(state: &AppState, req: LoginRequest) -> AppResult<AuthResponse> {
+        let identifier = req.username.trim();
         let row = sqlx::query(
-            "SELECT id, uuid, username, password_hash, display_name, is_system_admin, disabled FROM users WHERE username = ?",
+            "SELECT id, uuid, username, password_hash, display_name, is_system_admin, disabled FROM users WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE LIMIT 1",
         )
-        .bind(req.username.trim())
+        .bind(identifier)
+        .bind(identifier)
         .fetch_optional(&state.pool)
         .await?;
         let row = match row {

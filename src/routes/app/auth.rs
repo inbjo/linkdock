@@ -3,7 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::services::auth::{AuthService, LoginRequest, RegisterRequest};
 use crate::state::AppState;
 use axum::extract::State;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
@@ -18,6 +18,7 @@ pub fn router() -> Router<AppState> {
         .route("/auth/reset-password", post(reset_password))
         .route("/auth/logout", post(logout))
         .route("/me", get(me).put(update_profile))
+        .route("/me/password", put(change_password))
 }
 
 async fn setup_status(
@@ -109,6 +110,61 @@ async fn update_profile(
             other => AppError::Internal(anyhow::anyhow!(other)),
         })?;
     Ok(Json(json!({ "ok": true, "email": email })))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ChangePasswordRequest {
+    current_password: String,
+    new_password: String,
+}
+
+async fn change_password(
+    State(state): State<AppState>,
+    auth: AuthContext,
+    headers: axum::http::HeaderMap,
+    Json(req): Json<ChangePasswordRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    auth.0.require_session()?;
+    if req.new_password.len() < 8 {
+        return Err(AppError::Validation(
+            "password must be at least 8 chars".into(),
+        ));
+    }
+
+    let current_hash: String = sqlx::query_scalar("SELECT password_hash FROM users WHERE id = ?")
+        .bind(auth.0.user_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if !crate::auth::password::verify_password(&req.current_password, &current_hash) {
+        return Err(AppError::Validation("current password is incorrect".into()));
+    }
+
+    let session_token = extract_session_cookie(&headers).ok_or(AppError::Unauthorized)?;
+    let current_session_hash = crate::auth::token::hash_session_token(&session_token);
+    let new_hash = crate::auth::password::hash_password(&req.new_password)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let mut tx = state.pool.begin().await?;
+    let updated = sqlx::query(
+        "UPDATE users SET password_hash=?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND password_hash=?",
+    )
+    .bind(new_hash)
+    .bind(auth.0.user_id)
+    .bind(current_hash)
+    .execute(&mut *tx)
+    .await?;
+    if updated.rows_affected() != 1 {
+        return Err(AppError::Conflict("password changed concurrently".into()));
+    }
+
+    sqlx::query("DELETE FROM sessions WHERE user_id=? AND session_hash<>?")
+        .bind(auth.0.user_id)
+        .bind(current_session_hash)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

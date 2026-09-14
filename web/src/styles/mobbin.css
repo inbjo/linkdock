@@ -1029,6 +1029,12 @@ a:active {
   margin: var(--space-2xs) 0 var(--space-md);
 }
 
+.profile-password-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
 /* ── Sync page ── */
 .sync-boundary {
   padding: var(--space-md);
@@ -1274,6 +1280,11 @@ a:active {
   display: grid;
   gap: var(--space-md);
   padding: var(--space-md);
+}
+
+.admin-smtp-settings-form {
+  display: grid;
+  gap: var(--space-md);
 }
 
 .admin-site-form {
@@ -1580,6 +1591,7 @@ a:active {
 }
 
 @media (max-width: 640px) {
+  .profile-password-grid { grid-template-columns: 1fr; }
   .app-shell {
     display: flex !important;
     height: auto !important;

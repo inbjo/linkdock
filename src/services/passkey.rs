@@ -197,8 +197,12 @@ impl PasskeyService {
             return Ok(ChallengeResponse { flow_id, options });
         };
 
-        let row = sqlx::query("SELECT id, disabled FROM users WHERE username = ?")
-            .bind(username.trim())
+        let identifier = username.trim();
+        let row = sqlx::query(
+            "SELECT id, disabled FROM users WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE LIMIT 1",
+        )
+            .bind(identifier)
+            .bind(identifier)
             .fetch_optional(&state.pool)
             .await?;
         let user_id = match row {

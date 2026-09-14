@@ -149,7 +149,8 @@ function SmtpSection() {
     finally { setSaving(false) }
   }
 
-  const test = async () => {
+  const test = async (event: React.FormEvent) => {
+    event.preventDefault()
     setTesting(true)
     try { await api.testSmtp(testEmail); showSuccess(t('admin.smtp_test_sent')) }
     catch (err) { showError(err instanceof Error ? err.message : t('admin.smtp_test')) }
@@ -160,29 +161,31 @@ function SmtpSection() {
     <section className="admin-section">
       {element}
       <div className="page-eyebrow">{t('admin.smtp_title')}</div>
-      <form className="card admin-smtp-form" onSubmit={save}>
-        <label className="admin-smtp-toggle">
-          <span className="checkbox-hit">
-            <input className="ui-checkbox" type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
-            <span className="ui-checkbox-mark" aria-hidden="true" />
-          </span>
-          {t('admin.smtp_enabled')}
-        </label>
-        <div className="smtp-grid">
-          <div><label className="label">{t('admin.smtp_host')}</label><input className="input" required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} /></div>
-          <div><label className="label">{t('admin.smtp_port')}</label><input className="input" type="number" min={1} max={65535} required value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} /></div>
-          <div><label className="label">{t('admin.smtp_security')}</label><select className="input" value={form.security} onChange={(e) => setForm({ ...form, security: e.target.value as SmtpSettings['security'] })}><option value="starttls">STARTTLS</option><option value="tls">TLS</option><option value="none">{t('admin.smtp_none')}</option></select></div>
-          <div><label className="label">{t('admin.smtp_username')}</label><input className="input" autoComplete="off" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></div>
-          <div><label className="label">{t('admin.smtp_password')}</label><input className="input" type="password" autoComplete="new-password" value={password} placeholder={form.password_configured ? t('admin.smtp_password_saved') : ''} onChange={(e) => setPassword(e.target.value)} /></div>
-          <div><label className="label">{t('admin.smtp_from_email')}</label><input className="input" type="email" required value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} /></div>
-          <div><label className="label">{t('admin.smtp_from_name')}</label><input className="input" required value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} /></div>
-        </div>
-        <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? t('common.loading') : t('admin.smtp_save')}</button>
-        <div className="smtp-test-row">
+      <div className="card admin-smtp-form">
+        <form className="admin-smtp-settings-form" onSubmit={save}>
+          <label className="admin-smtp-toggle">
+            <span className="checkbox-hit">
+              <input className="ui-checkbox" type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+              <span className="ui-checkbox-mark" aria-hidden="true" />
+            </span>
+            {t('admin.smtp_enabled')}
+          </label>
+          <div className="smtp-grid">
+            <div><label className="label">{t('admin.smtp_host')}</label><input className="input" required value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} /></div>
+            <div><label className="label">{t('admin.smtp_port')}</label><input className="input" type="number" min={1} max={65535} required value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} /></div>
+            <div><label className="label">{t('admin.smtp_security')}</label><select className="input" value={form.security} onChange={(e) => setForm({ ...form, security: e.target.value as SmtpSettings['security'] })}><option value="starttls">STARTTLS</option><option value="tls">TLS</option><option value="none">{t('admin.smtp_none')}</option></select></div>
+            <div><label className="label">{t('admin.smtp_username')}</label><input className="input" autoComplete="off" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></div>
+            <div><label className="label">{t('admin.smtp_password')}</label><input className="input" type="password" autoComplete="new-password" value={password} placeholder={form.password_configured ? t('admin.smtp_password_saved') : ''} onChange={(e) => setPassword(e.target.value)} /></div>
+            <div><label className="label">{t('admin.smtp_from_email')}</label><input className="input" type="email" required value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} /></div>
+            <div><label className="label">{t('admin.smtp_from_name')}</label><input className="input" required value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} /></div>
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={saving || testing}>{saving ? t('common.loading') : t('admin.smtp_save')}</button>
+        </form>
+        <form className="smtp-test-row" onSubmit={test}>
           <input className="input" type="email" required value={testEmail} placeholder={t('admin.smtp_test_email')} onChange={(e) => setTestEmail(e.target.value)} />
-          <button className="btn" type="button" disabled={testing || !testEmail} onClick={test}>{testing ? t('common.loading') : t('admin.smtp_test')}</button>
-        </div>
-      </form>
+          <button className="btn" type="submit" disabled={saving || testing || !testEmail}>{testing ? t('common.loading') : t('admin.smtp_test')}</button>
+        </form>
+      </div>
     </section>
   )
 }

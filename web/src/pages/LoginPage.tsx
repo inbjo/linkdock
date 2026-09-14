@@ -12,7 +12,7 @@ export function LoginPage() {
   const nav = useNavigate()
   const { showError, showSuccess, element } = useToast()
   const { refresh } = useAuth()
-  const [username, setUsername] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
@@ -21,7 +21,7 @@ export function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await api.login(username, password)
+      await api.login(identifier, password)
       await refresh()
       showSuccess(t('auth.login_success'))
       nav('/bookmarks')
@@ -69,12 +69,12 @@ export function LoginPage() {
         <form onSubmit={submit} className="w-full flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-[var(--color-ink-2)] tracking-wide">
-              {t('auth.username')}
+              {t('auth.username_or_email')}
             </label>
             <input
               className="auth-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               autoFocus
               required
               autoComplete="username webauthn"
@@ -127,12 +127,12 @@ export function LoginPage() {
         {!isPasskeySupported() ? (
           <p className="mt-3 text-xs text-[var(--color-ink-3)] text-center leading-relaxed">{t('auth.passkey_unsupported')}</p>
         ) : null}
-        {isPasskeySupported() && username.trim() ? (
+        {isPasskeySupported() && identifier.trim() ? (
           <button
             type="button"
             className="auth-btn-ghost w-full mt-2"
             disabled={passkeyLoading}
-            onClick={() => loginWithPasskey(username.trim())}
+            onClick={() => loginWithPasskey(identifier.trim())}
           >
             {t('auth.passkey_username_fallback')}
           </button>

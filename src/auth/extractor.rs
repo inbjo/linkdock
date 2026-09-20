@@ -54,6 +54,20 @@ impl AuthUser {
 #[derive(Debug, Clone)]
 pub struct AuthContext(pub AuthUser);
 
+/// Account administration must never inherit a bookmark token's user privileges.
+#[derive(Debug, Clone)]
+pub struct SessionContext(pub AuthUser);
+
+impl FromRequestParts<AppState> for SessionContext {
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> AppResult<Self> {
+        let user = resolve_auth(parts, state).await?;
+        user.require_session()?;
+        Ok(Self(user))
+    }
+}
+
 impl FromRequestParts<AppState> for AuthContext {
     type Rejection = AppError;
 

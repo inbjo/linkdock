@@ -36,6 +36,7 @@ struct FlatNode {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct CreateNodeInput {
+    pub expected_revision: Option<i64>,
     pub document_id: i64,
     #[serde(default)]
     pub parent_id: Option<i64>,
@@ -52,6 +53,7 @@ pub struct CreateNodeInput {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct UpdateNodeInput {
+    pub expected_revision: Option<i64>,
     #[serde(default, deserialize_with = "deserialize_nullable")]
     pub parent_id: Option<Option<i64>>,
     #[serde(default)]
@@ -74,11 +76,102 @@ where
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ReorderNodesInput {
+    pub expected_revision: Option<i64>,
     pub parent_id: Option<i64>,
     pub node_ids: Vec<i64>,
 }
 
 pub struct BookmarkService;
+
+#[derive(Default)]
+pub struct WriteConditions {
+    pub if_match: Option<String>,
+    pub if_none_match: Option<String>,
+}
+
+pub fn document_etag(document: &SyncDocument) -> String {
+    format!("\"{}-{}\"", document.uuid, document.revision)
+}
+
+pub async fn check_path_conditions(
+    tx: &mut SqliteConnection,
+    user_id: i64,
+    path: &str,
+    conditions: &WriteConditions,
+) -> AppResult<()> {
+    let document = sqlx::query_as::<_, SyncDocument>(
+        "SELECT * FROM sync_documents WHERE user_id=? AND path=?",
+    )
+    .bind(user_id)
+    .bind(path)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let etag = document.as_ref().map(document_etag);
+    let matches = |value: &str, weak: bool| {
+        value.split(',').any(|candidate| {
+            let candidate = candidate.trim();
+            candidate == "*" && etag.is_some()
+                || etag.as_deref().is_some_and(|etag| {
+                    (if weak {
+                        candidate.strip_prefix("W/").unwrap_or(candidate)
+                    } else {
+                        candidate
+                    }) == etag
+                })
+        })
+    };
+    if conditions
+        .if_match
+        .as_deref()
+        .is_some_and(|value| !matches(value, false))
+        || conditions
+            .if_none_match
+            .as_deref()
+            .is_some_and(|value| matches(value, true))
+    {
+        return Err(AppError::PreconditionFailed);
+    }
+    Ok(())
+}
+
+pub async fn ensure_webdav_unlocked(
+    tx: &mut SqliteConnection,
+    user: &AuthUser,
+    path: &str,
+) -> AppResult<()> {
+    let blocked: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sync_locks WHERE user_id=? AND path=? AND updated_at>=? AND owner_token_id IS NOT ?)")
+        .bind(user.user_id).bind(path).bind(unix_now() - 300).bind(user.token_id)
+        .fetch_one(&mut *tx).await?;
+    if blocked {
+        return Err(AppError::Locked);
+    }
+    Ok(())
+}
+
+async fn check_revision(
+    tx: &mut SqliteConnection,
+    user_id: i64,
+    document_id: i64,
+    expected: Option<i64>,
+) -> AppResult<()> {
+    let revision: i64 =
+        sqlx::query_scalar("SELECT revision FROM sync_documents WHERE user_id=? AND id=?")
+            .bind(user_id)
+            .bind(document_id)
+            .fetch_one(&mut *tx)
+            .await?;
+    if expected.is_some_and(|expected| expected != revision) {
+        return Err(AppError::PreconditionFailed);
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize, sqlx::FromRow)]
+pub struct SnapshotInfo {
+    pub id: i64,
+    pub revision: i64,
+    pub created_at: String,
+}
 
 impl BookmarkService {
     pub async fn list_documents(state: &AppState, user_id: i64) -> AppResult<Vec<SyncDocument>> {
@@ -121,15 +214,21 @@ impl BookmarkService {
         user_id: i64,
         document_id: i64,
     ) -> AppResult<Vec<BookmarkTreeNode>> {
-        let exists: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM sync_documents WHERE id = ? AND user_id = ?")
+        Ok(Self::tree_snapshot(state, user_id, document_id).await?.1)
+    }
+
+    pub async fn tree_snapshot(
+        state: &AppState,
+        user_id: i64,
+        document_id: i64,
+    ) -> AppResult<(i64, Vec<BookmarkTreeNode>)> {
+        let mut tx = state.pool.begin().await?;
+        let revision: i64 =
+            sqlx::query_scalar("SELECT revision FROM sync_documents WHERE id = ? AND user_id = ?")
                 .bind(document_id)
                 .bind(user_id)
-                .fetch_one(&state.pool)
+                .fetch_one(&mut *tx)
                 .await?;
-        if exists == 0 {
-            return Err(AppError::NotFound);
-        }
         let nodes = sqlx::query_as::<_, BookmarkNode>(
             r#"SELECT * FROM bookmark_nodes
                WHERE document_id = ? AND user_id = ? AND deleted_at IS NULL
@@ -137,17 +236,17 @@ impl BookmarkService {
         )
         .bind(document_id)
         .bind(user_id)
-        .fetch_all(&state.pool)
+        .fetch_all(&mut *tx)
         .await?;
         let tag_rows = sqlx::query(
             r#"SELECT nt.node_id, t.name FROM node_tags nt
                JOIN tags t ON t.id = nt.tag_id
                JOIN bookmark_nodes n ON n.id = nt.node_id
-               WHERE n.document_id = ? AND n.user_id = ? ORDER BY t.name"#,
+               WHERE n.document_id = ? AND n.user_id = ? AND n.deleted_at IS NULL ORDER BY t.name"#,
         )
         .bind(document_id)
         .bind(user_id)
-        .fetch_all(&state.pool)
+        .fetch_all(&mut *tx)
         .await?;
         let mut tags: HashMap<i64, Vec<String>> = HashMap::new();
         for row in tag_rows {
@@ -155,15 +254,33 @@ impl BookmarkService {
                 .or_default()
                 .push(row.get("name"));
         }
-        Ok(build_tree(nodes, tags))
+        tx.commit().await?;
+        Ok((revision, build_tree(nodes, tags)))
     }
 
     pub async fn serialize_xbel(
         state: &AppState,
         user_id: i64,
         path: &str,
-    ) -> AppResult<(Vec<u8>, i64)> {
-        let document = Self::get_document_by_path(state, user_id, path).await?;
+    ) -> AppResult<(Vec<u8>, i64, String)> {
+        let mut tx = state.pool.begin().await?;
+        let result = Self::serialize_xbel_tx(&mut tx, user_id, path).await?;
+        tx.commit().await?;
+        Ok(result)
+    }
+
+    async fn serialize_xbel_tx(
+        tx: &mut SqliteConnection,
+        user_id: i64,
+        path: &str,
+    ) -> AppResult<(Vec<u8>, i64, String)> {
+        let document = sqlx::query_as::<_, SyncDocument>(
+            "SELECT * FROM sync_documents WHERE user_id=? AND path=?",
+        )
+        .bind(user_id)
+        .bind(path)
+        .fetch_one(&mut *tx)
+        .await?;
         let nodes = sqlx::query_as::<_, BookmarkNode>(
             r#"SELECT * FROM bookmark_nodes
                WHERE document_id = ? AND user_id = ? AND deleted_at IS NULL
@@ -171,7 +288,7 @@ impl BookmarkService {
         )
         .bind(document.id)
         .bind(user_id)
-        .fetch_all(&state.pool)
+        .fetch_all(&mut *tx)
         .await?;
         let mut children: HashMap<Option<i64>, Vec<BookmarkNode>> = HashMap::new();
         for node in nodes {
@@ -190,21 +307,28 @@ impl BookmarkService {
             document.next_external_id.saturating_sub(1)
         ));
         xml.push_str("</xbel>\n");
-        Ok((xml.into_bytes(), document.updated_unix))
+        Ok((
+            xml.into_bytes(),
+            document.updated_unix,
+            document_etag(&document),
+        ))
     }
 
     pub async fn replace_from_xbel(
-        state: &AppState,
+        tx: &mut SqliteConnection,
         user: &AuthUser,
         path: &str,
         content: &[u8],
+        conditions: &WriteConditions,
     ) -> AppResult<SyncDocument> {
         user.require_write()?;
         let text = std::str::from_utf8(content)
             .map_err(|_| AppError::Validation("XBEL must be UTF-8".into()))?;
         let parsed = parse_xbel(text)?;
-        let mut tx = state.pool.begin().await?;
-        let mut document = ensure_document_tx(&mut tx, user, path).await?;
+        ensure_webdav_unlocked(tx, user, path).await?;
+        check_path_conditions(tx, user.user_id, path, conditions).await?;
+        let mut document = ensure_document_tx(tx, user, path).await?;
+        Self::snapshot(tx, user.user_id, &document).await?;
         let mut flat = Vec::new();
         flatten_nodes(parsed.nodes, None, &mut flat);
 
@@ -287,7 +411,6 @@ impl BookmarkService {
         .bind(user.user_id)
         .fetch_one(&mut *tx)
         .await?;
-        tx.commit().await?;
         Ok(document)
     }
 
@@ -298,8 +421,15 @@ impl BookmarkService {
     ) -> AppResult<BookmarkNode> {
         user.require_write()?;
         validate_node_input(&req.node_type, &req.title, req.url.as_deref())?;
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         verify_document(&mut tx, user.user_id, req.document_id).await?;
+        check_revision(
+            &mut tx,
+            user.user_id,
+            req.document_id,
+            req.expected_revision,
+        )
+        .await?;
         ensure_document_unlocked(&mut tx, user.user_id, req.document_id).await?;
         verify_parent(&mut tx, user.user_id, req.document_id, req.parent_id).await?;
         let external_id = allocate_document_id(&mut tx, req.document_id).await?;
@@ -331,6 +461,7 @@ impl BookmarkService {
         .fetch_one(&mut *tx)
         .await?;
         set_node_tags(&mut tx, user.user_id, node.id, &req.tags).await?;
+        validate_document_limits(&mut tx, user.user_id, req.document_id).await?;
         touch_document(&mut tx, req.document_id).await?;
         tx.commit().await?;
         Ok(node)
@@ -343,8 +474,15 @@ impl BookmarkService {
         req: UpdateNodeInput,
     ) -> AppResult<BookmarkNode> {
         user.require_write()?;
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         let existing = get_node_tx(&mut tx, user.user_id, id).await?;
+        check_revision(
+            &mut tx,
+            user.user_id,
+            existing.document_id,
+            req.expected_revision,
+        )
+        .await?;
         ensure_document_unlocked(&mut tx, user.user_id, existing.document_id).await?;
         let parent_id = req.parent_id.unwrap_or(existing.parent_id);
         verify_parent(&mut tx, user.user_id, existing.document_id, parent_id).await?;
@@ -386,15 +524,22 @@ impl BookmarkService {
         if let Some(tags) = req.tags {
             set_node_tags(&mut tx, user.user_id, node.id, &tags).await?;
         }
+        validate_document_limits(&mut tx, user.user_id, existing.document_id).await?;
         touch_document(&mut tx, existing.document_id).await?;
         tx.commit().await?;
         Ok(node)
     }
 
-    pub async fn delete_node(state: &AppState, user: &AuthUser, id: i64) -> AppResult<()> {
+    pub async fn delete_node(
+        state: &AppState,
+        user: &AuthUser,
+        id: i64,
+        expected_revision: Option<i64>,
+    ) -> AppResult<()> {
         user.require_write()?;
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         let node = get_node_tx(&mut tx, user.user_id, id).await?;
+        check_revision(&mut tx, user.user_id, node.document_id, expected_revision).await?;
         ensure_document_unlocked(&mut tx, user.user_id, node.document_id).await?;
         let now = crate::auth::extractor::now_iso();
         sqlx::query(
@@ -404,7 +549,7 @@ impl BookmarkService {
                  SELECT n.id FROM bookmark_nodes n JOIN descendants d ON n.parent_id = d.id
                )
                UPDATE bookmark_nodes SET deleted_at = ?, updated_at = ?
-               WHERE id IN (SELECT id FROM descendants)"#,
+               WHERE id IN (SELECT id FROM descendants) AND deleted_at IS NULL"#,
         )
         .bind(id)
         .bind(user.user_id)
@@ -424,8 +569,9 @@ impl BookmarkService {
         req: ReorderNodesInput,
     ) -> AppResult<()> {
         user.require_write()?;
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         verify_document(&mut tx, user.user_id, document_id).await?;
+        check_revision(&mut tx, user.user_id, document_id, req.expected_revision).await?;
         ensure_document_unlocked(&mut tx, user.user_id, document_id).await?;
         let actual: Vec<i64> = sqlx::query_scalar(
             r#"SELECT id FROM bookmark_nodes WHERE document_id = ? AND user_id = ?
@@ -456,6 +602,170 @@ impl BookmarkService {
         tx.commit().await?;
         Ok(())
     }
+}
+
+impl BookmarkService {
+    pub async fn search(
+        state: &AppState,
+        user_id: i64,
+        document_id: i64,
+        query: &str,
+        offset: i64,
+    ) -> AppResult<Vec<BookmarkNode>> {
+        if query.len() > 256 || offset < 0 {
+            return Err(AppError::Validation("invalid search query".into()));
+        }
+        let terms: Vec<_> = query
+            .split_whitespace()
+            .map(|term| format!("\"{}\"*", term.replace('"', "\"\"")))
+            .collect();
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(sqlx::query_as::<_, BookmarkNode>(r#"SELECT n.* FROM bookmark_nodes_fts
+            JOIN bookmark_nodes n ON n.id=bookmark_nodes_fts.node_id
+            WHERE bookmark_nodes_fts MATCH ? AND n.user_id=? AND n.document_id=? AND n.deleted_at IS NULL
+            ORDER BY rank, n.id LIMIT 100 OFFSET ?"#)
+            .bind(terms.join(" AND ")).bind(user_id).bind(document_id).bind(offset).fetch_all(&state.pool).await?)
+    }
+
+    pub async fn trash(
+        state: &AppState,
+        user_id: i64,
+        document_id: i64,
+        offset: i64,
+    ) -> AppResult<Vec<BookmarkNode>> {
+        Ok(sqlx::query_as::<_, BookmarkNode>(r#"SELECT n.* FROM bookmark_nodes n
+            WHERE n.user_id=? AND n.document_id=? AND n.deleted_at IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM bookmark_nodes p WHERE p.id=n.parent_id AND p.user_id=n.user_id AND p.deleted_at=n.deleted_at)
+            ORDER BY n.deleted_at DESC, n.id LIMIT 100 OFFSET ?"#)
+            .bind(user_id).bind(document_id).bind(offset.max(0)).fetch_all(&state.pool).await?)
+    }
+
+    pub async fn restore_node(
+        state: &AppState,
+        user: &AuthUser,
+        id: i64,
+        expected: Option<i64>,
+    ) -> AppResult<()> {
+        user.require_write()?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let node = sqlx::query_as::<_, BookmarkNode>(
+            "SELECT * FROM bookmark_nodes WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
+        )
+        .bind(id)
+        .bind(user.user_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        check_revision(&mut tx, user.user_id, node.document_id, expected).await?;
+        ensure_document_unlocked(&mut tx, user.user_id, node.document_id).await?;
+        // Restore only descendants removed in the same operation. Older deleted
+        // children must stay in the trash. Missing parents fall back to root.
+        let parent: Option<i64> = sqlx::query_scalar("SELECT id FROM bookmark_nodes WHERE id=? AND document_id=? AND user_id=? AND deleted_at IS NULL AND node_type='folder'")
+            .bind(node.parent_id).bind(node.document_id).bind(user.user_id).fetch_optional(&mut *tx).await?;
+        sqlx::query(r#"UPDATE bookmark_nodes SET parent_id=?, position=(SELECT coalesce(max(position)+1,0) FROM bookmark_nodes WHERE document_id=? AND user_id=? AND parent_id IS ? AND deleted_at IS NULL) WHERE id=? AND user_id=?"#)
+            .bind(parent).bind(node.document_id).bind(user.user_id).bind(parent).bind(id).bind(user.user_id).execute(&mut *tx).await?;
+        sqlx::query(
+            r#"WITH RECURSIVE restored(id) AS (
+            SELECT id FROM bookmark_nodes WHERE id=? AND user_id=?
+            UNION ALL SELECT n.id FROM bookmark_nodes n JOIN restored r ON n.parent_id=r.id
+            WHERE n.user_id=? AND n.document_id=? AND n.deleted_at=?
+        ) UPDATE bookmark_nodes SET deleted_at=NULL, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+          WHERE id IN (SELECT id FROM restored) AND user_id=?"#,
+        )
+        .bind(id)
+        .bind(user.user_id)
+        .bind(user.user_id)
+        .bind(node.document_id)
+        .bind(node.deleted_at)
+        .bind(user.user_id)
+        .execute(&mut *tx)
+        .await?;
+        validate_document_limits(&mut tx, user.user_id, node.document_id).await?;
+        touch_document(&mut tx, node.document_id).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn snapshot(
+        tx: &mut SqliteConnection,
+        user_id: i64,
+        document: &SyncDocument,
+    ) -> AppResult<()> {
+        if document.revision == 0 {
+            return Ok(());
+        }
+        let (content, _, _) = Self::serialize_xbel_tx(tx, user_id, &document.path).await?;
+        sqlx::query(
+            "INSERT INTO document_snapshots(document_id,user_id,revision,content) VALUES(?,?,?,?)",
+        )
+        .bind(document.id)
+        .bind(user_id)
+        .bind(document.revision)
+        .bind(content)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("DELETE FROM document_snapshots WHERE user_id=? AND document_id=? AND id NOT IN (SELECT id FROM document_snapshots WHERE user_id=? AND document_id=? ORDER BY id DESC LIMIT 20)")
+            .bind(user_id).bind(document.id).bind(user_id).bind(document.id).execute(&mut *tx).await?;
+        Ok(())
+    }
+
+    pub async fn snapshots(
+        state: &AppState,
+        user_id: i64,
+        document_id: i64,
+    ) -> AppResult<Vec<SnapshotInfo>> {
+        Ok(sqlx::query_as::<_, SnapshotInfo>("SELECT id,revision,created_at FROM document_snapshots WHERE user_id=? AND document_id=? ORDER BY id DESC")
+            .bind(user_id).bind(document_id).fetch_all(&state.pool).await?)
+    }
+
+    pub async fn restore_snapshot(
+        state: &AppState,
+        user: &AuthUser,
+        id: i64,
+        expected: Option<i64>,
+    ) -> AppResult<()> {
+        user.require_write()?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
+        let row = sqlx::query("SELECT s.document_id,s.content,d.path FROM document_snapshots s JOIN sync_documents d ON d.id=s.document_id AND d.user_id=s.user_id WHERE s.id=? AND s.user_id=?")
+            .bind(id).bind(user.user_id).fetch_one(&mut *tx).await?;
+        let document_id: i64 = row.get("document_id");
+        check_revision(&mut tx, user.user_id, document_id, expected).await?;
+        ensure_document_unlocked(&mut tx, user.user_id, document_id).await?;
+        Self::replace_from_xbel(
+            &mut tx,
+            user,
+            row.get("path"),
+            row.get::<Vec<u8>, _>("content").as_slice(),
+            &WriteConditions::default(),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
+async fn validate_document_limits(
+    tx: &mut SqliteConnection,
+    user_id: i64,
+    document_id: i64,
+) -> AppResult<()> {
+    let row = sqlx::query(r#"WITH RECURSIVE tree(id,depth) AS (
+        SELECT id,1 FROM bookmark_nodes WHERE user_id=? AND document_id=? AND parent_id IS NULL AND deleted_at IS NULL
+        UNION ALL SELECT n.id,t.depth+1 FROM bookmark_nodes n JOIN tree t ON n.parent_id=t.id
+        WHERE n.user_id=? AND n.document_id=? AND n.deleted_at IS NULL AND t.depth<=128
+    ) SELECT count(*) AS count,coalesce(max(depth),0) AS depth FROM tree"#)
+        .bind(user_id).bind(document_id).bind(user_id).bind(document_id).fetch_one(&mut *tx).await?;
+    validate_tree_limits(
+        row.get::<i64, _>("depth") as usize,
+        row.get::<i64, _>("count") as usize,
+    )?;
+    let total: i64 = sqlx::query_scalar("SELECT count(*) FROM bookmark_nodes WHERE user_id=? AND document_id=? AND deleted_at IS NULL")
+        .bind(user_id).bind(document_id).fetch_one(&mut *tx).await?;
+    if total != row.get::<i64, _>("count") {
+        return Err(AppError::CircularRef);
+    }
+    Ok(())
 }
 
 async fn ensure_document_unlocked(

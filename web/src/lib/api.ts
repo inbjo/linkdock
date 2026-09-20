@@ -2,8 +2,9 @@ import type {
   AuthResponse, MeResponse, Tag,
   AccessToken, AccessTokenCreated, SessionInfo, ApiError,
   PasskeyInfo, PasskeyChallenge, SetupStatus, SmtpSettings, SiteSettings,
-  SyncDocument, BookmarkTreeNode, BookmarkNodeType,
+  SyncDocument, BookmarkTreeNode, BookmarkNode, BookmarkNodeType,
 } from './types'
+import i18n from '@/i18n'
 
 const BASE = '/api/app/v1'
 
@@ -18,6 +19,7 @@ class ApiClient {
       },
     })
     if (!resp.ok) {
+      if (resp.status === 412) throw new Error(i18n.t('tree.conflict'))
       let err: ApiError
       try {
         err = await resp.json()
@@ -123,9 +125,25 @@ class ApiClient {
     return this.request<SyncDocument>('/documents/default', { method: 'POST' })
   }
   bookmarkTree(documentId: number) {
-    return this.request<BookmarkTreeNode[]>(`/documents/${documentId}/tree`)
+    return this.request<{ revision: number; nodes: BookmarkTreeNode[] }>(`/documents/${documentId}/view`)
+  }
+  searchNodes(documentId: number, query: string, offset = 0) {
+    return this.request<BookmarkNode[]>(`/documents/${documentId}/search?q=${encodeURIComponent(query)}&offset=${offset}`)
+  }
+  trash(documentId: number, offset = 0) {
+    return this.request<BookmarkNode[]>(`/documents/${documentId}/trash?offset=${offset}`)
+  }
+  snapshots(documentId: number) {
+    return this.request<{ id: number; revision: number; created_at: string }[]>(`/documents/${documentId}/snapshots`)
+  }
+  restoreNode(id: number, revision: number) {
+    return this.request(`/nodes/${id}/restore`, { method: 'POST', body: JSON.stringify({ expected_revision: revision }) })
+  }
+  restoreSnapshot(id: number, revision: number) {
+    return this.request(`/snapshots/${id}/restore`, { method: 'POST', body: JSON.stringify({ expected_revision: revision }) })
   }
   createNode(data: {
+    expected_revision: number
     document_id: number
     parent_id?: number | null
     node_type: BookmarkNodeType
@@ -134,23 +152,24 @@ class ApiClient {
     description?: string
     tags?: string[]
   }) {
-    return this.request<BookmarkTreeNode>('/nodes', { method: 'POST', body: JSON.stringify(data) })
+    return this.request<BookmarkNode>('/nodes', { method: 'POST', body: JSON.stringify(data) })
   }
   updateNode(id: number, data: {
+    expected_revision: number
     parent_id?: number | null
     title?: string
     url?: string | null
     description?: string
     tags?: string[]
   }) {
-    return this.request<BookmarkTreeNode>(`/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    return this.request<BookmarkNode>(`/nodes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
-  deleteNode(id: number) {
-    return this.request(`/nodes/${id}`, { method: 'DELETE' })
+  deleteNode(id: number, revision: number) {
+    return this.request(`/nodes/${id}?expected_revision=${revision}`, { method: 'DELETE' })
   }
-  reorderNodes(documentId: number, parentId: number | null, nodeIds: number[]) {
+  reorderNodes(documentId: number, parentId: number | null, nodeIds: number[], revision: number) {
     return this.request(`/documents/${documentId}/order`, {
-      method: 'PUT', body: JSON.stringify({ parent_id: parentId, node_ids: nodeIds }),
+      method: 'PUT', body: JSON.stringify({ parent_id: parentId, node_ids: nodeIds, expected_revision: revision }),
     })
   }
 

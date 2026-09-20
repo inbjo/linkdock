@@ -8,6 +8,607 @@ async fn setup() -> TestApp {
     TestApp::new().await
 }
 
+#[tokio::test]
+async fn restoring_a_folder_does_not_restore_previously_deleted_children() {
+    let app = setup().await;
+    let (session, _) = register(&app, "subtree-recovery").await;
+    let token = token(&app, &session, "device").await;
+    let url = format!("{}/webdav/bookmarks.xbel", app.base);
+    let xbel = r#"<xbel><folder id="1"><title>Folder</title><bookmark id="2" href="https://earlier.example"/><bookmark id="3" href="https://later.example"/></folder></xbel>"#;
+    assert_eq!(
+        app.client
+            .put(&url)
+            .basic_auth("x", Some(&token))
+            .body(xbel)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    let doc: i64 = sqlx::query_scalar("SELECT id FROM sync_documents")
+        .fetch_one(&app.state.pool)
+        .await
+        .unwrap();
+    let nodes: Vec<(i64, String)> =
+        sqlx::query_as("SELECT id,external_id FROM bookmark_nodes ORDER BY external_id")
+            .fetch_all(&app.state.pool)
+            .await
+            .unwrap();
+    let parent = nodes[0].0;
+    let child = nodes[1].0;
+    assert_eq!(
+        app.client
+            .delete(format!(
+                "{}/api/app/v1/nodes/{child}?expected_revision=1",
+                app.base
+            ))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    // Give the earlier deletion a distinct, stable timestamp even on coarse clocks.
+    sqlx::query("UPDATE bookmark_nodes SET deleted_at='2000-01-01T00:00:00Z' WHERE id=?")
+        .bind(child)
+        .execute(&app.state.pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        app.client
+            .delete(format!(
+                "{}/api/app/v1/nodes/{parent}?expected_revision=2",
+                app.base
+            ))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        app.client
+            .post(format!("{}/api/app/v1/nodes/{parent}/restore", app.base))
+            .json(&serde_json::json!({"expected_revision":3}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    let view = document_view(&app, doc).await;
+    let children = view["nodes"][0]["children"].as_array().unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0]["url"], "https://later.example");
+}
+
+async fn document_view(app: &TestApp, id: i64) -> Value {
+    app.client
+        .get(format!("{}/api/app/v1/documents/{id}/view", app.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn visual_revisions_search_and_trash_are_consistent() {
+    let app = setup().await;
+    register(&app, "recovery").await;
+    let doc: Value = app
+        .client
+        .post(format!("{}/api/app/v1/documents/default", app.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let id = doc["id"].as_i64().unwrap();
+    let response = app.client.post(format!("{}/api/app/v1/nodes", app.base)).json(&serde_json::json!({
+        "document_id":id,"expected_revision":0,"node_type":"bookmark","title":"Rust reference","url":"https://rust.example","tags":["language"]
+    })).send().await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let node: Value = response.json().await.unwrap();
+    let node_id = node["id"].as_i64().unwrap();
+    let view = document_view(&app, id).await;
+    assert_eq!(view["revision"], 1);
+    let response = app
+        .client
+        .put(format!("{}/api/app/v1/nodes/{node_id}", app.base))
+        .json(&serde_json::json!({"title":"stale","expected_revision":0}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PRECONDITION_FAILED);
+    let results: Vec<Value> = app
+        .client
+        .get(format!(
+            "{}/api/app/v1/documents/{id}/search?q=Rust",
+            app.base
+        ))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["title"], "Rust reference");
+    assert_eq!(
+        app.client
+            .delete(format!(
+                "{}/api/app/v1/nodes/{node_id}?expected_revision=0",
+                app.base
+            ))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::PRECONDITION_FAILED
+    );
+    assert_eq!(
+        app.client
+            .delete(format!(
+                "{}/api/app/v1/nodes/{node_id}?expected_revision=1",
+                app.base
+            ))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    let results: Vec<Value> = app
+        .client
+        .get(format!(
+            "{}/api/app/v1/documents/{id}/search?q=Rust",
+            app.base
+        ))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(results.is_empty());
+    let trash: Vec<Value> = app
+        .client
+        .get(format!("{}/api/app/v1/documents/{id}/trash", app.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(trash.len(), 1);
+    assert_eq!(
+        app.client
+            .post(format!("{}/api/app/v1/nodes/{node_id}/restore", app.base))
+            .json(&serde_json::json!({"expected_revision":2}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    let view = document_view(&app, id).await;
+    assert_eq!(view["revision"], 3);
+    assert_eq!(view["nodes"][0]["tags"][0], "language");
+    register(&app, "other-recovery").await;
+    for suffix in ["search?q=Rust", "trash", "snapshots"] {
+        let results: Vec<Value> = app
+            .client
+            .get(format!("{}/api/app/v1/documents/{id}/{suffix}", app.base))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert!(results.is_empty());
+    }
+    assert_eq!(
+        app.client
+            .post(format!("{}/api/app/v1/nodes/{node_id}/restore", app.base))
+            .json(&serde_json::json!({"expected_revision":3}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
+async fn conditional_webdav_writes_and_snapshot_restore() {
+    let app = setup().await;
+    let (session, _) = register(&app, "conditional").await;
+    let token = token(&app, &session, "device").await;
+    let url = format!("{}/webdav/bookmarks.xbel", app.base);
+    let old =
+        r#"<xbel><bookmark id="1" href="https://old.example"><title>Old</title></bookmark></xbel>"#;
+    let new =
+        r#"<xbel><bookmark id="1" href="https://new.example"><title>New</title></bookmark></xbel>"#;
+    assert_eq!(
+        app.client
+            .put(&url)
+            .basic_auth("x", Some(&token))
+            .header("if-none-match", "*")
+            .body(old)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(
+        app.client
+            .put(&url)
+            .basic_auth("x", Some(&token))
+            .header("if-none-match", "*")
+            .body(new)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::PRECONDITION_FAILED
+    );
+    let response = app
+        .client
+        .get(&url)
+        .basic_auth("x", Some(&token))
+        .send()
+        .await
+        .unwrap();
+    let etag = response.headers()["etag"].to_str().unwrap().to_string();
+    let a = app
+        .client
+        .put(&url)
+        .basic_auth("x", Some(&token))
+        .header("if-match", &etag)
+        .body(new)
+        .send();
+    let b = app
+        .client
+        .put(&url)
+        .basic_auth("x", Some(&token))
+        .header("if-match", &etag)
+        .body(new)
+        .send();
+    let (a, b) = tokio::join!(a, b);
+    let statuses = [a.unwrap().status(), b.unwrap().status()];
+    assert!(statuses.contains(&StatusCode::NO_CONTENT));
+    assert!(statuses.contains(&StatusCode::PRECONDITION_FAILED));
+    let docs: Vec<Value> = app
+        .client
+        .get(format!("{}/api/app/v1/documents", app.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let id = docs[0]["id"].as_i64().unwrap();
+    let snapshots: Vec<Value> = app
+        .client
+        .get(format!("{}/api/app/v1/documents/{id}/snapshots", app.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(snapshots.len(), 1);
+    let snapshot = snapshots[0]["id"].as_i64().unwrap();
+    assert_eq!(
+        app.client
+            .post(format!(
+                "{}/api/app/v1/snapshots/{snapshot}/restore",
+                app.base
+            ))
+            .json(&serde_json::json!({"expected_revision":2}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+    let restored = app
+        .client
+        .get(&url)
+        .basic_auth("x", Some(&token))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(restored.contains("https://old.example"));
+    assert_eq!(document_view(&app, id).await["revision"], 3);
+}
+
+#[tokio::test]
+async fn move_rolls_back_document_and_snapshot_when_staging_cleanup_fails() {
+    let app = setup().await;
+    let (session, _) = register(&app, "atomic-move").await;
+    let token = token(&app, &session, "device").await;
+    let url = format!("{}/webdav/bookmarks.xbel", app.base);
+    let old = r#"<xbel><bookmark id="1" href="https://old.example"/></xbel>"#;
+    let new = r#"<xbel><bookmark id="1" href="https://new.example"/></xbel>"#;
+    assert_eq!(
+        app.client
+            .put(&url)
+            .basic_auth("x", Some(&token))
+            .body(old)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(
+        app.client
+            .put(format!("{url}.temp"))
+            .basic_auth("x", Some(&token))
+            .body(new)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::CREATED
+    );
+    sqlx::query("CREATE TRIGGER fail_staging_cleanup BEFORE DELETE ON webdav_staging BEGIN SELECT RAISE(ABORT,'injected failure'); END;")
+        .execute(&app.state.pool).await.unwrap();
+    let response = app
+        .client
+        .request(
+            reqwest::Method::from_bytes(b"MOVE").unwrap(),
+            format!("{url}.temp"),
+        )
+        .basic_auth("x", Some(&token))
+        .header("destination", &url)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let content = app
+        .client
+        .get(&url)
+        .basic_auth("x", Some(&token))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(content.contains("https://old.example"));
+    assert!(!content.contains("https://new.example"));
+    let snapshots: i64 = sqlx::query_scalar("SELECT count(*) FROM document_snapshots")
+        .fetch_one(&app.state.pool)
+        .await
+        .unwrap();
+    assert_eq!(snapshots, 0);
+    assert_eq!(
+        app.client
+            .get(format!("{url}.temp"))
+            .basic_auth("x", Some(&token))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn browser_security_is_same_origin_by_default() {
+    let app = setup().await;
+    let response = app
+        .client
+        .get(format!("{}/login", app.base))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.headers()["x-frame-options"], "DENY");
+    assert_eq!(response.headers()["x-content-type-options"], "nosniff");
+    assert_eq!(
+        response.headers()["cross-origin-resource-policy"],
+        "same-origin"
+    );
+    assert!(response.headers()["content-security-policy"]
+        .to_str()
+        .unwrap()
+        .contains("script-src 'self'"));
+    assert!(!response.headers().contains_key("strict-transport-security"));
+    let url = format!("{}/api/app/v1/auth/register", app.base);
+    let response = app.client.post(&url).header("origin", "https://evil.example")
+        .json(&serde_json::json!({"username":"blocked","email":"blocked@example.com","password":"password123"}))
+        .send().await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert!(!response
+        .headers()
+        .contains_key("access-control-allow-origin"));
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM users")
+        .fetch_one(&app.state.pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    for origin in ["null", "https://evil.example"] {
+        let response = app
+            .client
+            .request(reqwest::Method::OPTIONS, &url)
+            .header("origin", origin)
+            .header("access-control-request-method", "POST")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+    let response = app
+        .client
+        .get(format!("{}/api/app/v1/auth/setup", app.base))
+        .header("origin", &app.base)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    let response = app
+        .client
+        .post(&url)
+        .header("sec-fetch-site", "cross-site")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn explicit_cors_allowlist_and_https_headers() {
+    let app = TestApp::new_with_config(|config| {
+        config.public_url = "https://dock.example".into();
+        config.cors_origins = vec!["https://trusted.example".into()];
+    })
+    .await;
+    let response = app
+        .client
+        .request(
+            reqwest::Method::OPTIONS,
+            format!("{}/api/app/v1/me", app.base),
+        )
+        .header("origin", "https://trusted.example")
+        .header("access-control-request-method", "PUT")
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    assert_eq!(
+        response.headers()["access-control-allow-origin"],
+        "https://trusted.example"
+    );
+    assert_eq!(
+        response.headers()["strict-transport-security"],
+        "max-age=31536000"
+    );
+    let response = app
+        .client
+        .get(format!("{}/api/app/v1/auth/setup", app.base))
+        .header("origin", "https://untrusted.example")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn readonly_admin_token_cannot_administer_accounts() {
+    let app = setup().await;
+    register(&app, "admin-token").await;
+    let response = app
+        .client
+        .post(format!("{}/api/app/v1/tokens", app.base))
+        .json(&serde_json::json!({"name":"readonly","scopes":"bookmarks:read"}))
+        .send()
+        .await
+        .unwrap();
+    let value: Value = response.json().await.unwrap();
+    let token = value["plaintext"].as_str().unwrap();
+    // Bearer takes precedence even if the browser also supplies a session cookie.
+    for (method, path, body) in [
+        (reqwest::Method::GET, "/admin/stats", serde_json::json!({})),
+        (
+            reqwest::Method::PUT,
+            "/admin/site",
+            serde_json::json!({"site_name":"bad","site_title":"bad","site_description":"bad","site_keywords":"bad"}),
+        ),
+        (reqwest::Method::PUT, "/admin/smtp", serde_json::json!({})),
+        (
+            reqwest::Method::PUT,
+            "/me",
+            serde_json::json!({"email":"changed@example.com"}),
+        ),
+        (reqwest::Method::GET, "/passkeys", serde_json::json!({})),
+        (
+            reqwest::Method::POST,
+            "/passkeys/register/start",
+            serde_json::json!({}),
+        ),
+        (
+            reqwest::Method::POST,
+            "/passkeys/register/finish",
+            serde_json::json!({}),
+        ),
+        (
+            reqwest::Method::DELETE,
+            "/passkeys/1",
+            serde_json::json!({}),
+        ),
+        (reqwest::Method::GET, "/sessions", serde_json::json!({})),
+        (
+            reqwest::Method::DELETE,
+            "/sessions/1",
+            serde_json::json!({}),
+        ),
+        (
+            reqwest::Method::POST,
+            "/tokens",
+            serde_json::json!({"name":"escalate"}),
+        ),
+    ] {
+        let response = app
+            .client
+            .request(method, format!("{}/api/app/v1{path}", app.base))
+            .bearer_auth(token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+    }
+    assert_eq!(
+        app.client
+            .get(format!("{}/api/app/v1/admin/stats", app.base))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn authentication_attempts_are_rate_limited() {
+    let app = setup().await;
+    let url = format!("{}/api/app/v1/auth/login", app.base);
+    // Malformed requests also consume the budget without doing expensive hashes.
+    for _ in 0..30 {
+        assert_eq!(
+            app.client
+                .post(&url)
+                .json(&serde_json::json!({}))
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::UNPROCESSABLE_ENTITY
+        );
+    }
+    let response = app
+        .client
+        .post(&url)
+        .header("x-forwarded-for", "192.0.2.1")
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers()["retry-after"], "60");
+}
+
 async fn register(app: &TestApp, username: &str) -> (String, Value) {
     let response = app
         .client
@@ -123,7 +724,10 @@ async fn password_change_is_session_only_and_user_scoped() {
     let access_token_a = token(&app, &session_a, "password-client").await;
     let endpoint = format!("{}/api/app/v1/me/password", app.base);
 
-    let response = reqwest::Client::new()
+    let response = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .unwrap()
         .put(&endpoint)
         .json(&serde_json::json!({
             "current_password": "password123",

@@ -20,6 +20,13 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn public_url_origin(&self) -> String {
+        url::Url::parse(&self.public_url)
+            .expect("valid DOCK_PUBLIC_URL")
+            .origin()
+            .ascii_serialization()
+    }
+
     pub fn from_env() -> Self {
         let data_dir = std::env::var("DOCK_DATA_DIR")
             .map(PathBuf::from)
@@ -55,27 +62,16 @@ impl Config {
                 rand::thread_rng().fill_bytes(&mut bytes);
                 bytes
             });
-        let cookie_secure = std::env::var("DOCK_COOKIE_SECURE")
-            .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
-            .unwrap_or_else(|_| {
-                // Auto-detect: disable Secure for localhost / 127.0.0.1 / 0.0.0.0
-                // (no HTTPS in local dev). Enable for everything else.
-                let listen = std::env::var("DOCK_LISTEN").unwrap_or_default();
-                !(listen.is_empty()
-                    || listen.starts_with("0.0.0.0")
-                    || listen.starts_with("127.")
-                    || listen.starts_with("localhost")
-                    || listen.starts_with("::1"))
-            });
         let setup_token = std::env::var("DOCK_SETUP_TOKEN")
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
-        let cors_origins = std::env::var("DOCK_CORS_ORIGINS")
+        let cors_origins: Vec<String> = std::env::var("DOCK_CORS_ORIGINS")
             .unwrap_or_default()
             .split(',')
+            .map(str::trim)
             .filter(|s| !s.is_empty())
-            .map(|s| s.trim().to_string())
+            .map(str::to_string)
             .collect();
         let webauthn_rp_id =
             std::env::var("DOCK_WEBAUTHN_RP_ID").unwrap_or_else(|_| "localhost".to_string());
@@ -87,6 +83,24 @@ impl Config {
             .unwrap_or_else(|_| webauthn_rp_origin.clone())
             .trim_end_matches('/')
             .to_string();
+        let parsed =
+            url::Url::parse(&public_url).expect("DOCK_PUBLIC_URL must be an absolute HTTP(S) URL");
+        assert!(
+            matches!(parsed.scheme(), "http" | "https") && parsed.host_str().is_some(),
+            "DOCK_PUBLIC_URL must be HTTP(S)"
+        );
+        let cookie_secure = std::env::var("DOCK_COOKIE_SECURE")
+            .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
+            .unwrap_or_else(|_| parsed.scheme() == "https");
+        for origin in &cors_origins {
+            let parsed = url::Url::parse(origin)
+                .expect("DOCK_CORS_ORIGINS must contain exact HTTP(S) origins");
+            assert!(
+                matches!(parsed.scheme(), "http" | "https")
+                    && parsed.origin().ascii_serialization() == *origin,
+                "CORS origins cannot contain paths or wildcards"
+            );
+        }
         Self {
             database_url,
             data_dir,

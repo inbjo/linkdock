@@ -14,6 +14,8 @@ mixed order is preserved between devices and remains editable in the web UI.
 - Exact folder, bookmark, and separator ordering across devices
 - Visual XBEL tree editor backed by the same SQLite data
 - Drag-and-drop reordering and cross-folder moves
+- Full-text bookmark search, trash recovery, and the last 20 pre-sync XBEL snapshots
+- Revision checks to prevent stale web edits from silently overwriting changes
 - Multiple XBEL documents per user account
 - Multi-user registration with user data isolation
 - Hashed, revocable access tokens with read/write or read-only scopes
@@ -38,7 +40,8 @@ registered; the first account becomes the system administrator.
 
 ## Floccus setup
 
-Create one access token for your account, then configure Floccus as:
+Create a separate access token for each device (locks identify devices by token),
+then configure Floccus as:
 
 - Sync method: **WebDAV**
 - Server URL: `https://your-domain.example/webdav/`
@@ -110,14 +113,36 @@ username is ignored and the access token is the password.
 | `DOCK_DATABASE_URL` | derived | SQLite connection string |
 | `DOCK_LISTEN` | `0.0.0.0:3000` | Bind address |
 | `DOCK_SESSION_SECRET` | generated | Session signing secret; set explicitly in production |
-| `DOCK_COOKIE_SECURE` | `true` | Secure session cookie flag |
+| `DOCK_COOKIE_SECURE` | public URL uses HTTPS | Secure session cookie flag |
 | `DOCK_SETUP_TOKEN` | empty | Protect first-account registration |
-| `DOCK_CORS_ORIGINS` | empty | Additional comma-separated origins |
+| `DOCK_PUBLIC_URL` | WebAuthn origin | Browser-facing URL; required for correct origin checks behind a proxy |
+| `DOCK_CORS_ORIGINS` | empty | Exact additional origins; cross-origin access is denied by default |
 | `DOCK_LOG_FORMAT` | `text` | `text` or `json` |
 | `RUST_LOG` | `info` | Logging filter |
 
 Passkey deployments can additionally set `DOCK_WEBAUTHN_RP_ID`,
 `DOCK_WEBAUTHN_ORIGIN`, `DOCK_WEBAUTHN_RP_NAME`, and `DOCK_PUBLIC_URL`.
+
+Set `DOCK_PUBLIC_URL` to the exact public URL before deploying behind HTTPS.
+Disallowed browser origins receive 403 before the application processes the
+request. Non-browser WebDAV clients without an Origin header remain supported.
+Credentialed CORS is granted only to explicitly configured origins; no wildcards
+are accepted. For Vite development, set `DOCK_PUBLIC_URL=http://localhost:5173`
+and use its existing `/api` proxy (configure the same WebAuthn origin for Passkeys).
+
+Responses include CSP, `nosniff`, frame denial, a no-referrer policy, restricted
+browser permissions, and same-origin opener/resource policies. HSTS is enabled
+when `DOCK_PUBLIC_URL` uses HTTPS, without forcing subdomains or preload. CSP
+allows same-origin scripts only; inline style attributes remain allowed for the
+tree layout, while external styles and fonts must be same-origin. The frontend
+uses system fonts and makes no requests to online font CDNs.
+
+Authentication POST endpoints share a limit of 30 attempts per socket-peer IP
+per minute; forwarded IP headers are not trusted. Behind a reverse proxy this
+budget is shared by that proxy's clients, so also configure edge rate limiting.
+Password hashing runs outside async workers with at most four concurrent jobs.
+Account and admin APIs require a session, including for administrator-owned
+bookmark tokens. API and WebDAV responses use `Cache-Control: no-store`.
 
 ## Data model
 
@@ -126,6 +151,12 @@ bookmarks, and separators in one table with a shared `parent_id` and `position`.
 Stable XBEL IDs allow uploads to update existing rows and retain web metadata such
 as tags. Replacing a document happens in one SQLite transaction. User identity
 always comes from a server-side session or access token, never from request data.
+
+The workspace-era database schema is not supported for in-place upgrades. Start
+with a fresh database for this user-owned schema; if manually importing legacy
+workspaces, assign their documents to the workspace creator. Do not edit SQLx
+migration checksums to bypass a schema mismatch. Once deployed, retain historical
+migrations unchanged and add new migrations for subsequent changes.
 
 ## Deployment
 

@@ -88,11 +88,11 @@ sudo systemctl restart caddy
 | `DOCK_SESSION_SECRET` | random | 32-byte hex secret for sessions |
 | `DOCK_COOKIE_SECURE` | `true` | Set to `false` if no HTTPS |
 | `DOCK_SETUP_TOKEN` | empty | Optional initialization secret required only by the first account |
-| `DOCK_CORS_ORIGINS` | empty | Comma-separated allowed origins |
+| `DOCK_CORS_ORIGINS` | empty | Exact additional origins; empty denies cross-origin browser access |
 | `DOCK_WEBAUTHN_RP_ID` | `localhost` | Passkey relying-party domain, without scheme or port |
 | `DOCK_WEBAUTHN_ORIGIN` | `http://localhost:3000` | Exact public origin used for Passkeys |
 | `DOCK_WEBAUTHN_RP_NAME` | `Linkdock` | Service name shown by authenticators |
-| `DOCK_PUBLIC_URL` | `DOCK_WEBAUTHN_ORIGIN` | Public origin used in password-reset email links |
+| `DOCK_PUBLIC_URL` | `DOCK_WEBAUTHN_ORIGIN` | Browser-facing origin for origin checks, HTTPS policy, and reset links |
 | `DOCK_LOG_FORMAT` | `text` | `json` for structured logging |
 | `RUST_LOG` | `info` | Log level filter |
 
@@ -138,7 +138,7 @@ sudo systemctl start linkdock
 
 ```
 linkdock_users_total 42
-linkdock_tenants_total 7
+linkdock_documents_total 7
 linkdock_bookmarks_total 15234
 linkdock_folders_total 156
 linkdock_active_sessions 23
@@ -161,7 +161,7 @@ Each request includes an `x-request-id` header (propagated or auto-generated).
 - [ ] Use HTTPS (reverse proxy with TLS)
 - [ ] Set `DOCK_COOKIE_SECURE=true` (default)
 - [ ] Match the Passkey RP ID and Origin to the public HTTPS URL
-- [ ] Restrict `DOCK_CORS_ORIGINS` to your domain
+- [ ] Set `DOCK_PUBLIC_URL` to the exact public HTTPS origin; leave `DOCK_CORS_ORIGINS` empty unless additional browser origins are required
 - [ ] Set up regular backups
 - [ ] Keep the system updated
 - [ ] Monitor `/metrics` and logs

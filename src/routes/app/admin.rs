@@ -1,4 +1,5 @@
-use crate::auth::{AuthContext, AuthUser};
+use crate::auth::extractor::SessionContext as AuthContext;
+use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::services::audit::AuditService;
 use crate::state::AppState;

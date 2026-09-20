@@ -10,7 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::services::bookmark::BookmarkService;
+use crate::services::bookmark::{
+    check_path_conditions, ensure_webdav_unlocked, BookmarkService, WriteConditions,
+};
 use crate::state::AppState;
 
 const LOCK_TTL_SECONDS: i64 = 5 * 60;
@@ -68,7 +70,7 @@ async fn handle(
         "HEAD" => get_resource(&state, &user, &path, true).await,
         "PROPFIND" => propfind(&state, &user, &path).await,
         "PUT" => put_resource(state, user, path, req).await,
-        "DELETE" => delete_resource(&state, &user, &path).await,
+        "DELETE" => delete_resource(&state, &user, &path, req.headers()).await,
         "MOVE" => move_resource(&state, &user, &path, req.headers()).await,
         _ => status(StatusCode::METHOD_NOT_ALLOWED),
     }
@@ -103,12 +105,18 @@ async fn get_resource(
         return get_staging(state, user, path, head_only).await;
     }
     match BookmarkService::serialize_xbel(state, user.user_id, path).await {
-        Ok((content, updated_at)) => file_response(
-            "application/xml; charset=utf-8",
-            content.len(),
-            updated_at,
-            if head_only { Vec::new() } else { content },
-        ),
+        Ok((content, updated_at, etag)) => {
+            let mut response = file_response(
+                "application/xml; charset=utf-8",
+                content.len(),
+                updated_at,
+                if head_only { Vec::new() } else { content },
+            );
+            response
+                .headers_mut()
+                .insert(header::ETAG, etag.parse().expect("valid ETag"));
+            response
+        }
         Err(AppError::NotFound) => status(StatusCode::NOT_FOUND),
         Err(error) => error.into_response(),
     }
@@ -163,11 +171,13 @@ async fn get_lock(
     };
     let updated_at: i64 = row.get("updated_at");
     if lock_expired(updated_at) {
-        let _ = sqlx::query("DELETE FROM sync_locks WHERE user_id = ? AND path = ?")
-            .bind(user.user_id)
-            .bind(document_path)
-            .execute(&state.pool)
-            .await;
+        let _ =
+            sqlx::query("DELETE FROM sync_locks WHERE user_id = ? AND path = ? AND updated_at = ?")
+                .bind(user.user_id)
+                .bind(document_path)
+                .bind(updated_at)
+                .execute(&state.pool)
+                .await;
         return status(StatusCode::NOT_FOUND);
     }
     let content = b"Linkdock Floccus lock".to_vec();
@@ -230,6 +240,7 @@ async fn put_resource(
         .unwrap_or("application/xml")
         .to_string();
     let limit = state.config.max_upload_mb.saturating_mul(1024 * 1024);
+    let conditions = write_conditions(req.headers());
     let content = match to_bytes(req.into_body(), limit).await {
         Ok(content) => content,
         Err(_) => return status(StatusCode::PAYLOAD_TOO_LARGE),
@@ -240,8 +251,12 @@ async fn put_resource(
     }
     if path.ends_with(".temp") {
         let document_path = path.trim_end_matches(".temp");
-        if !owns_lock(&state, &user, document_path, token_id).await {
-            return status(StatusCode::LOCKED);
+        let mut tx = match state.pool.begin_with("BEGIN IMMEDIATE").await {
+            Ok(tx) => tx,
+            Err(error) => return database_error(error),
+        };
+        if let Err(error) = ensure_webdav_unlocked(&mut tx, &user, document_path).await {
+            return error.into_response();
         }
         let result = sqlx::query(
             r#"INSERT INTO webdav_staging
@@ -258,21 +273,28 @@ async fn put_resource(
         .bind(content.as_ref())
         .bind(content_type)
         .bind(unix_now())
-        .execute(&state.pool)
+        .execute(&mut *tx)
         .await;
         return match result {
-            Ok(_) => status(StatusCode::CREATED),
+            Ok(_) => match tx.commit().await {
+                Ok(_) => status(StatusCode::CREATED),
+                Err(error) => database_error(error),
+            },
             Err(error) => database_error(error),
         };
     }
     if !path.to_ascii_lowercase().ends_with(".xbel") {
         return status(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
-    if !owns_lock(&state, &user, &path, token_id).await {
-        return status(StatusCode::LOCKED);
-    }
-    match BookmarkService::replace_from_xbel(&state, &user, &path, &content).await {
-        Ok(_) => status(StatusCode::NO_CONTENT),
+    let mut tx = match state.pool.begin_with("BEGIN IMMEDIATE").await {
+        Ok(tx) => tx,
+        Err(error) => return database_error(error),
+    };
+    match BookmarkService::replace_from_xbel(&mut tx, &user, &path, &content, &conditions).await {
+        Ok(_) => match tx.commit().await {
+            Ok(_) => status(StatusCode::NO_CONTENT),
+            Err(error) => database_error(error),
+        },
         Err(error) => error.into_response(),
     }
 }
@@ -305,7 +327,12 @@ async fn put_lock(
     }
 }
 
-async fn delete_resource(state: &AppState, user: &AuthUser, path: &str) -> Response<Body> {
+async fn delete_resource(
+    state: &AppState,
+    user: &AuthUser,
+    path: &str,
+    headers: &HeaderMap,
+) -> Response<Body> {
     if user.require_write().is_err() {
         return status(StatusCode::FORBIDDEN);
     }
@@ -342,16 +369,28 @@ async fn delete_resource(state: &AppState, user: &AuthUser, path: &str) -> Respo
             Err(error) => database_error(error),
         };
     }
-    if !owns_lock(state, user, path, token_id).await {
-        return status(StatusCode::LOCKED);
+    let mut tx = match state.pool.begin_with("BEGIN IMMEDIATE").await {
+        Ok(tx) => tx,
+        Err(error) => return database_error(error),
+    };
+    if let Err(error) = ensure_webdav_unlocked(&mut tx, user, path).await {
+        return error.into_response();
+    }
+    if let Err(error) =
+        check_path_conditions(&mut tx, user.user_id, path, &write_conditions(headers)).await
+    {
+        return error.into_response();
     }
     match sqlx::query("DELETE FROM sync_documents WHERE user_id = ? AND path = ?")
         .bind(user.user_id)
         .bind(path)
-        .execute(&state.pool)
+        .execute(&mut *tx)
         .await
     {
-        Ok(result) if result.rows_affected() > 0 => status(StatusCode::NO_CONTENT),
+        Ok(result) if result.rows_affected() > 0 => match tx.commit().await {
+            Ok(_) => status(StatusCode::NO_CONTENT),
+            Err(error) => database_error(error),
+        },
         Ok(_) => status(StatusCode::NOT_FOUND),
         Err(error) => database_error(error),
     }
@@ -376,8 +415,13 @@ async fn move_resource(
         Some(path) => path,
         None => return status(StatusCode::BAD_REQUEST),
     };
-    if !owns_lock(state, user, &destination, token_id).await {
-        return status(StatusCode::LOCKED);
+    let mut tx = match state.pool.begin_with("BEGIN IMMEDIATE").await {
+        Ok(tx) => tx,
+        Err(error) => return database_error(error),
+    };
+    let mut conditions = write_conditions(headers);
+    if headers.get("overwrite").is_some_and(|value| value == "F") {
+        conditions.if_none_match = Some("*".into());
     }
     let content: Vec<u8> = match sqlx::query_scalar(
         r#"SELECT content FROM webdav_staging
@@ -386,7 +430,7 @@ async fn move_resource(
     .bind(user.user_id)
     .bind(source)
     .bind(token_id)
-    .fetch_optional(&state.pool)
+    .fetch_optional(&mut *tx)
     .await
     {
         Ok(Some(content)) => content,
@@ -394,7 +438,7 @@ async fn move_resource(
         Err(error) => return database_error(error),
     };
     if let Err(error) =
-        BookmarkService::replace_from_xbel(state, user, &destination, &content).await
+        BookmarkService::replace_from_xbel(&mut tx, user, &destination, &content, &conditions).await
     {
         return error.into_response();
     }
@@ -404,28 +448,25 @@ async fn move_resource(
     .bind(user.user_id)
     .bind(source)
     .bind(token_id)
-    .execute(&state.pool)
+    .execute(&mut *tx)
     .await
     {
         return database_error(error);
     }
-    status(StatusCode::NO_CONTENT)
+    match tx.commit().await {
+        Ok(_) => status(StatusCode::NO_CONTENT),
+        Err(error) => database_error(error),
+    }
 }
 
-async fn owns_lock(state: &AppState, user: &AuthUser, path: &str, token_id: i64) -> bool {
-    match sqlx::query(
-        "SELECT owner_token_id, updated_at FROM sync_locks WHERE user_id = ? AND path = ?",
-    )
-    .bind(user.user_id)
-    .bind(path)
-    .fetch_optional(&state.pool)
-    .await
-    {
-        Ok(None) => true,
-        Ok(Some(row)) => {
-            row.get::<i64, _>("owner_token_id") == token_id || lock_expired(row.get("updated_at"))
-        }
-        Err(_) => false,
+fn write_conditions(headers: &HeaderMap) -> WriteConditions {
+    WriteConditions {
+        if_match: headers
+            .get(header::IF_MATCH)
+            .map(|value| value.to_str().unwrap_or("").to_string()),
+        if_none_match: headers
+            .get(header::IF_NONE_MATCH)
+            .map(|value| value.to_str().unwrap_or("").to_string()),
     }
 }
 

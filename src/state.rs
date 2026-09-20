@@ -24,6 +24,7 @@ pub(crate) struct WebauthnChallenge {
 pub struct AppState {
     pub pool: SqlitePool,
     pub config: Config,
+    pub(crate) auth_attempts: Arc<Mutex<HashMap<String, (Instant, u32)>>>,
     pub(crate) webauthn_challenges: Arc<Mutex<HashMap<String, WebauthnChallenge>>>,
 }
 
@@ -32,6 +33,7 @@ impl AppState {
         Self {
             pool,
             config,
+            auth_attempts: Arc::new(Mutex::new(HashMap::new())),
             webauthn_challenges: Arc::new(Mutex::new(HashMap::new())),
         }
     }

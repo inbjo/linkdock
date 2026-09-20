@@ -77,8 +77,6 @@ impl AuthService {
                 "username may only contain alphanumeric, _ - .".into(),
             ));
         }
-        let hash = password::hash_password(&req.password)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         let user_uuid = uuid::Uuid::new_v4().to_string();
 
         let user_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
@@ -93,7 +91,8 @@ impl AuthService {
             }
         }
 
-        let mut tx = state.pool.begin().await?;
+        let hash = password::hash_async(req.password).await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
 
         let user_row = sqlx::query(
             r#"INSERT INTO users (uuid, username, email, password_hash, display_name, is_system_admin)
@@ -146,7 +145,7 @@ impl AuthService {
             Some(r) => r,
             None => {
                 // Run a dummy verify to reduce timing attack surface.
-                let _ = password::verify_password("x", "$argon2id$v=19$m=19456,t=2,p=1$YWFhYWFhYWFhYWFhYWFhYQ$YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE");
+                let _ = password::verify_async("x".into(), "$argon2id$v=19$m=19456,t=2,p=1$YWFhYWFhYWFhYWFhYWFhYQ$YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE".into()).await?;
                 return Err(AppError::Validation("invalid credentials".into()));
             }
         };
@@ -155,7 +154,7 @@ impl AuthService {
             return Err(AppError::Forbidden);
         }
         let hash: String = row.try_get("password_hash").unwrap_or_default();
-        if !password::verify_password(&req.password, &hash) {
+        if !password::verify_async(req.password, hash).await? {
             return Err(AppError::Validation("invalid credentials".into()));
         }
         let user_id: i64 = row.try_get("id").unwrap_or(0);

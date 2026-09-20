@@ -19,6 +19,8 @@ pub enum AppError {
     RateLimited,
     #[error("resource locked")]
     Locked,
+    #[error("document changed; refresh before saving")]
+    PreconditionFailed,
     #[error("circular bookmark tree reference")]
     CircularRef,
     #[error("internal error")]
@@ -35,6 +37,7 @@ impl AppError {
             AppError::Validation(_) => StatusCode::BAD_REQUEST,
             AppError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             AppError::Locked => StatusCode::LOCKED,
+            AppError::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
             AppError::CircularRef => StatusCode::BAD_REQUEST,
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -49,6 +52,7 @@ impl AppError {
             AppError::Validation(_) => "validation",
             AppError::RateLimited => "rate_limited",
             AppError::Locked => "locked",
+            AppError::PreconditionFailed => "precondition_failed",
             AppError::CircularRef => "circular_ref",
             AppError::Internal(_) => "internal",
         }

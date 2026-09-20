@@ -1,4 +1,4 @@
-use crate::auth::AuthContext;
+use crate::auth::extractor::SessionContext as AuthContext;
 use crate::error::AppResult;
 use crate::services::token::{CreateTokenRequest, TokenService};
 use crate::state::AppState;

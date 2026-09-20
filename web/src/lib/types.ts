@@ -125,6 +125,8 @@ export interface BookmarkTreeNode {
   children: BookmarkTreeNode[]
 }
 
+export type BookmarkNode = Omit<BookmarkTreeNode, 'tags' | 'children'>
+
 export interface ApiError {
   error: {
     code: string

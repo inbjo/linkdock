@@ -5,6 +5,7 @@ import { Modal } from '@/components/Modal'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
 import { api } from '@/lib/api'
+import { BookmarkTools } from '@/components/BookmarkTools'
 import type { BookmarkNodeType, BookmarkTreeNode } from '@/lib/types'
 
 type EditorState =
@@ -32,14 +33,17 @@ export function BookmarksPage() {
     queryKey: ['bookmark-tree', me?.id, documentId],
     queryFn: () => api.bookmarkTree(documentId!),
     enabled: documentId !== null,
+    refetchOnWindowFocus: editor === null,
   })
   const currentDocument = documents.data?.find((document) => document.id === documentId)
-  const folders = useMemo(() => collectFolders(tree.data || []), [tree.data])
+  const folders = useMemo(() => collectFolders(tree.data?.nodes || []), [tree.data])
+  const revision = tree.data?.revision
 
   const refreshTree = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['documents'] }),
       queryClient.invalidateQueries({ queryKey: ['bookmark-tree'] }),
+      queryClient.invalidateQueries({ queryKey: ['bookmark-tools'] }),
     ])
   }
   const createDefault = useMutation({
@@ -51,19 +55,19 @@ export function BookmarksPage() {
     onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
   })
   const removeNode = useMutation({
-    mutationFn: (id: number) => api.deleteNode(id),
+    mutationFn: (id: number) => api.deleteNode(id, revision!),
     onSuccess: async () => { await refreshTree(); showSuccess(t('tree.deleted')) },
     onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
   })
   const reorder = useMutation({
     mutationFn: ({ parentId, ids }: { parentId: number | null; ids: number[] }) =>
-      api.reorderNodes(documentId!, parentId, ids),
+      api.reorderNodes(documentId!, parentId, ids, revision!),
     onSuccess: refreshTree,
     onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
   })
   const moveNode = useMutation({
     mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
-      api.updateNode(id, { parent_id: parentId }),
+      api.updateNode(id, { parent_id: parentId, expected_revision: revision! }),
     onSuccess: refreshTree,
     onError: (error) => showError(error instanceof Error ? error.message : t('common.error')),
   })
@@ -98,7 +102,7 @@ export function BookmarksPage() {
               <select
                 className="input"
                 value={documentId ?? ''}
-                onChange={(event) => setDocumentId(Number(event.target.value))}
+                onChange={(event) => { setEditor(null); setDocumentId(Number(event.target.value)) }}
               >
                 {documents.data.map((document) => (
                   <option key={document.id} value={document.id}>{document.path}</option>
@@ -106,7 +110,7 @@ export function BookmarksPage() {
               </select>
             </label>
           )}
-          {canWrite && documentId && (
+          {canWrite && documentId && revision !== undefined && (
             <button className="btn btn-primary" onClick={() => setEditor({ mode: 'create', parentId: null, node: null })}>
               {t('tree.add_root')}
             </button>
@@ -114,8 +118,12 @@ export function BookmarksPage() {
         </div>
       </header>
 
+      {documentId && revision !== undefined && <BookmarkTools key={documentId} documentId={documentId} revision={revision} onChanged={refreshTree} />}
+
       <main className="tree-canvas">
-        {documents.isLoading || tree.isLoading ? (
+        {documents.isError || tree.isError ? (
+          <div className="tree-empty" role="alert"><p>{t('common.error')}</p><button className="btn btn-secondary" onClick={refreshTree}>{t('tree.refresh')}</button></div>
+        ) : documents.isLoading || tree.isLoading ? (
           <div className="tree-empty">{t('common.loading')}</div>
         ) : !documents.data?.length ? (
           <div className="tree-empty">
@@ -128,13 +136,13 @@ export function BookmarksPage() {
               </button>
             )}
           </div>
-        ) : tree.data?.length ? (
+        ) : tree.data?.nodes.length ? (
           <div className="tree-outline" role="tree" aria-label={t('tree.title')}>
             <TreeLevel
-              nodes={tree.data}
+              nodes={tree.data.nodes}
               depth={0}
               parentId={null}
-              canWrite={canWrite}
+              canWrite={canWrite && !removeNode.isPending && !reorder.isPending && !moveNode.isPending && !tree.isFetching}
               onAdd={(parentId) => setEditor({ mode: 'create', parentId, node: null })}
               onEdit={(node) => setEditor({ mode: 'edit', parentId: node.parent_id, node })}
               onDelete={(node) => {
@@ -163,8 +171,9 @@ export function BookmarksPage() {
 
       <footer className="tree-status">
         <span>{currentDocument?.path || '—'}</span>
-        <span>{currentDocument ? `rev ${currentDocument.revision}` : '—'}</span>
-        <span>{t('tree.node_count', { count: countNodes(tree.data || []) })}</span>
+        <span>{revision !== undefined ? `rev ${revision}` : '—'}</span>
+        <span>{t('tree.node_count', { count: countNodes(tree.data?.nodes || []) })}</span>
+        <button className="btn btn-ghost" onClick={refreshTree} disabled={tree.isFetching}>{t('tree.refresh')}</button>
       </footer>
 
       <Modal
@@ -172,8 +181,9 @@ export function BookmarksPage() {
         onClose={() => setEditor(null)}
         title={editor?.mode === 'edit' ? t('tree.edit_node') : t('tree.new_node')}
       >
-        {editor && documentId && (
+        {editor && documentId && revision !== undefined && (
           <NodeForm
+            revision={revision}
             documentId={documentId}
             state={editor}
             folders={folders}
@@ -374,8 +384,9 @@ function TreeLevel({ nodes, depth, parentId, canWrite, onAdd, onEdit, onDelete, 
   )
 }
 
-function NodeForm({ documentId, state, folders, onDone }: {
+function NodeForm({ documentId, revision, state, folders, onDone }: {
   documentId: number
+  revision: number
   state: EditorState
   folders: BookmarkTreeNode[]
   onDone: () => Promise<void>
@@ -390,12 +401,14 @@ function NodeForm({ documentId, state, folders, onDone }: {
   const [description, setDescription] = useState(node?.description || '')
   const [tags, setTags] = useState(node?.tags.join(', ') || '')
   const [saving, setSaving] = useState(false)
+  const [expectedRevision] = useState(revision)
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSaving(true)
     try {
       const data = {
+        expected_revision: expectedRevision,
         parent_id: parentId,
         title,
         url: nodeType === 'bookmark' ? url : null,

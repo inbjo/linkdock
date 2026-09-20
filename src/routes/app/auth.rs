@@ -1,4 +1,4 @@
-use crate::auth::AuthContext;
+use crate::auth::extractor::SessionContext as AuthContext;
 use crate::error::{AppError, AppResult};
 use crate::services::auth::{AuthService, LoginRequest, RegisterRequest};
 use crate::state::AppState;
@@ -136,14 +136,13 @@ async fn change_password(
         .bind(auth.0.user_id)
         .fetch_one(&state.pool)
         .await?;
-    if !crate::auth::password::verify_password(&req.current_password, &current_hash) {
+    if !crate::auth::password::verify_async(req.current_password, current_hash.clone()).await? {
         return Err(AppError::Validation("current password is incorrect".into()));
     }
 
     let session_token = extract_session_cookie(&headers).ok_or(AppError::Unauthorized)?;
     let current_session_hash = crate::auth::token::hash_session_token(&session_token);
-    let new_hash = crate::auth::password::hash_password(&req.new_password)
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let new_hash = crate::auth::password::hash_async(req.new_password).await?;
     let mut tx = state.pool.begin().await?;
     let updated = sqlx::query(
         "UPDATE users SET password_hash=?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND password_hash=?",
@@ -235,8 +234,7 @@ async fn reset_password(
             "password must be at least 8 chars".into(),
         ));
     }
-    let hash = crate::auth::password::hash_password(&req.password)
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let hash = crate::auth::password::hash_async(req.password).await?;
     let token_hash = crate::auth::token::sha256_hex(req.token.as_bytes());
     let mut tx = state.pool.begin().await?;
     let row = sqlx::query(

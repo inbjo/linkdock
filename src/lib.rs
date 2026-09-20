@@ -15,7 +15,7 @@ pub mod test_support;
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::{header, HeaderValue, Method, Request, StatusCode};
-use axum::middleware::from_fn;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
@@ -23,10 +23,13 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 pub fn build_router(state: state::AppState) -> Router {
-    // CORS: allow all origins but with explicit headers (credentials + wildcard
-    // headers is not allowed by the CORS spec).
+    // Empty configuration grants no cross-origin access.
+    let origins: Vec<HeaderValue> = std::iter::once(state.config.public_url_origin())
+        .chain(state.config.cors_origins.iter().cloned())
+        .map(|origin| origin.parse().expect("valid origin header"))
+        .collect();
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::mirror_request())
+        .allow_origin(AllowOrigin::list(origins))
         .allow_methods([
             Method::GET,
             Method::HEAD,
@@ -43,12 +46,15 @@ pub fn build_router(state: state::AppState) -> Router {
             header::COOKIE,
             header::ACCEPT,
             header::CACHE_CONTROL,
+            header::IF_MATCH,
+            header::IF_NONE_MATCH,
             header::HeaderName::from_static("depth"),
             header::HeaderName::from_static("destination"),
             header::HeaderName::from_static("overwrite"),
             header::HeaderName::from_static("pragma"),
         ])
-        .allow_credentials(true);
+        .allow_credentials(true)
+        .expose_headers([header::ETAG]);
 
     let app_state = state.clone();
 
@@ -60,6 +66,7 @@ pub fn build_router(state: state::AppState) -> Router {
         .merge(routes::webdav::router())
         .fallback(spa_fallback)
         .layer(cors)
+        .layer(from_fn_with_state(state, middleware::security::security))
         .layer(TraceLayer::new_for_http())
         .layer(from_fn(middleware::request_id::request_id_middleware))
         .with_state(app_state)

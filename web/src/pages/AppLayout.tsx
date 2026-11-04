@@ -79,8 +79,8 @@ export function AppLayout() {
 
         {/* Nav */}
         <nav id="app-navigation" className="app-nav scrollbar-thin">
-          <div className="app-nav-section">{t('nav.bookmarks')}</div>
-          {navItem('/bookmarks', t('nav.bookmarks'))}
+          <div className="app-nav-section">{t('files.title')}</div>
+          {navItem('/bookmarks', t('files.title'))}
 
           <div className="app-nav-divider" />
 

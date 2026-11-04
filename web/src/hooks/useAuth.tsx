@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { MeResponse } from '@/lib/types'
 
@@ -12,6 +13,7 @@ interface AuthCtx {
 const Ctx = createContext<AuthCtx>(null!)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -28,8 +30,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api.logout()
+    queryClient.clear()
     setMe(null)
-  }, [])
+  }, [queryClient])
 
   useEffect(() => {
     refresh()

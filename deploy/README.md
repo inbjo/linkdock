@@ -1,3 +1,8 @@
+# Legacy Rust deployment
+
+This document applies to the original `master` Rust edition. For the current
+Cloudflare branch, use [cloudflare/README.md](../cloudflare/README.md).
+
 # Deployment Guide
 
 This guide covers deploying Linkdock in production environments.

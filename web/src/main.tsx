@@ -5,18 +5,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/i18n'
 import '@/styles/index.css'
 import '@/styles/mobbin.css'
+import '@/styles/files.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { AppLayout } from '@/pages/AppLayout'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
-import { BookmarksPage } from '@/pages/BookmarksPage'
+import { FilesPage } from '@/pages/FilesPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { TokensPage } from '@/pages/TokensPage'
 import { SyncPage } from '@/pages/SyncPage'
 import { AdminPage } from '@/pages/AdminPage'
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
-import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,10 +32,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route element={<AppLayout />}>
-              <Route path="/bookmarks" element={<BookmarksPage />} />
+              <Route path="/bookmarks" element={<FilesPage />} />
               <Route path="/settings/profile" element={<ProfilePage />} />
               <Route path="/settings/tokens" element={<TokensPage />} />
               <Route path="/settings/sync" element={<SyncPage />} />

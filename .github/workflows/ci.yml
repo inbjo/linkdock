@@ -1,76 +1,48 @@
-name: CI
+name: Cloudflare CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [cloudflare]
   pull_request:
+    branches: [cloudflare]
 
-env:
-  CARGO_TERM_COLOR: always
+permissions:
+  contents: read
 
 jobs:
-  rust:
+  cloudflare:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev libssl-dev pkg-config
-      - name: Format check
-        run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Test
-        run: cargo test --all
-
-  frontend:
-    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-      - name: Install
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            cloudflare/package-lock.json
+            web/package-lock.json
+      - name: Install frontend
         working-directory: web
         run: npm ci
-      - name: Type check
-        working-directory: web
-        run: npx tsc --noEmit
-      - name: Build
-        working-directory: web
-        run: npm run build
-
-  release-build:
-    runs-on: ubuntu-latest
-    needs: [rust, frontend]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
-      - uses: Swatinem/rust-cache@v2
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools binutils
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+      - name: Install Worker
+        working-directory: cloudflare
+        run: npm ci
       - name: Build frontend
         working-directory: web
+        run: npm run build
+      - name: Typecheck
+        working-directory: cloudflare
+        run: npm run typecheck
+      - name: Deployment preflight and script tests
+        working-directory: cloudflare
         run: |
-          npm ci
-          npm run build
-      - name: Build release binary
-        run: cargo build --release --locked --target x86_64-unknown-linux-musl
-      - name: Verify binary
-        run: scripts/verify-static.sh target/x86_64-unknown-linux-musl/release/linkdock
+          npm run preflight
+          npm run test:scripts
+      - name: Integration tests
+        working-directory: cloudflare
+        run: npm test
+      - name: Bundle Worker (no deployment)
+        working-directory: cloudflare
+        run: npx wrangler deploy --dry-run

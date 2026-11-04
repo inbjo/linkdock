@@ -1,94 +1,97 @@
-# Floccus WebDAV/XBEL contract
+# Cloudflare Floccus WebDAV/XBEL contract
 
-Linkdock supports Floccus through its WebDAV adapter only. The former
-Linkwarden-shaped `/api/v1` API is intentionally absent because that adapter does
-not preserve sibling ordering.
+## Identity and storage
 
-## Authentication and isolation
+WebDAV uses HTTP Basic authentication: any username, and a Linkdock access token
+as password. Each token is bound to one user and one read-only/read-write scope.
+Use one token per device. Tokens are SHA-256 hashed and shown once on creation.
+Account and administrator APIs accept only session cookies. Sessions are hashed.
 
-- WebDAV uses HTTP Basic authentication.
-- The username is ignored; the password must be a Linkdock access token.
-- Each token is permanently bound to its creating user.
-- Invalid credentials return `401` with a Basic-auth challenge.
-- Every document, node, staging upload, and lock query is scoped by `user_id`.
-- Bookmark tokens cannot access account, session, Passkey, or administrator APIs.
+The collection is `/webdav/`. Each flat `.xbel` filename maps to a current immutable
+R2 object through the user's Durable Object. Files are checked for UTF-8 and
+well-formed XBEL XML, but never rewritten. Stable IDs, mixed order and unknown
+metadata remain byte-for-byte intact. External DTDs/entities are rejected; a
+simple `<!DOCTYPE xbel>` is accepted. Maximum depth is 128, maximum XML elements
+100,000, and the default maximum upload size is 10 MiB.
 
-## Resource model
+## Methods
 
-The collection URL is `/webdav/`. A path ending in `.xbel` maps to one
-`sync_documents` row. The default file is `bookmarks.xbel`.
+- OPTIONS reports supported methods.
+- PROPFIND supports Depth 0/1 and lists current files, the requesting token's
+  staging files, and active locks.
+- GET/HEAD reads files and returns ETag, size and Last-Modified.
+- PUT `.xbel` validates and commits a new immutable version.
+- PUT `.xbel.temp` stores private staging bytes for the requesting device.
+- MOVE `.temp` to `.xbel` validates staged bytes and atomically updates the current
+  pointer/history while deleting staging metadata.
+- PUT `.xbel.lock` acquires or refreshes a five-minute device-owned lock.
+- DELETE removes files, owned staging, or an owned/expired lock.
 
-An XBEL document is not stored as an opaque duplicate blob. Uploads are parsed
-into `bookmark_nodes`, and downloads are serialized from those rows. The web tree
-editor reads and writes the same rows.
+LOCK/UNLOCK, arbitrary folders, COPY, dead properties, and visual node editing are
+not supported. This is an XBEL synchronization service, not a general file drive.
 
-Supported nodes are `<folder>`, `<bookmark href="…">`, and `<separator/>`.
-`<title>` and `<desc>` are preserved. Stable element IDs are emitted and reused
-on later uploads. Unknown metadata is ignored. Malformed XML, invalid bookmark
-URLs, excessive depth, and excessive node counts are rejected before commit.
+## Concurrency and failures
 
-## Ordering
+Every operation for a user passes through one serialized Durable Object queue,
+including the web file API. R2 awaits must not let other requests enter a pointer
+transition. Competing live lock owners receive 423. Session-authenticated file
+imports, deletes and history restores are blocked by any live device lock.
+Locks expire by timestamp; no asynchronous cleanup can delete a refreshed lock.
 
-Folders, bookmarks, and separators use a single `position` sequence for each
-parent. Serialization sorts by that position, never by node type. Visual reorder
-requests must include every active sibling exactly once.
+PUT/DELETE honor If-Match and If-None-Match. MOVE applies them to its destination
+and honors Overwrite: F. Failed conditions return 412. The web UI supplies the
+current ETag, or If-None-Match: * when importing a new filename. A client omitting
+conditions still uses Floccus's lock workflow; a successful raw upload does not
+perform semantic merges of simultaneous bookmark changes.
 
-## WebDAV operations
+R2 does not participate in SQLite transactions. New bytes are uploaded under an
+immutable key, then the current pointer, revision, history and staging deletion
+change in one synchronous SQLite transaction. A failed commit leaves the old file
+intact. Failed uploads/commits leave cleanup records, rather than current pointers
+to nonexistent objects. MOVE reuses the existing immutable staging object.
 
-- `GET` and `HEAD` serialize an `.xbel` document.
-- `PROPFIND` reports collections, documents, staging files, and locks.
-- `PUT *.xbel` parses and transactionally replaces the canonical tree.
-- `PUT *.temp` stores token-private staging bytes.
-- `MOVE *.temp -> *.xbel` parses and commits the staged file atomically.
-- `PUT *.lock` acquires or refreshes a five-minute token-owned lock.
-- `DELETE` removes a lock, staging resource, or document as appropriate.
+Cleanup uses durable alarms and only deletes unreferenced object keys. Abandoned
+staging expires after one day. Old history and deleted objects are reclaimed after
+a grace period. R2 and DO storage must both be retained/backed up; copying the R2
+bucket alone does not restore filenames, locks or history.
 
-A live lock owned by another token returns `423 Locked`. Session-authenticated
-visual mutations also return `423` while a document has an active WebDAV lock.
-Locks are owned by access tokens: use a separate token for each device to make
-competing devices distinguishable. Lock validation and writes share one SQLite
-`BEGIN IMMEDIATE` transaction. Expired-lock cleanup cannot delete a refreshed lock.
+## Web file API and history
 
-GET/HEAD responses include a strong ETag based on document UUID and revision.
-PUT and DELETE honor `If-Match` and `If-None-Match`. MOVE checks these conditions
-against its destination and honors `Overwrite: F`. Failed conditions return 412;
-clients that omit conditions retain Floccus's lock-based workflow. MOVE commits
-the destination tree, snapshot, and staging deletion together, or none of them.
+- GET `/api/app/v1/files` lists this user's files.
+- GET/HEAD/PUT/DELETE `/api/app/v1/files/{filename}` exports/imports/deletes files.
+- GET `/api/app/v1/files/{filename}/versions` lists versions.
+- GET `/api/app/v1/files/{filename}/versions/{id}` exports a version.
+- POST to the same version URL restores it as a new current revision.
 
-The visual editor reads nodes and revision together from
-`GET /api/app/v1/documents/{id}/view` and includes `expected_revision` in mutations
-(a query parameter for DELETE). A stale version returns 412 without changing data.
-API clients should also supply this value; omitting it performs an unconditional
-write subject to the active lock checks.
+Default retention is the current version plus 20 previous versions. Restoration
+preserves selected bytes and saves the displaced current version in history.
+Deleting a file removes its history too. These snapshots do not replace backups.
+All paths and history IDs remain user-scoped. Filenames cannot contain slashes,
+backslashes or control characters.
 
-## Replacement semantics
+## Browser security
 
-An upload is fully parsed and validated first. In one SQLite transaction Linkdock
-then resolves the document, matches nodes by stable external ID, upserts their
-content and exact position, soft-deletes absent nodes, increments the document
-revision, and commits the complete tree. If parsing or validation fails, none of
-the existing tree is changed.
+PUBLIC_URL sets the allowed browser origin. Cross-origin browser API/WebDAV
+requests are rejected. Non-browser requests without Origin/Fetch Metadata headers
+remain supported with credentials. Account cookies are HttpOnly/SameSite=Lax and
+Secure on HTTPS. API and WebDAV responses use Cache-Control: no-store.
 
-## Search and recovery
+## Quotas and operations
 
-`GET /api/app/v1/documents/{id}/search?q=...&offset=0` searches active bookmarks by
-title, URL, and description. Search and trash listings return at most 100 rows.
-`GET /api/app/v1/documents/{id}/trash` lists deleted subtrees; `POST
-/api/app/v1/nodes/{id}/restore` restores a subtree from the same deletion operation.
-An unavailable parent causes the restored subtree to be appended to the root.
+Per-user file count, unique object bytes (including history/staging/pending cleanup),
+and active token limits are configurable. Global defaults may be overridden per
+user. Lower limits never delete data. Storage/file exhaustion returns 507 and token
+exhaustion returns 409. Downloads/deletion remain available subject to locks. File
+count reserves staged targets; bytes are reserved before R2 upload. Failed uploads
+retain conservative reservations until safe cleanup.
 
-Before replacing an existing document, the server retains an XBEL snapshot, up
-to 20 per document. List these at `GET /api/app/v1/documents/{id}/snapshots` and
-restore with `POST /api/app/v1/snapshots/{id}/restore`. Restoration saves the
-current document first and accepts `expected_revision`. Snapshots cover XBEL
-content and ordering; tags and other web-only metadata keep their current values.
-Snapshots belong to the document and are removed by a WebDAV document DELETE.
-They complement, but do not replace, full database backups.
+GET `/api/app/v1/usage` returns authenticated live usage. Administrator-only
+`/admin/settings`, `/admin/invitations`, `/admin/users/{id}/quota`,
+`/admin/operations`, `/admin/users/{id}/operations` and `/admin/users/{id}/cleanup`
+manage policy and operations. Global totals are timestamped samples. Failure logs
+are bounded and contain only method/status/time. No content or credentials are logged.
 
-## Browser origins
-
-The default policy allows only the origin of `DOCK_PUBLIC_URL`. Cross-origin
-browser API/WebDAV requests are rejected before handlers run. Non-browser clients
-without Origin/Fetch Metadata headers continue to use token authentication.
-If an extension sends an Origin, explicitly add its exact origin to
-`DOCK_CORS_ORIGINS`; do not use a wildcard.
+Hourly cron expires D1 sessions and samples up to 25 users using a persistent cursor.
+DO alarms process bounded cleanup queues and scan only the owning R2 prefix for old
+unreferenced objects. Metadata references and grace periods are always checked
+before deleting. Failed cleanup records an error and retries.

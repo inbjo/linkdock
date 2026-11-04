@@ -5,3 +5,9 @@ web/node_modules
 *.sqlite3-wal
 *.sqlite3-shm
 .env
+cloudflare/node_modules/
+cloudflare/.wrangler/
+cloudflare/.dev.vars
+
+cloudflare/.deploy-*.json
+cloudflare/.secrets-*.json

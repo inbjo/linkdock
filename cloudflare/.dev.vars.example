@@ -1,0 +1,6 @@
+# Required before the first account can be registered. Use a random secret.
+SETUP_TOKEN=replace-with-a-long-random-secret
+
+# Optional Turnstile keys; enable registration verification in the admin UI.
+# TURNSTILE_SITE_KEY=your-public-site-key
+# TURNSTILE_SECRET_KEY=your-private-secret-key

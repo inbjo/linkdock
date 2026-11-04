@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 
 interface ModalProps {
   open: boolean
@@ -9,6 +9,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+  const titleId = useId()
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
@@ -22,9 +23,9 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel scrollbar-thin" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-panel scrollbar-thin" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="font-display modal-title">{title}</h2>
+          <h2 id={titleId} className="font-display modal-title">{title}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

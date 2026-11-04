@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/Toast'
+import { Turnstile } from '@/components/Turnstile'
+import type { SetupStatus } from '@/lib/types'
 import { SettingsBar } from '@/components/SettingsBar'
 
 export function RegisterPage() {
   const { t } = useTranslation()
   const nav = useNavigate()
-  const { showError, showSuccess } = useToast()
+  const { showError, showSuccess, element } = useToast()
   const { refresh } = useAuth()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -18,16 +20,22 @@ export function RegisterPage() {
   const [setupToken, setSetupToken] = useState('')
   const [isFirstUser, setIsFirstUser] = useState(false)
   const [requiresSetupToken, setRequiresSetupToken] = useState(false)
+  const [status, setStatus] = useState<SetupStatus | null>(null)
+  const [setupError, setSetupError] = useState('')
+  const [invitation, setInvitation] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const [resetKey, setResetKey] = useState(0)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     api.setupStatus()
       .then((status) => {
+        setStatus(status)
         setIsFirstUser(!status.initialized)
         setRequiresSetupToken(status.requires_setup_token)
       })
-      .catch(() => undefined)
-  }, [])
+      .catch(() => setSetupError(t('ops.setup_failed')))
+  }, [t])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,11 +45,13 @@ export function RegisterPage() {
     }
     setLoading(true)
     try {
-      await api.register(username, email, password, displayName, setupToken || undefined)
+      await api.register(username, email, password, displayName, setupToken || undefined, invitation || undefined, turnstileToken || undefined)
       await refresh()
       showSuccess(t('auth.register_success'))
       nav('/bookmarks')
     } catch (err) {
+      setTurnstileToken('')
+      setResetKey(value => value + 1)
       showError(err instanceof Error ? err.message : t('auth.register'))
     } finally {
       setLoading(false)
@@ -50,6 +60,7 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page min-h-dvh w-full overflow-x-clip flex flex-col items-center justify-center px-6 py-12 relative">
+      {element}
       <SettingsBar />
 
       <div className="w-full max-w-sm flex flex-col items-center">
@@ -58,6 +69,8 @@ export function RegisterPage() {
           {t('app.name')}
         </Link>
 
+        {setupError ? <p role="alert">{setupError}</p> : null}
+        {status?.initialized && status.registration_mode === 'closed' ? <p role="status">{t('ops.registration_closed')}</p> : null}
         {/* Form */}
         <form onSubmit={submit} className="w-full flex flex-col gap-4">
           {isFirstUser && (
@@ -135,10 +148,15 @@ export function RegisterPage() {
               </p>
             </div>
           )}
+          {status?.initialized && status.registration_mode === 'invite' ? <div>
+            <label className="label" htmlFor="invitation-code">{t('ops.invitation_code')}</label>
+            <input id="invitation-code" className="auth-input w-full" required value={invitation} onChange={event => setInvitation(event.target.value)} autoComplete="off" />
+          </div> : null}
+          {status?.turnstile_required ? <Turnstile siteKey={status.turnstile_site_key} resetKey={resetKey} onToken={setTurnstileToken} /> : null}
           <button
             className="auth-btn-primary"
             type="submit"
-            disabled={loading}
+            disabled={loading || !status || (status.initialized && status.registration_mode === 'closed') || (status.turnstile_required && !turnstileToken)}
           >
             {loading ? t('common.loading') : t('auth.register')}
           </button>
